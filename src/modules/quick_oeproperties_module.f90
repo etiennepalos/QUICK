@@ -189,7 +189,7 @@ module quick_oeproperties_module
         distance = rootSquare(xyz(1:3,i), quick_molspec%extxyz(1:3,igridpoint), 3)
         esp_nuclear_term = esp_nuclear_term + quick_molspec%chg(i) / distance
      enddo
- end subroutine esp_nuc
+ end subroutine esp_nuc 
 
  !-----------------------------------------------------------------------------------------
  ! This subroutine computes the 1 particle contribution to the V_elec(r)
@@ -531,6 +531,44 @@ module quick_oeproperties_module
    enddo
  end subroutine esp_shell_pair
 
+
+! EFIELD
+
+ ! EFIELD_GRID = -  (dx, dy, dz) ESP_GRID
+
+
+ ! E_nuc = - grad. V_nuc 
+ !       = - (d/drx, d/dry, d/drz) V_nuc(r)
+
+ subroutine esp_nuc_gradient(ierr, igridpoint, esp_nuclear_gradient)
+   use quick_molspec_module
+   implicit none
+
+   integer, intent(inout) :: ierr
+   integer, intent(in) :: igridpoint
+   double precision, external :: rootSquare
+   double precision, intent(out) :: esp_nuclear_gradient(3)
+
+   double precision :: distance
+   integer :: i
+
+   esp_nuclear_gradient = 0.0d0
+
+   ! Compute the distance between the grid point and each atom
+   do i = 1, natom
+       distance = rootSquare(xyz(1:3, i), quick_molspec%extxyz(1:3, igridpoint), 3)
+
+      ! Compute components of gradient (partial derivatives) using the chain rule
+       esp_nuclear_gradient(1) = esp_nuclear_gradient(1) - quick_molspec%chg(i) * (xyz(1, i) - quick_molspec%extxyz(1, igridpoint)) / (distance**3)
+       esp_nuclear_gradient(2) = esp_nuclear_gradient(2) - quick_molspec%chg(i) * (xyz(2, i) - quick_molspec%extxyz(2, igridpoint)) / (distance**3)
+       esp_nuclear_gradient(3) = esp_nuclear_gradient(3) - quick_molspec%chg(i) * (xyz(3, i) - quick_molspec%extxyz(3, igridpoint)) / (distance**3)
+
+      ! esp_nuclear_gradient(1) = esp_nuclear_gradient(1) + quick_molspec%chg(i) * (xyz(1, i) - quick_molspec%extxyz(1, igridpoint)) / (distance**3)
+      ! esp_nuclear_gradient(2) = esp_nuclear_gradient(2) + quick_molspec%chg(i) * (xyz(2, i) - quick_molspec%extxyz(2, igridpoint)) / (distance**3)
+      ! esp_nuclear_gradient(3) = esp_nuclear_gradient(3) + quick_molspec%chg(i) * (xyz(3, i) - quick_molspec%extxyz(3, igridpoint)) / (distance**3)
+   end do
+
+end subroutine esp_nuc_gradient
 
   subroutine logger(name, status)
     use quick_files_module
