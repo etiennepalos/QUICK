@@ -419,8 +419,15 @@ module quick_oeproperties_module
               dense_sym_factor = 1.0d0
               if (III /= JJJ) dense_sym_factor = 2.0d0
 
-                 esp = esp + dense_sym_factor*quick_qm_struct%denseSave(JJJ,III)*Xconstant &
-                       *quick_basis%cons(III)*quick_basis%cons(JJJ)*attraxiao(itemp1,itemp2,0) 
+              if (quick_method%UNRST) then
+               esp = esp + dense_sym_factor*(quick_qm_struct%dense(JJJ,III)+quick_qm_struct%denseb(JJJ,III))&
+                       *Xconstant*quick_basis%cons(III)*quick_basis%cons(JJJ)*attraxiao(itemp1,itemp2,0)
+              else
+              esp = esp + dense_sym_factor*quick_qm_struct%denseSave(JJJ,III)*Xconstant &
+                       *quick_basis%cons(III)*quick_basis%cons(JJJ)*attraxiao(itemp1,itemp2,0)
+              endif 
+
+            
             enddo
          enddo
 
@@ -523,6 +530,7 @@ module quick_oeproperties_module
       enddo
    enddo
  end subroutine esp_shell_pair
+
 
   subroutine logger(name, status)
     use quick_files_module
