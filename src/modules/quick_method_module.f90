@@ -62,6 +62,7 @@ module quick_method_module
         logical :: esp_grid =  .false.      ! Electrostatic potential on a grid (ESP)
         logical :: efield_grid =  .false.   ! Electrostatic field (EFIELD)
         logical :: efg_grid =  .false.      ! Electrostatic field gradient (EFG)
+        logical :: efg_grid_numerical = .false. ! Numerical finite-difference EFG
         logical :: diisOpt =  .false.  ! DIIS Optimization
         logical :: core =  .false.     ! Add core
         logical :: annil =  .false.    ! Annil Spin Contamination
@@ -242,6 +243,7 @@ module quick_method_module
             call MPI_BCAST(self%esp_grid,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%efield_grid,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%efg_grid,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%efg_grid_numerical,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%diisOpt,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%core,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%annil,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
@@ -504,9 +506,10 @@ module quick_method_module
               end if
             end if
 
-            if (self%esp_grid)      write(io,'(" ELECTROSTATIC POTENTIAL CALCULATION")')
-            if (self%efield_grid)      write(io,'(" ELECTROSTATIC FIELD CALCULATION")')
-            if (self%efg_grid)      write(io,'(" ELECTRIC FIELD GRADIENT CALCULATION")')
+           if (self%esp_grid)      write(io,'(" ELECTROSTATIC POTENTIAL CALCULATION")')
+           if (self%efield_grid)      write(io,'(" ELECTROSTATIC FIELD CALCULATION")')
+           if (self%efg_grid)      write(io,'(" ELECTRIC FIELD GRADIENT CALCULATION")')
+           if (self%efg_grid_numerical) write(io,'(" NUMERICAL EFG FINITE DIFFERENCE")')
 
             if (self%DIVCON) then
                 write(io,'(" DIV & CON METHOD")',advance="no")
@@ -862,6 +865,7 @@ module quick_method_module
                self%efg_grid=.true.
                self%ext_grid=.true.
            endif
+           if (index(keyWD,'EFG_GRID_NUMERICAL').ne.0) self%efg_grid_numerical=.true.
            if (index(keyWD,'EFIELD_GRID').ne.0) then
                self%efield_grid=.true.
                self%ext_grid=.true.
@@ -941,6 +945,7 @@ module quick_method_module
             self%esp_grid = .false.        ! Electrostatic potential (ESP) on grid
             self%efield_grid = .false.     ! Electric field (EFIELD) evaluated on grid
             self%efg_grid = .false.        ! Electric field gradient (EFG)
+            self%efg_grid_numerical = .false. ! Numerical finite-difference EFG
 
             self%LShift_cycle = 3     ! After what cycle allow Level shifting
             self%LShift_err = 0.1d0   ! Minimum error for allowing Level shifting

@@ -665,12 +665,14 @@ module quick_oeproperties_module
  end subroutine compute_efield_values
 
  !----------------------------------------------------------------------------------!
- ! This subroutine computes the Electric Field Gradient (EFG) by central finite     !
- ! difference of EFIELD on the supplied grid.                                      !
+ ! This subroutine computes the Electric Field Gradient (EFG) on the supplied grid. !
+ ! The default algorithm evaluates analytic field-gradient integrals. The           !
+ ! EFG_GRID_NUMERICAL keyword requests the central finite-difference reference.     !
  !----------------------------------------------------------------------------------!
  subroutine compute_efg(npoints,xyz_points)
   use quick_exception_module
   use quick_files_module, only: iEFGFile, efgFileName
+  use quick_method_module, only: quick_method
   use quick_timer_module, only: timer_begin, timer_end, timer_cumer
 #ifdef MPIV
    use quick_mpi_module, only: master
@@ -678,23 +680,156 @@ module quick_oeproperties_module
 
    implicit none
    integer :: ierr, npoints, alloc_status
-   integer :: idir, ifield, igridpoint
    double precision, intent(in) :: xyz_points(:,:)
    double precision, allocatable :: efg(:,:,:)
-   double precision, allocatable :: efield_plus(:,:), efield_minus(:,:)
-   double precision, allocatable :: xyz_plus(:,:), xyz_minus(:,:)
-   double precision, parameter :: efg_fd_step = 1.0d-4
 
    ierr = 0
 
-   allocate(efg(3,3,npoints), efield_plus(3,npoints), efield_minus(3,npoints), &
-            xyz_plus(3,npoints), xyz_minus(3,npoints), stat=alloc_status)
+   allocate(efg(3,3,npoints), stat=alloc_status)
    if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! EFG arrays allocation failed in compute_efg!!')
+     call PrtErr(OUTFILEHANDLE, '!! EFG array allocation failed in compute_efg!!')
      call quick_exit(OUTFILEHANDLE,1)
    endif
 
    RECORD_TIME(timer_begin%TEFGGrid)
+
+   if (quick_method%efg_grid_numerical) then
+     call compute_efg_values_numerical(npoints,xyz_points,efg)
+   else
+     call compute_efg_values_analytic(npoints,xyz_points,efg)
+   endif
+
+   RECORD_TIME(timer_end%TEFGGrid)
+   timer_cumer%TEFGGrid=timer_cumer%TEFGGrid+timer_end%TEFGGrid-timer_begin%TEFGGrid
+
+#ifdef MPIV
+   if (master) then
+#endif
+     SAFE_CALL(quick_open(iEFGFile,efgFileName,'U','F','R',.false.,ierr))
+     call print_efg(efg,npoints,xyz_points)
+     close(iEFGFile)
+#ifdef MPIV
+   endif
+#endif
+
+   deallocate(efg)
+
+ end subroutine compute_efg
+
+!----------------------------------------------------------------------------------!
+! This subroutine computes analytic EFG values on the supplied grid.                !
+!----------------------------------------------------------------------------------!
+ subroutine compute_efg_values_analytic(npoints,xyz_points,efg)
+  use quick_basis_module, only: jshell
+  use quick_exception_module
+#ifdef MPIV
+   use mpi
+   use quick_basis_module, only: mpi_jshelln, mpi_jshell
+   use quick_mpi_module, only: master, mpirank, mpierror
+#endif
+
+   implicit none
+   integer :: IIsh, JJsh
+   integer :: igridpoint, npoints, alloc_status
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, intent(out) :: efg(:,:,:)
+   double precision, allocatable :: efg_electronic(:,:,:)
+   double precision, allocatable :: efg_nuclear(:,:,:)
+#ifdef MPIV
+   double precision, allocatable :: efg_electronic_aggregate(:,:,:)
+#endif
+   integer :: Ish
+
+   allocate(efg_electronic(3,3,npoints), stat=alloc_status)
+   if(alloc_status /= 0) then
+     call PrtErr(OUTFILEHANDLE, '!! efg_electronic array allocation failed in compute_efg_values_analytic!!')
+     call quick_exit(OUTFILEHANDLE,1)
+   endif
+
+   allocate(efg_nuclear(3,3,npoints), stat=alloc_status)
+   if(alloc_status /= 0) then
+     call PrtErr(OUTFILEHANDLE, '!! efg_nuclear array allocation failed in compute_efg_values_analytic!!')
+     call quick_exit(OUTFILEHANDLE,1)
+   endif
+
+#ifdef MPIV
+   allocate(efg_electronic_aggregate(3,3,npoints), stat=alloc_status)
+   if(alloc_status /= 0) then
+     call PrtErr(OUTFILEHANDLE, '!! efg_electronic_aggregate array allocation failed in compute_efg_values_analytic!!')
+     call quick_exit(OUTFILEHANDLE,1)
+   endif
+#endif
+
+   ! Initializes efg_electronic as it will be updated to account
+   ! for contributions from different shell-pairs.
+   efg_electronic(:,:,:) = 0.0d0
+
+   ! Computes efg_nuclear.
+   do igridpoint=1,npoints
+     call efg_nuc(igridpoint,xyz_points,efg_nuclear(1,1,igridpoint))
+   end do
+
+   ! Computes EFG_ELEC by summing over contributions from shell-pairs.
+#ifdef MPIV
+   do Ish=1,mpi_jshelln(mpirank)
+      IIsh=mpi_jshell(mpirank,Ish)
+      do JJsh=IIsh,jshell
+         call efg_shell_pair(IIsh,JJsh,npoints,xyz_points,efg_electronic)
+      enddo
+   enddo
+   call MPI_REDUCE(efg_electronic, efg_electronic_aggregate, 9*npoints, &
+     MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
+#else
+   do IIsh = 1, jshell
+      do JJsh = IIsh, jshell
+        call efg_shell_pair(IIsh,JJsh,npoints,xyz_points,efg_electronic)
+      end do
+   end do
+#endif
+
+   ! Sum the nuclear and electronic parts of EFG.
+#ifdef MPIV
+   if (master) then
+     efg(:,:,:) = efg_nuclear(:,:,:) + efg_electronic_aggregate(:,:,:)
+   else
+     efg(:,:,:) = 0.0d0
+   endif
+#else
+   efg(:,:,:) = efg_nuclear(:,:,:) + efg_electronic(:,:,:)
+#endif
+
+   deallocate(efg_electronic)
+   deallocate(efg_nuclear)
+#ifdef MPIV
+   deallocate(efg_electronic_aggregate)
+#endif
+
+ end subroutine compute_efg_values_analytic
+
+!----------------------------------------------------------------------------------!
+! This subroutine computes the Electric Field Gradient (EFG) by central finite     !
+! difference of EFIELD on the supplied grid.                                      !
+!----------------------------------------------------------------------------------!
+ subroutine compute_efg_values_numerical(npoints,xyz_points,efg)
+#ifdef MPIV
+   use quick_mpi_module, only: master
+#endif
+
+   implicit none
+   integer :: npoints, alloc_status
+   integer :: idir, ifield, igridpoint
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, intent(out) :: efg(:,:,:)
+   double precision, allocatable :: efield_plus(:,:), efield_minus(:,:)
+   double precision, allocatable :: xyz_plus(:,:), xyz_minus(:,:)
+   double precision, parameter :: efg_fd_step = 1.0d-4
+
+   allocate(efield_plus(3,npoints), efield_minus(3,npoints), &
+            xyz_plus(3,npoints), xyz_minus(3,npoints), stat=alloc_status)
+   if(alloc_status /= 0) then
+     call PrtErr(OUTFILEHANDLE, '!! EFG finite-difference arrays allocation failed in compute_efg_values_numerical!!')
+     call quick_exit(OUTFILEHANDLE,1)
+   endif
 
    efg(:,:,:) = 0.0d0
 
@@ -721,22 +856,9 @@ module quick_oeproperties_module
 #endif
    end do
 
-   RECORD_TIME(timer_end%TEFGGrid)
-   timer_cumer%TEFGGrid=timer_cumer%TEFGGrid+timer_end%TEFGGrid-timer_begin%TEFGGrid
+   deallocate(efield_plus, efield_minus, xyz_plus, xyz_minus)
 
-#ifdef MPIV
-   if (master) then
-#endif
-     SAFE_CALL(quick_open(iEFGFile,efgFileName,'U','F','R',.false.,ierr))
-     call print_efg(efg,npoints,xyz_points)
-     close(iEFGFile)
-#ifdef MPIV
-   endif
-#endif
-
-   deallocate(efg, efield_plus, efield_minus, xyz_plus, xyz_minus)
-
- end subroutine compute_efg
+ end subroutine compute_efg_values_numerical
 
 !------------------------------------------------------------------------!
 ! This subroutine calculates EFIELD_nuc(r) = sum Z_k*(r-Rk)/(|r-Rk|^3)   !
@@ -785,6 +907,60 @@ module quick_oeproperties_module
   end do
 
  end subroutine efield_nuc
+
+!--------------------------------------------------------------------------------!
+! This subroutine calculates EFG_nuc(r) = d EFIELD_nuc(r) / dr on each grid point.!
+!--------------------------------------------------------------------------------!
+ subroutine efg_nuc(igridpoint,xyz_points,efg_nuclear_term)
+  use quick_molspec_module, only: natom, quick_molspec, xyz
+  implicit none
+
+  integer, intent(in) :: igridpoint
+  double precision, external :: rootSquare
+  double precision, intent(in) :: xyz_points(:,:)
+  double precision, intent(out) :: efg_nuclear_term(3,3)
+
+  double precision :: charge, distance, inv_dist_cube, inv_dist_fifth
+  double precision :: rx_nuc_gridpoint, ry_nuc_gridpoint, rz_nuc_gridpoint
+  double precision :: rvec(3)
+  integer :: inucleus, i, j
+
+  efg_nuclear_term(:,:) = 0.0d0
+
+  do inucleus = 1, natom+quick_molspec%nextatom
+    if(inucleus<=natom)then
+      distance = rootSquare(xyz(1:3,inucleus),xyz_points(1:3,igridpoint),3)
+      charge = quick_molspec%chg(inucleus)
+
+      rx_nuc_gridpoint = xyz_points(1,igridpoint) - xyz(1,inucleus)
+      ry_nuc_gridpoint = xyz_points(2,igridpoint) - xyz(2,inucleus)
+      rz_nuc_gridpoint = xyz_points(3,igridpoint) - xyz(3,inucleus)
+    else
+      distance = rootSquare(quick_molspec%extxyz(1:3,inucleus-natom),xyz_points(1:3,igridpoint),3)
+      charge = quick_molspec%extchg(inucleus-natom)
+
+      rx_nuc_gridpoint = xyz_points(1,igridpoint) - quick_molspec%extxyz(1,inucleus-natom)
+      ry_nuc_gridpoint = xyz_points(2,igridpoint) - quick_molspec%extxyz(2,inucleus-natom)
+      rz_nuc_gridpoint = xyz_points(3,igridpoint) - quick_molspec%extxyz(3,inucleus-natom)
+    endif
+
+    inv_dist_cube = 1.0d0/(distance**3)
+    inv_dist_fifth = 1.0d0/(distance**5)
+    rvec(1) = rx_nuc_gridpoint
+    rvec(2) = ry_nuc_gridpoint
+    rvec(3) = rz_nuc_gridpoint
+
+    ! Compute nuclear and external-charge components to EFG_NUCLEAR.
+    do i=1,3
+      do j=1,3
+        efg_nuclear_term(i,j) = efg_nuclear_term(i,j) - &
+          3.0d0*charge*rvec(i)*rvec(j)*inv_dist_fifth
+      end do
+      efg_nuclear_term(i,i) = efg_nuclear_term(i,i) + charge*inv_dist_cube
+    end do
+  end do
+
+ end subroutine efg_nuc
 
  !---------------------------------------------------------------------------------------------!
  ! This subroutine formats and prints the EFIELD data to file.efield                           !

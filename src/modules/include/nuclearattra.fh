@@ -1276,3 +1276,316 @@ end subroutine efield_1pdm
 #elif defined (OEI)
 end subroutine nuclearattraopt
 #endif
+
+#if defined (OEPROP)
+subroutine efg_1pdm(Ips,Jps,IIsh,JJsh,NIJ1, &
+      Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g,aux,efg)
+   use quick_params_module, only: trans
+   use quick_method_module, only: quick_method
+   use quick_basis_module, only: quick_basis
+   use quick_calculated_module, only: quick_qm_struct
+   implicit none
+
+   integer Ips, Jps, IIsh, JJsh, NIJ1
+   integer Iang, Jang, III, III1, III2, JJJ, JJJ1, JJJ2, NBI1, NBI2, NBJ1, NBJ2
+   integer lx1, ly1, lz1, lx2, ly2, lz2
+   double precision Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g
+   double precision, intent(in) :: aux(0:20)
+   double precision, intent(inout) :: efg(3,3)
+   double precision X1temp, Xconstant, Xconstant1, Xconstant2, DENSEJI
+   double precision efg_update(3,3)
+
+   do Iang=quick_basis%Qstart(IIsh),quick_basis%Qfinal(IIsh)
+      X1temp=quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)+Iang)
+      do Jang=quick_basis%Qstart(JJsh),quick_basis%Qfinal(JJsh)
+         NBI1=quick_basis%Qsbasis(IIsh,Iang)
+         NBI2=quick_basis%Qfbasis(IIsh,Iang)
+         NBJ1=quick_basis%Qsbasis(JJsh,Jang)
+         NBJ2=quick_basis%Qfbasis(JJsh,Jang)
+
+         III1=quick_basis%ksumtype(IIsh)+NBI1
+         III2=quick_basis%ksumtype(IIsh)+NBI2
+         JJJ1=quick_basis%ksumtype(JJsh)+NBJ1
+         JJJ2=quick_basis%ksumtype(JJsh)+NBJ2
+
+         Xconstant=X1temp*quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)+Jang)
+
+         do III=III1,III2
+            Xconstant1=Xconstant*quick_basis%cons(III)
+            lx1=quick_basis%KLMN(1,III)
+            ly1=quick_basis%KLMN(2,III)
+            lz1=quick_basis%KLMN(3,III)
+            do JJJ=max(III,JJJ1),JJJ2
+
+               if (quick_method%UNRST) then
+                  DENSEJI=quick_qm_struct%dense(JJJ,III)+quick_qm_struct%denseb(JJJ,III)
+               else
+                  DENSEJI=quick_qm_struct%dense(JJJ,III)
+               endif
+
+               if(III.ne.JJJ)DENSEJI=2.0d0*DENSEJI
+               Xconstant2=Xconstant1*quick_basis%cons(JJJ)*DENSEJI
+
+               lx2=quick_basis%KLMN(1,JJJ)
+               ly2=quick_basis%KLMN(2,JJJ)
+               lz2=quick_basis%KLMN(3,JJJ)
+
+               efg_update(1,1)=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,2,0,0,0,aux, &
+                    Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+               efg_update(1,2)=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,1,1,0,0,aux, &
+                    Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+               efg_update(1,3)=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,1,0,1,0,aux, &
+                    Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+               efg_update(2,2)=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,0,2,0,0,aux, &
+                    Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+               efg_update(2,3)=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,0,1,1,0,aux, &
+                    Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+               efg_update(3,3)=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,0,0,2,0,aux, &
+                    Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+
+               efg_update(2,1)=efg_update(1,2)
+               efg_update(3,1)=efg_update(1,3)
+               efg_update(3,2)=efg_update(2,3)
+
+               efg(:,:) = efg(:,:) + Xconstant2*efg_update(:,:)
+            enddo
+         enddo
+      enddo
+   enddo
+
+end subroutine efg_1pdm
+
+double precision recursive function efg_att_recurse(i,j,k,ii,jj,kk,m,aux,Ax,Ay, &
+      Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) result(attrec)
+   implicit double precision(a-h,o-z)
+   dimension iexponents(6),center(12),aux(0:20)
+
+   if (i+j+k+ii+jj+kk == 0) then
+      attrec=aux(m)
+   else
+      iexponents(1) = i
+      iexponents(2) = j
+      iexponents(3) = k
+      iexponents(4) = ii
+      iexponents(5) = jj
+      iexponents(6) = kk
+      center(7) = Cx
+      center(8) = Cy
+      center(9) = Cz
+      center(10)= Px
+      center(11)= Py
+      center(12)= Pz
+      ilownum=300
+      ilowex=300
+      do L=1,6
+         if (iexponents(L) < ilowex .AND. iexponents(L) /= 0) then
+            ilowex=iexponents(L)
+            ilownum=L
+         endif
+      enddo
+      if (ilownum <= 3) then
+         center(1)=Ax
+         center(2)=Ay
+         center(3)=Az
+         center(4)=Bx
+         center(5)=By
+         center(6)=Bz
+      else
+         center(4)=Ax
+         center(5)=Ay
+         center(6)=Az
+         center(1)=Bx
+         center(2)=By
+         center(3)=Bz
+         iexponents(4) = i
+         iexponents(5) = j
+         iexponents(6) = k
+         iexponents(1) = ii
+         iexponents(2) = jj
+         iexponents(3) = kk
+         ilownum = ilownum - 3
+      endif
+
+      iexponents(ilownum) = iexponents(ilownum)-1
+      attrec=0.d0
+      PA = center(9+ilownum)-center(ilownum)
+      if (PA /= 0) attrec = attrec + PA * &
+            efg_att_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+            iexponents(5),iexponents(6),m,aux,center(1),center(2),center(3), &
+            center(4),center(5),center(6),center(7),center(8),center(9), &
+            center(10),center(11),center(12),g)
+
+      PC = center(9+ilownum)-center(6+ilownum)
+      if (PC /= 0) attrec = attrec - PC * &
+            efg_att_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+            iexponents(5),iexponents(6),m+1,aux,center(1),center(2),center(3), &
+            center(4),center(5),center(6),center(7),center(8),center(9), &
+            center(10),center(11),center(12),g)
+
+      if (iexponents(ilownum) /= 0) then
+         coeff = dble(iexponents(ilownum))/(2.d0*g)
+         iexponents(ilownum) = iexponents(ilownum)-1
+         attrec = attrec + coeff*( &
+               efg_att_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+               iexponents(5),iexponents(6),m,aux,center(1),center(2),center(3), &
+               center(4),center(5),center(6),center(7),center(8),center(9), &
+               center(10),center(11),center(12),g) &
+               -efg_att_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+               iexponents(5),iexponents(6),m+1,aux,center(1),center(2),center(3), &
+               center(4),center(5),center(6),center(7),center(8),center(9), &
+               center(10),center(11),center(12),g))
+         iexponents(ilownum) = iexponents(ilownum)+1
+      endif
+
+      if (iexponents(ilownum+3) /= 0) then
+         coeff = dble(iexponents(ilownum+3))/(2.d0*g)
+         iexponents(ilownum+3) = iexponents(ilownum+3)-1
+         attrec = attrec + coeff*( &
+               efg_att_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+               iexponents(5),iexponents(6),m,aux,center(1),center(2),center(3), &
+               center(4),center(5),center(6),center(7),center(8),center(9), &
+               center(10),center(11),center(12),g) &
+               -efg_att_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+               iexponents(5),iexponents(6),m+1,aux,center(1),center(2),center(3), &
+               center(4),center(5),center(6),center(7),center(8),center(9), &
+               center(10),center(11),center(12),g))
+         iexponents(ilownum+3) = iexponents(ilownum+3)+1
+      endif
+   endif
+
+end function efg_att_recurse
+
+double precision recursive function efg_attra_recurse(i,j,k,ii,jj,kk, &
+      idx,idy,idz,m,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) result(efgrec)
+   implicit double precision(a-h,o-z)
+   dimension iexponents(6),center(12),aux(0:20)
+
+   if (idx+idy+idz == 0) then
+      efgrec = efg_att_recurse(i,j,k,ii,jj,kk,m,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+   elseif (i+j+k+ii+jj+kk == 0) then
+      if (idx == 2) then
+         efgrec = -2.d0*g*efg_att_recurse(i,j,k,ii,jj,kk,m+1,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) &
+              +4.d0*g*g*(Px-Cx)*(Px-Cx)*efg_att_recurse(i,j,k,ii,jj,kk,m+2,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idy == 2) then
+         efgrec = -2.d0*g*efg_att_recurse(i,j,k,ii,jj,kk,m+1,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) &
+              +4.d0*g*g*(Py-Cy)*(Py-Cy)*efg_att_recurse(i,j,k,ii,jj,kk,m+2,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idz == 2) then
+         efgrec = -2.d0*g*efg_att_recurse(i,j,k,ii,jj,kk,m+1,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) &
+              +4.d0*g*g*(Pz-Cz)*(Pz-Cz)*efg_att_recurse(i,j,k,ii,jj,kk,m+2,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idx == 1 .and. idy == 1) then
+         efgrec = 4.d0*g*g*(Px-Cx)*(Py-Cy)*efg_att_recurse(i,j,k,ii,jj,kk,m+2,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idx == 1 .and. idz == 1) then
+         efgrec = 4.d0*g*g*(Px-Cx)*(Pz-Cz)*efg_att_recurse(i,j,k,ii,jj,kk,m+2,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idy == 1 .and. idz == 1) then
+         efgrec = 4.d0*g*g*(Py-Cy)*(Pz-Cz)*efg_att_recurse(i,j,k,ii,jj,kk,m+2,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idx == 1) then
+         efgrec = 2.d0*g*(Px-Cx)*efg_att_recurse(i,j,k,ii,jj,kk,m+1,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idy == 1) then
+         efgrec = 2.d0*g*(Py-Cy)*efg_att_recurse(i,j,k,ii,jj,kk,m+1,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      elseif (idz == 1) then
+         efgrec = 2.d0*g*(Pz-Cz)*efg_att_recurse(i,j,k,ii,jj,kk,m+1,aux,Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+      endif
+   else
+      iexponents(1) = i
+      iexponents(2) = j
+      iexponents(3) = k
+      iexponents(4) = ii
+      iexponents(5) = jj
+      iexponents(6) = kk
+      center(7) = Cx
+      center(8) = Cy
+      center(9) = Cz
+      center(10)= Px
+      center(11)= Py
+      center(12)= Pz
+      ilownum=300
+      ilowex=300
+      do L=1,6
+         if (iexponents(L) < ilowex .and. iexponents(L) /= 0) then
+            ilowex=iexponents(L)
+            ilownum=L
+         endif
+      enddo
+      if (ilownum <= 3) then
+         center(1)=Ax
+         center(2)=Ay
+         center(3)=Az
+         center(4)=Bx
+         center(5)=By
+         center(6)=Bz
+      else
+         center(4)=Ax
+         center(5)=Ay
+         center(6)=Az
+         center(1)=Bx
+         center(2)=By
+         center(3)=Bz
+         iexponents(4) = i
+         iexponents(5) = j
+         iexponents(6) = k
+         iexponents(1) = ii
+         iexponents(2) = jj
+         iexponents(3) = kk
+         ilownum = ilownum - 3
+      endif
+
+      iexponents(ilownum) = iexponents(ilownum)-1
+      efgrec = 0.d0
+      PA = center(9+ilownum)-center(ilownum)
+      if (PA /= 0) efgrec = efgrec + PA * &
+          efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+          iexponents(5),iexponents(6),idx,idy,idz,m,aux,center(1),center(2),center(3), &
+          center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g)
+
+      PC = center(9+ilownum)-center(6+ilownum)
+      if (PC /= 0) efgrec = efgrec - PC * &
+          efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+          iexponents(5),iexponents(6),idx,idy,idz,m+1,aux,center(1),center(2),center(3), &
+          center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g)
+
+      if (iexponents(ilownum) /= 0) then
+         coeff = dble(iexponents(ilownum))/(2.d0*g)
+         iexponents(ilownum) = iexponents(ilownum)-1
+         efgrec = efgrec + coeff*( &
+             efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx,idy,idz,m,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g) &
+             -efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx,idy,idz,m+1,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g))
+         iexponents(ilownum) = iexponents(ilownum)+1
+      endif
+
+      if (iexponents(ilownum+3) /= 0) then
+         coeff = dble(iexponents(ilownum+3))/(2.d0*g)
+         iexponents(ilownum+3) = iexponents(ilownum+3)-1
+         efgrec = efgrec + coeff*( &
+             efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx,idy,idz,m,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g) &
+             -efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx,idy,idz,m+1,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g))
+         iexponents(ilownum+3) = iexponents(ilownum+3)+1
+      endif
+
+      if (ilownum == 1 .and. idx > 0) then
+         efgrec = efgrec + dble(idx)* &
+             efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx-1,idy,idz,m+1,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g)
+      elseif (ilownum == 2 .and. idy > 0) then
+         efgrec = efgrec + dble(idy)* &
+             efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx,idy-1,idz,m+1,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g)
+      elseif (ilownum == 3 .and. idz > 0) then
+         efgrec = efgrec + dble(idz)* &
+             efg_attra_recurse(iexponents(1),iexponents(2),iexponents(3),iexponents(4), &
+             iexponents(5),iexponents(6),idx,idy,idz-1,m+1,aux,center(1),center(2),center(3), &
+             center(4),center(5),center(6),center(7),center(8),center(9),center(10),center(11),center(12),g)
+      endif
+   endif
+
+end function efg_attra_recurse
+#endif

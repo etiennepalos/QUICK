@@ -180,6 +180,7 @@ esp_charge_acetone_b3lyp_def2svp        #ESP test: Tests both ESP charges and ES
 esp_grid_acetone_b3lyp_def2svp          #ESP test: Tests ESP calculation on external points
 efield_grid_acetone_b3lyp_def2svp       #ESP test: Tests EFIELD calculation on external points
 efg_grid_acetone_b3lyp_def2svp          #ESP test: Tests EFG calculation on external points
+efg_grid_numerical_acetone_b3lyp_def2svp #ESP test: Tests finite-difference EFG calculation on external points
 esp_charge_acetate_radical              #ESP test: Tests ESP evaluation and charge calculation for unrestricted DFT
 esp_charge_acetate_anion                #ESP test: Tests ESP evaluation and charge calculation for charged molecule
 ene_multiple_keyword_lines              #Acetate: DFT energy test: Tests if reading of keywords from multiple lines works
