@@ -178,6 +178,8 @@ opt_const_freeze_c2h4f2_hf_3-21g        #C2H4F2: RHF DL-FIND constraint freeze a
 api_water_rhf_631g                      #Water: API test
 esp_charge_acetone_b3lyp_def2svp        #ESP test: Tests both ESP charges and ESP on van der Waals surface.
 esp_grid_acetone_b3lyp_def2svp          #ESP test: Tests ESP calculation on external points
+efield_grid_acetone_b3lyp_def2svp       #ESP test: Tests EFIELD calculation on external points
+efg_grid_acetone_b3lyp_def2svp          #ESP test: Tests EFG calculation on external points
 esp_charge_acetate_radical              #ESP test: Tests ESP evaluation and charge calculation for unrestricted DFT
 esp_charge_acetate_anion                #ESP test: Tests ESP evaluation and charge calculation for charged molecule
 ene_multiple_keyword_lines              #Acetate: DFT energy test: Tests if reading of keywords from multiple lines works
