@@ -34,7 +34,7 @@ set(QUICK_MODULES_SOURCES
         quick_cew_module.f90 quick_lri_module.f90 quick_lri_grad_module.f90
 	quick_eri_oshell_module.f90 quick_eri_grad_oshell_module.f90 quick_molsurface_module.f90
 	quick_grad_oshell_module.f90 quick_dftd3_module.f90 quick_molden_module.f90 quick_oeproperties_module.f90
-	quick_io_module.f90)
+	quick_mbpt_module.f90 quick_mpac_module.f90 quick_io_module.f90)
 
 set(QUICK_SUBS_FORTRAN_SOURCES Angles.f90 copyDMat.f90 copySym.f90
 	degen.f90 denspt.f90 dipole.f90 EffChar.f90
@@ -84,7 +84,7 @@ endif()
 set(QUICK_GENERAL_SOURCES initialize.f90 read_job_and_atom.f90
 	getMol.f90 quick_one_electron_integral.f90 getEnergy.f90
 	ecp.f90 nuclear.f90 finalize.f90 mpi_setup.f90 quick_debug.f90
-	calMP2.f90 hessian.f90 CPHF.f90 frequency.f90 basis.f90)
+	hessian.f90 CPHF.f90 frequency.f90 basis.f90)
 
 set(QUICK_GPU_FORTRAN_SOURCE gpu/${QUICK_GPU_TARGET_NAME}/gpu_write_info.f90)
 

@@ -1,0 +1,3 @@
+quick_outputs/
+*.out
+__pycache__/

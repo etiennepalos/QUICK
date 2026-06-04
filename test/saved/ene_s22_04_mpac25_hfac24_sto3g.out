@@ -1,0 +1,252 @@
+| *********************************************************************************************************
+| **                                                                                                     **
+| **           888888888888                                                                              **
+| **         8888888888888888                                                                            **
+| **      888888888888888888                                                                             **
+| **     888888888888888888                                                                              **
+| **    888888888888888                                                                                  **
+| **   88888888888888888888                               88888                       8888:              **
+| **   8888888888888888888888Z                            88888                       8888:              **
+| **   888888888888888888888888?                          88888                       8888:              **
+| **   8888888888888      8888888                                        888888       8888:              **
+| **    88888888888         888888     8888:     88888    88888        888888888I     8888:    888888    **
+| **    8888888888           88888:    8888:     88888    88888      $888888888888    8888:   888888     **
+| **    I8Z 88888             88888    8888:     88888    88888    .888888     8888   8888: 888888       **
+| **    .8Z 88888             88888    8888:     88888    88888    $88888             8888:88888         **
+| **     8I 88888      .=88. .88888    8888:     88888    88888    88888              8888888888         **
+| **    :8  88888      888888$8888$    8888:     88888    88888    8888O              88888888888        **
+| **   ,7   +88888.     8888888888.    8888:     88888    88888    888888             88888O888888       **
+| **         $888888:.   .8888888      88888....888888    88888     888888     8888   8888:  888888      **
+| **          I8888888888888888888     888888888888888    88888     O888888888888O    8888:   888888     **
+| **            O888888888888888888     88888888888888    88888       88888888888$    8888:    888888    **
+| **               8888888Z     888      .8888I  88888    88888         8888888       8888:     888888   **
+| **                                                                                                     **
+| **                                                                                                     **
+| **                                         Copyright (c) 2026                                          **
+| **                          Regents of the University of California San Diego                          **
+| **                                    & Michigan State University                                      **
+| **                                        All Rights Reserved.                                         **
+| **                                                                                                     **
+| **             This software is subject to the terms of the Mozilla Public License, v. 2.0.            **
+| **                                                                                                     **
+| *********************************************************************************************************
+|                                                                                                          
+| Cite this work as:                                                                                       
+| Manathunga, M.; O'Hearn, K. A.; Shajan, A.; Smith, J.; Miao, Y.; He, X.; Ayers, K.;                      
+| Brothers, E.; Palos, E.; Tripathy, V.; Goetz, A.W.; Merz, K.M. QUICK-26.03.                              
+| University of California,San Diego, CA and                                                               
+| Michigan State University, East Lansing, MI, 2026                                                        
+|                                                                                                          
+| If you have any comments or queries, please reach out to us on GitHub issues or discussion sections:     
+| https://github.com/merzlab/QUICK.                                                                        
+|                                                                                                          
+| TASK STARTS ON: Thu Jun  4 08:16:11 2026
+| INPUT FILE :    test/ene_s22_04_mpac25_hfac24_sto3g.in
+| OUTPUT FILE:    test/ene_s22_04_mpac25_hfac24_sto3g.out
+| BASIS SET PATH: /Users/etiennepalos/Documents/Research/QUICK/QUICK/basis
+
+ @ Read Job And Atom
+
+  KEYWORD=SPL2 OS-SPL2 MPAC25 OS-MPAC25 HFAC24 BASIS=STO-3G CUTOFF=1.0E-12 DENSERMS=1.0E-9 ENERGY
+ ============== JOB CARD =============
+ METHOD = MPAC/HFAC ADIABATIC-CONNECTION POST-HF
+ SPL2 B2,M2,ALPHA,BETA =     0.117000   10.680000    1.147200   -0.739700
+ OS-SPL2 SCALE,B2,M2,ALPHA,BETA =     1.800000    0.527000   58.850000    1.278000   -1.059000
+ MPAC25 D1,D2,ALPHA,BETA =     1.100000    0.600000    1.000000    1.000000
+ OS-MPAC25 SCALE,D1,D2,ALPHA,BETA =     1.700000    1.100000    0.600000    1.000000    1.000000
+ HFAC24 D1,D2,KAPPA,NQUAD =  1457.200000  132.150000    0.300000     160
+ MPAC/HFAC DENSITY FLOOR =   1.0000E-14
+ DIRECT SCF 
+ SAD INITAL GUESS 
+ USE DIIS SCF
+ PRINT ENERGY EVERY CYCLE
+ READ SAD GUESS FROM FILE
+ Level shifting allowed after cycle    3
+ DIIS error must exceed 0.100 for level shifting
+ Max HOMO-LUMO gap to allow level shifting = 0.200
+ MAX SCF CYCLES =    200
+ MAX DIIS CYCLES =   10
+ DELTA DENSITY START CYCLE =    3
+ COMPUTATIONAL CUTOFF: 
+      TWO-e INTEGRAL         =  0.100E-11
+      BASIS SET PRIME        =  0.100E-12
+      MATRIX ELEMENTS        =  0.100E-09
+      BASIS FUNCTION         =  0.100E-05
+      NEAR-LINEAR DEPENDENCY =  0.100E-04
+ DENSITY MATRIX MAXIMUM RMS FOR CONVERGENCE  =  0.100E-08
+ BASIS SET = STO-3G,  TYPE = CARTESIAN
+| BASIS FILE = /Users/etiennepalos/Documents/Research/QUICK/QUICK/basis/STO-3G.BAS
+| DATA FILE  =    test/ene_s22_04_mpac25_hfac24_sto3g.dat
+
+ @ Finish reading job
+
+
+ @ Begin SAD initial guess
+
+ For Atom Kind =    1
+ ELEMENT = C 
+ BASIS FUNCTIONS =    5
+ For Atom Kind =    2
+ ELEMENT = N 
+ BASIS FUNCTIONS =    5
+ For Atom Kind =    3
+ ELEMENT = H 
+ BASIS FUNCTIONS =    1
+ For Atom Kind =    4
+ ELEMENT = O 
+ BASIS FUNCTIONS =    5
+
+ @ Finish SAD initial guess
+
+
+ @ Begin Reading Molecular Information
+
+
+ =========== Molecule Input ==========
+ TOTAL MOLECULAR CHARGE  =    0    MULTIPLICITY                =    1
+ TOTAL ATOM NUMBER       =   12    NUMBER OF ATOM TYPES        =    4
+ NUMBER OF HYDROGEN ATOM =    6    NUMBER OF NON-HYDROGEN ATOM =    6
+ NUMBER OF ELECTRONS     =   48
+
+ -- INPUT GEOMETRY -- :
+    C          -2.0186       0.0529       0.0000
+    C           2.0186      -0.0529       0.0000
+    N          -1.4078      -1.1425       0.0000
+    N           1.4078       1.1425       0.0000
+    H          -0.3872      -1.2078       0.0000
+    H          -3.1171      -0.0137       0.0000
+    H          -1.9646      -1.9770       0.0000
+    H           1.9646       1.9770       0.0000
+    H           0.3872       1.2078       0.0000
+    H           3.1171       0.0137       0.0000
+    O          -1.4522       1.1436       0.0000
+    O           1.4522      -1.1436       0.0000
+
+ -- DISTANCE MATRIX -- :
+              1           2           3           4           5
+      1     0.00000
+      2     7.63201     0.00000
+      3     2.53680     6.79450     0.00000
+      4     6.79450     2.53680     6.85227     0.00000
+      5     3.89612     5.04317     1.93246     5.58855     0.00000
+      6     2.07951     9.70537     3.87086     8.82542     5.63054
+      7     3.83735     8.35947     1.89589     8.68129     3.31634
+      8     8.35947     3.83735     8.68129     1.89589     7.48156
+      9     5.04317     3.89612     5.58855     1.93246     4.79365
+     10     9.70537     2.07951     8.82542     3.87086     7.01294
+     11     2.32260     6.93775     4.32095     5.40456     4.87802
+     12     6.93775     2.32260     5.40456     4.32095     3.47816
+              6           7           8           9          10
+      6     0.00000
+      7     4.30213     0.00000
+      8    10.31352    10.53397     0.00000
+      9     7.01294     7.48156     3.31634     0.00000
+     10    11.78090    10.31352     4.30213     5.63054     0.00000
+     11     3.83162     5.97618     6.64611     3.47816     8.89475
+     12     8.89475     6.64611     5.97618     4.87802     3.83162
+             11          12
+     11     0.00000
+     12     6.98615     0.00000
+
+============== BASIS INFOS ==============
+ BASIS FUNCTIONS =   36
+ NSHELL =   18 NPRIM  =  108
+ JSHELL =   18 JBASIS =   54
+
+
+ @ End Reading Molecular Information 
+
+
+ @ Begin Energy Calculation
+
+| condition number of overlap matrix:    9.940E+00
+| Smallest eigenvalue of overlap matrix:    2.267E-01
+
+                                         SCF ENERGY
+| ------------------------------------------------------------------------------------------------------------------------
+| NCYC       ENERGY         DELTA_E      SCF_TIME  DII_CYC   DII_TIME   O_TIME  DIAG_TIME    MAX_ERR    RMS_CHG    MAX_CHG
+| ------------------------------------------------------------------------------------------------------------------------
+|  1   -333.674832069      ------         0.030     1        0.00      0.03      0.00    0.1717E+01  0.1399E+00  0.1328E+01
+|  2   -333.149822461  -.525010E+00       0.042     2        0.00      0.04      0.00    0.2205E+00  0.4136E-01  0.4138E+00
+|  3   -333.331145405  0.181323E+00       0.041     3        0.00      0.04      0.00    0.1308E+00  0.1562E-01  0.1268E+00
+|  4   -333.384851670  0.537063E-01       0.040     4        0.00      0.04      0.00    0.2043E-01  0.5823E-02  0.4745E-01
+|  5   -333.390417222  0.556555E-02       0.040     5        0.00      0.04      0.00    0.7627E-02  0.2657E-02  0.1726E-01
+|  6   -333.391401601  0.984378E-03       0.039     6        0.00      0.04      0.00    0.3070E-02  0.1144E-02  0.7217E-02
+|  7   -333.391545008  0.143408E-03       0.038     7        0.00      0.04      0.00    0.8190E-03  0.3853E-03  0.2498E-02
+|  8   -333.391558039  0.130304E-04       0.037     8        0.00      0.04      0.00    0.2236E-03  0.1006E-03  0.8120E-03
+|  9   -333.391559091  0.105230E-05       0.036     9        0.00      0.04      0.00    0.1146E-03  0.4561E-04  0.4579E-03
+| 10   -333.391559251  0.160011E-06       0.036    10        0.00      0.04      0.00    0.3056E-04  0.1254E-04  0.1215E-03
+| 11   -333.391559262  0.112635E-07       0.034     1        0.00      0.03      0.00    0.4347E-05  0.2241E-05  0.2065E-04
+| 12   -333.391559263  0.351747E-09       0.032     2        0.00      0.03      0.00    0.6829E-06  0.2263E-06  0.1987E-05
+| 13   -333.391559263  0.432010E-11       0.029     3        0.00      0.03      0.00    0.8297E-07  0.2353E-07  0.1297E-06
+| 14   -333.391559263  -.147793E-11       0.025     4        0.00      0.02      0.00    0.8077E-07  0.1226E-07  0.1411E-06
+| 15   -333.391559263  0.227374E-11       0.023     5        0.00      0.02      0.00    0.2697E-07  0.7098E-08  0.3938E-07
+| 16   -333.391559263  -.204636E-11       0.023     6        0.00      0.02      0.00    0.2663E-07  0.3907E-08  0.4803E-07
+| 17   -333.391559263  0.227374E-12       0.021     7        0.00      0.02      0.00    0.9272E-08  0.2372E-08  0.1514E-07
+| 18   -333.391559263  -.113687E-11       0.021     8        0.00      0.02      0.00    0.9076E-08  0.1323E-08  0.1656E-07
+| 19   -333.391559263  -.909495E-12       0.019     9        0.00      0.02      0.00    0.3203E-08  0.8194E-09  0.5535E-08
+| ------------------------------------------------------------------------------------------------------------------------
+| REACH CONVERGENCE AFTER  19 CYCLES
+| MAX ERROR = 0.320291E-08   RMS CHANGE = 0.819402E-09   MAX CHANGE = 0.553536E-08
+| -----------------------------------------------
+ ELECTRONIC ENERGY    =   -564.186329068
+ CORE_CORE REPULSION  =    230.794769805
+ TOTAL ENERGY         =   -333.391559263
+
+ @ End Energy calculation
+
+  Skipping one-electron property calculation.
+
+ @ Begin MPAC/HFAC Calculation
+
+ OCTAGO: OCTree Algorithm for Grid Operations 
+   PRUNING CUTOFF       = 0.100E-06
+   INITIAL GRID POINTS  =       45408
+|   FINAL GRID POINTS    =       29746
+|   SIGNIFICANT NUMBER OF BASIS FUNCTIONS     =       12121
+|   SIGNIFICANT NUMBER OF PRIMITIVE FUNCTIONS =       21283
+MPAC MP2 OPPOSITE-SPIN      =     -0.261621863231
+MPAC MP2 SAME-SPIN          =     -0.063518657517
+MPAC MP2 CORRELATION        =     -0.325140520748
+MPAC EXACT EXCHANGE         =    -42.502481259733
+MPAC RHO^(4/3)              =     51.973604154178
+MPAC GRAD2/RHO^(4/3)        =   1214.540083276746
+MPAC PC MODEL               =    -68.955990004930
+HFAC RHO^(3/2)              =     69.172767473582
+HFAC GRAD2/RHO^(7/6)        =   1473.463305379039
+HFAC E_EL^GGA               =    -91.683918027203
+HFAC W_C,INF                =   -134.186399286937
+HFAC W_1/2                  =    341.359500649772
+HFAC W_3/4                  =   -186.343181693201
+SPL2 CORRELATION             =     -0.295517727613
+ESPL2                        =   -333.687076990303
+OS-SPL2 CORRELATION          =     -0.315037886649
+EOS-SPL2                     =   -333.706597149339
+MPAC25 CORRELATION           =     -0.826687881929
+EMPAC25                      =   -334.218247144619
+OS-MPAC25 CORRELATION        =     -0.920391945008
+EOS-MPAC25                   =   -334.311951207698
+HFAC24 UEGIHF CORRELATION    =     -2.117365049302
+HFAC24 CORRELATION           =     -0.383840651632
+EHFAC24                      =   -333.775399914322
+
+ @ End MPAC/HFAC Calculation
+
+
+ @ Output Timing Information
+
+------------- TIMING ---------------
+| INITIAL GUESS TIME  =     0.067167000(  8.52%)
+| TOTAL SCF TIME      =     0.609225000( 77.24%)
+|       TOTAL OP TIME      =     0.606897000( 76.94%)
+|             TOTAL 1e TIME      =     0.001152000(  0.15%)
+|             TOTAL 2e TIME      =     0.604466000( 76.63%)
+|       TOTAL DII TIME      =     0.002280000(  0.29%)
+|             TOTAL DIAG TIME    =     0.001584000(  0.20%)
+| TOTAL TIME          =     0.788786000
+------------------------------------
+| Job cpu time:  0 days  0 hours  0 minutes  0.8 seconds.
+
+ @ Finish Output Timing Information
+
+| Normal Termination. Task Finished on: Thu Jun  4 08:16:12 2026

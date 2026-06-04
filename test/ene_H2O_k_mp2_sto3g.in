@@ -1,0 +1,8 @@
+K-MP2 BASIS=STO-3G cutoff=1.0e-12 denserms=1.0e-9 zmake ENERGY
+
+ O     -0.33840     0.00380     0.23923
+ H     -0.33510    -0.00190    -0.83277
+ H      0.67350    -0.00190     0.59353
+
+#K_MP2_CORRELATION= -0.038483833257
+#K_MP2_ENERGY=      -74.986347644475

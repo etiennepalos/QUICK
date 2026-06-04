@@ -23,6 +23,61 @@ module quick_method_module
         logical :: HF =  .false.       ! HF
         logical :: DFT =  .false.      ! DFT
         logical :: MP2 =  .false.      ! MP2
+        logical :: SOSMP2 = .false.    ! Scaled opposite-spin MP2
+        logical :: KMP2 = .false.      ! Kappa-regularized MP2
+        logical :: KOSMP2 = .false.    ! Scaled opposite-spin kappa-MP2
+        logical :: LTMP2 = .false.     ! Laplace-transform MP2
+        logical :: LTSOSMP2 = .false.  ! Laplace-transform SOS-MP2
+        double precision :: sos_mp2_scale = 1.30d0
+                                      ! Default SOS-MP2 opposite-spin scale
+        double precision :: kmp2_kappa = 1.10d0
+                                      ! Default kappa-MP2 damping parameter
+        double precision :: kos_mp2_kappa = 0.90d0
+                                      ! Default opposite-spin kappa damping
+        double precision :: kos_mp2_scale = 2.10d0
+                                      ! Default scaled kappa-OS-MP2 factor
+        logical :: SPL2 = .false.     ! SPL2 adiabatic-connection model
+        logical :: OSSPL2 = .false.   ! Opposite-spin scaled SPL2
+        logical :: OSMPAC25 = .false. ! Opposite-spin scaled MPAC25
+        logical :: MPAC25 = .false.   ! MPAC25 adiabatic-connection model
+        logical :: HFAC24 = .false.   ! HFAC24 adiabatic-connection model
+        double precision :: spl2_b2 = 0.117d0
+                                      ! SPL2 b2 parameter
+        double precision :: spl2_m2 = 10.68d0
+                                      ! SPL2 m2 parameter
+        double precision :: spl2_alpha = 1.1472d0
+                                      ! SPL2 PC-model scale
+        double precision :: spl2_beta = -0.7397d0
+                                      ! SPL2 exact-exchange scale
+        double precision :: os_spl2_b2 = 0.527d0
+                                      ! Opposite-spin SPL2 b2 parameter
+        double precision :: os_spl2_m2 = 58.850d0
+                                      ! Opposite-spin SPL2 m2 parameter
+        double precision :: os_spl2_alpha = 1.278d0
+                                      ! Opposite-spin SPL2 PC-model scale
+        double precision :: os_spl2_beta = -1.059d0
+                                      ! Opposite-spin SPL2 exact-exchange scale
+        double precision :: os_spl2_scale = 1.80d0
+                                      ! Opposite-spin SPL2 MP2 scale
+        double precision :: os_mpac25_scale = 1.70d0
+                                      ! Opposite-spin MPAC25 MP2 scale
+        double precision :: mpac25_d1 = 1.10d0
+                                      ! MPAC25 F1 first damping parameter
+        double precision :: mpac25_d2 = 0.60d0
+                                      ! MPAC25 F1 second damping parameter
+        double precision :: mpac25_alpha = 1.00d0
+                                      ! MPAC25 PC-model scale
+        double precision :: mpac25_beta = 1.00d0
+                                      ! MPAC25 exact-exchange scale
+        double precision :: mpac_rho_trunc = 1.0d-14
+                                      ! Density floor for MPAC/HFAC grid ratios
+        double precision :: hfac24_d1 = 1457.20d0
+                                      ! HFAC24 uegIHF d1 parameter
+        double precision :: hfac24_d2 = 132.15d0
+                                      ! HFAC24 uegIHF d2 parameter
+        double precision :: hfac24_kappa = 0.30d0
+                                      ! HFAC24 AC-switch damping parameter
+        integer :: hfac24_nquad = 160 ! HFAC24 Gauss-Legendre AC quadrature
 
         !Madu Manathunga 05/30/2019 We should get rid of these functional
         !variables in future. Instead, we call funcationals from libxc
@@ -221,6 +276,39 @@ module quick_method_module
             call MPI_BCAST(self%HF,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%DFT,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%MP2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%SOSMP2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%KMP2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%KOSMP2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%LTMP2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%LTSOSMP2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%sos_mp2_scale,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%kmp2_kappa,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%kos_mp2_kappa,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%kos_mp2_scale,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%SPL2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%OSSPL2,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%OSMPAC25,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%MPAC25,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%HFAC24,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%spl2_b2,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%spl2_m2,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%spl2_alpha,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%spl2_beta,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%os_spl2_b2,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%os_spl2_m2,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%os_spl2_alpha,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%os_spl2_beta,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%os_spl2_scale,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%os_mpac25_scale,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%mpac25_d1,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%mpac25_d2,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%mpac25_alpha,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%mpac25_beta,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%mpac_rho_trunc,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%hfac24_d1,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%hfac24_d2,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%hfac24_kappa,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%hfac24_nquad,1,mpi_integer,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%B3LYP,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%BLYP,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%BPW91,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
@@ -326,10 +414,53 @@ module quick_method_module
 
             if (io.ne.0) then
             write(io,'(" ============== JOB CARD =============")')
-            if (self%HF) then
-                write(io,'(" METHOD = HARTREE FOCK")')
+            if (self%SPL2 .or. self%OSSPL2 .or. self%OSMPAC25 .or. &
+                self%MPAC25 .or. self%HFAC24) then
+                write(io,'(" METHOD = MPAC/HFAC ADIABATIC-CONNECTION POST-HF")')
+                if (self%SPL2) then
+                    write(io,'(" SPL2 B2,M2,ALPHA,BETA = ",4F12.6)') &
+                      self%spl2_b2, self%spl2_m2, self%spl2_alpha, self%spl2_beta
+                endif
+                if (self%OSSPL2) then
+                    write(io,'(" OS-SPL2 SCALE,B2,M2,ALPHA,BETA = ",5F12.6)') &
+                      self%os_spl2_scale, self%os_spl2_b2, self%os_spl2_m2, &
+                      self%os_spl2_alpha, self%os_spl2_beta
+                endif
+                if (self%MPAC25) then
+                    write(io,'(" MPAC25 D1,D2,ALPHA,BETA = ",4F12.6)') &
+                      self%mpac25_d1, self%mpac25_d2, self%mpac25_alpha, self%mpac25_beta
+                endif
+                if (self%OSMPAC25) then
+                    write(io,'(" OS-MPAC25 SCALE,D1,D2,ALPHA,BETA = ",5F12.6)') &
+                      self%os_mpac25_scale, self%mpac25_d1, self%mpac25_d2, &
+                      self%mpac25_alpha, self%mpac25_beta
+                endif
+                if (self%HFAC24) then
+                    write(io,'(" HFAC24 D1,D2,KAPPA,NQUAD = ",3F12.6,I8)') &
+                      self%hfac24_d1, self%hfac24_d2, self%hfac24_kappa, self%hfac24_nquad
+                endif
+                write(io,'(" MPAC/HFAC DENSITY FLOOR = ",ES12.4)') self%mpac_rho_trunc
             else if (self%MP2) then
-                write(io,'(" METHOD = SECOND ORDER PERTURBATION THEORY")')
+                if (self%KOSMP2) then
+                    write(io,'(" METHOD = KOS-MP2")')
+                    write(io,'(" KOS-MP2 KAPPA,OS SCALE = ",2F10.6)') &
+                      self%kos_mp2_kappa, self%kos_mp2_scale
+                elseif (self%KMP2) then
+                    write(io,'(" METHOD = K-MP2")')
+                    write(io,'(" K-MP2 KAPPA = ",F10.6)') self%kmp2_kappa
+                elseif (self%LTSOSMP2) then
+                    write(io,'(" METHOD = LT-SOS-MP2")')
+                    write(io,'(" SOS-MP2 OPPOSITE-SPIN SCALE = ",F10.6)') self%sos_mp2_scale
+                elseif (self%LTMP2) then
+                    write(io,'(" METHOD = LT-MP2")')
+                elseif (self%SOSMP2) then
+                    write(io,'(" METHOD = SOS-MP2")')
+                    write(io,'(" SOS-MP2 OPPOSITE-SPIN SCALE = ",F10.6)') self%sos_mp2_scale
+                else
+                    write(io,'(" METHOD = SECOND ORDER PERTURBATION THEORY")')
+                endif
+            else if (self%HF) then
+                write(io,'(" METHOD = HARTREE FOCK")')
             else if (self%DFT) then
                 write(io,'(" METHOD = DENSITY FUNCTIONAL THEORY")')
 
@@ -557,15 +688,97 @@ module quick_method_module
             implicit none
             character(len=300) :: keyWD
             character(len=300) :: tempstring
+            character(len=320) :: method_tokens
             integer :: itemp,i,j
             type (quick_method_type) self
             integer, intent(inout) :: ierr
 
             call upcase(keyWD,300)
+            method_tokens = ' '//trim(keyWD)//' '
             if (index(keyWD,'PDB').ne. 0)       self%PDB=.true.
             if (index(keyWD,'MFCC').ne.0)       self%MFCC=.true.
             if (index(keyWD,'FMM').ne.0)        self%FMM=.true.
-            if (index(keyWD,'MP2').ne.0)        self%MP2=.true.
+            if (index(keyWD,'LT-SOS-MP2').ne.0 .or. index(keyWD,'LT_SOS_MP2').ne.0 .or. &
+                index(keyWD,'LTSOSMP2').ne.0) then
+                self%MP2=.true.
+                self%SOSMP2=.true.
+                self%LTMP2=.true.
+                self%LTSOSMP2=.true.
+            elseif (index(keyWD,'KOS-MP2').ne.0 .or. index(keyWD,'KOS_MP2').ne.0 .or. &
+                    index(keyWD,'K_OS_MP2').ne.0 .or. index(keyWD,'KOSMP2').ne.0 .or. &
+                    index(keyWD,'KAPPA_OS_MP2').ne.0) then
+                self%MP2=.true.
+                self%KOSMP2=.true.
+            elseif (index(keyWD,'K-MP2').ne.0 .or. index(keyWD,'K_MP2').ne.0 .or. &
+                    index(keyWD,'KMP2').ne.0 .or. index(keyWD,'KAPPA_MP2').ne.0) then
+                self%MP2=.true.
+                self%KMP2=.true.
+            elseif (index(keyWD,'LT-MP2').ne.0 .or. index(keyWD,'LT_MP2').ne.0 .or. &
+                    index(keyWD,'LTMP2').ne.0) then
+                self%MP2=.true.
+                self%LTMP2=.true.
+            elseif (index(keyWD,'SOS-MP2').ne.0 .or. index(keyWD,'SOS_MP2').ne.0 .or. &
+                    index(keyWD,'SOSMP2').ne.0) then
+                self%MP2=.true.
+                self%SOSMP2=.true.
+            elseif (index(keyWD,'MP2').ne.0) then
+                self%MP2=.true.
+            endif
+            if (index(keyWD,'SOS_MP2_SCALE').ne.0) call read(keywd,'SOS_MP2_SCALE', self%sos_mp2_scale)
+            if (index(keyWD,'SOSMP2_SCALE').ne.0) call read(keywd,'SOSMP2_SCALE', self%sos_mp2_scale)
+            if (index(keyWD,'KMP2_KAPPA=').ne.0) call read(keywd,'KMP2_KAPPA', self%kmp2_kappa)
+            if (index(keyWD,'K_MP2_KAPPA=').ne.0) call read(keywd,'K_MP2_KAPPA', self%kmp2_kappa)
+            if (index(keyWD,'KOSMP2_KAPPA=').ne.0) call read(keywd,'KOSMP2_KAPPA', self%kos_mp2_kappa)
+            if (index(keyWD,'KOS_MP2_KAPPA=').ne.0) call read(keywd,'KOS_MP2_KAPPA', self%kos_mp2_kappa)
+            if (index(keyWD,'KOSMP2_SCALE=').ne.0) call read(keywd,'KOSMP2_SCALE', self%kos_mp2_scale)
+            if (index(keyWD,'KOS_MP2_SCALE=').ne.0) call read(keywd,'KOS_MP2_SCALE', self%kos_mp2_scale)
+            if (index(method_tokens,' OS-SPL2 ').ne.0 .or. &
+                index(method_tokens,' OS_SPL2 ').ne.0 .or. &
+                index(method_tokens,' OSSPL2 ').ne.0) then
+                self%OSSPL2=.true.
+            endif
+            if (index(method_tokens,' SPL-2 ').ne.0 .or. &
+                index(method_tokens,' SPL2 ').ne.0 .or. &
+                index(method_tokens,' SPL_2 ').ne.0 .or. &
+                index(keyWD,'SPL2_B2=').ne.0 .or. &
+                index(keyWD,'SPL2_M2=').ne.0 .or. &
+                index(keyWD,'SPL2_ALPHA=').ne.0 .or. &
+                index(keyWD,'SPL2_BETA=').ne.0) then
+                self%SPL2=.true.
+            endif
+            if (index(method_tokens,' OS-MPAC25 ').ne.0 .or. &
+                index(method_tokens,' OS_MPAC25 ').ne.0 .or. &
+                index(method_tokens,' OSMPAC25 ').ne.0) then
+                self%OSMPAC25=.true.
+            endif
+            if (index(method_tokens,' MPAC25 ').ne.0 .or. &
+                index(keyWD,'MPAC25_D1=').ne.0 .or. &
+                index(keyWD,'MPAC25_D2=').ne.0 .or. &
+                index(keyWD,'MPAC25_ALPHA=').ne.0 .or. &
+                index(keyWD,'MPAC25_BETA=').ne.0) then
+                self%MPAC25=.true.
+            endif
+            if (index(keyWD,'HFAC24').ne.0) self%HFAC24=.true.
+            if (index(keyWD,'SPL2_B2=').ne.0) call read(keywd,'SPL2_B2', self%spl2_b2)
+            if (index(keyWD,'SPL2_M2=').ne.0) call read(keywd,'SPL2_M2', self%spl2_m2)
+            if (index(keyWD,'SPL2_ALPHA=').ne.0) call read(keywd,'SPL2_ALPHA', self%spl2_alpha)
+            if (index(keyWD,'SPL2_BETA=').ne.0) call read(keywd,'SPL2_BETA', self%spl2_beta)
+            if (index(keyWD,'OS_SPL2_B2=').ne.0) call read(keywd,'OS_SPL2_B2', self%os_spl2_b2)
+            if (index(keyWD,'OS_SPL2_M2=').ne.0) call read(keywd,'OS_SPL2_M2', self%os_spl2_m2)
+            if (index(keyWD,'OS_SPL2_ALPHA=').ne.0) call read(keywd,'OS_SPL2_ALPHA', self%os_spl2_alpha)
+            if (index(keyWD,'OS_SPL2_BETA=').ne.0) call read(keywd,'OS_SPL2_BETA', self%os_spl2_beta)
+            if (index(keyWD,'OS_SPL2_SCALE=').ne.0) call read(keywd,'OS_SPL2_SCALE', self%os_spl2_scale)
+            if (index(keyWD,'OS_MPAC25_SCALE=').ne.0) call read(keywd,'OS_MPAC25_SCALE', self%os_mpac25_scale)
+            if (index(keyWD,'MPAC25_D1=').ne.0) call read(keywd,'MPAC25_D1', self%mpac25_d1)
+            if (index(keyWD,'MPAC25_D2=').ne.0) call read(keywd,'MPAC25_D2', self%mpac25_d2)
+            if (index(keyWD,'MPAC25_ALPHA=').ne.0) call read(keywd,'MPAC25_ALPHA', self%mpac25_alpha)
+            if (index(keyWD,'MPAC25_BETA=').ne.0) call read(keywd,'MPAC25_BETA', self%mpac25_beta)
+            if (index(keyWD,'MPAC_RHO_TRUNC=').ne.0) call read(keywd,'MPAC_RHO_TRUNC', self%mpac_rho_trunc)
+            if (index(keyWD,'MPAC25_RHO_TRUNC=').ne.0) call read(keywd,'MPAC25_RHO_TRUNC', self%mpac_rho_trunc)
+            if (index(keyWD,'HFAC24_D1=').ne.0) call read(keywd,'HFAC24_D1', self%hfac24_d1)
+            if (index(keyWD,'HFAC24_D2=').ne.0) call read(keywd,'HFAC24_D2', self%hfac24_d2)
+            if (index(keyWD,'HFAC24_KAPPA=').ne.0) call read(keywd,'HFAC24_KAPPA', self%hfac24_kappa)
+            if (index(keyWD,'HFAC24_NQUAD=').ne.0) call read(keywd,'HFAC24_NQUAD', self%hfac24_nquad, .false.)
             if (index(keyWD,'HF').ne.0)         self%HF=.true.
             if (index(keyWD,'DFT').ne.0)        self%DFT=.true.
             if (index(keyWD,'UHF').ne.0) then
@@ -655,7 +868,8 @@ module quick_method_module
             if(self%DFT .and. self%UNRST .and. self%uselibxc) self%xc_polarization=1 
 
             ! set dispersion correction options
-            if (index(keyWD,'D2').ne.0) then
+            if (index(keyWD,'DFTD2').ne.0 .or. index(keyWD,' D2 ').ne.0 .or. &
+                index(keyWD,'D2 ').eq.1) then
               self%DFTD2=.true.
             elseif (index(keyWD,'D3BJ').ne.0) then
               self%DFTD3BJ=.true.
@@ -909,6 +1123,39 @@ module quick_method_module
             self%HF =  .false.       ! HF
             self%DFT =  .false.      ! DFT
             self%MP2 =  .false.      ! MP2
+            self%SOSMP2 = .false.    ! SOS-MP2
+            self%KMP2 = .false.      ! K-MP2
+            self%KOSMP2 = .false.    ! KOS-MP2
+            self%LTMP2 = .false.     ! LT-MP2
+            self%LTSOSMP2 = .false.  ! LT-SOS-MP2
+            self%sos_mp2_scale = 1.30d0
+            self%kmp2_kappa = 1.10d0
+            self%kos_mp2_kappa = 0.90d0
+            self%kos_mp2_scale = 2.10d0
+            self%SPL2 = .false.
+            self%OSSPL2 = .false.
+            self%OSMPAC25 = .false.
+            self%MPAC25 = .false.
+            self%HFAC24 = .false.
+            self%spl2_b2 = 0.117d0
+            self%spl2_m2 = 10.68d0
+            self%spl2_alpha = 1.1472d0
+            self%spl2_beta = -0.7397d0
+            self%os_spl2_b2 = 0.527d0
+            self%os_spl2_m2 = 58.850d0
+            self%os_spl2_alpha = 1.278d0
+            self%os_spl2_beta = -1.059d0
+            self%os_spl2_scale = 1.80d0
+            self%os_mpac25_scale = 1.70d0
+            self%mpac25_d1 = 1.10d0
+            self%mpac25_d2 = 0.60d0
+            self%mpac25_alpha = 1.00d0
+            self%mpac25_beta = 1.00d0
+            self%mpac_rho_trunc = 1.0d-14
+            self%hfac24_d1 = 1457.20d0
+            self%hfac24_d2 = 132.15d0
+            self%hfac24_kappa = 0.30d0
+            self%hfac24_nquad = 160
             self%B3LYP = .false.     ! B3LYP
             self%BLYP = .false.      ! BLYP
             self%BPW91 = .false.     ! BPW91
@@ -1031,9 +1278,79 @@ module quick_method_module
             integer, intent(inout) :: ierr
 
             ! If MP2, then set HF as default
+            if (self%LTSOSMP2) then
+                self%LTMP2 = .true.
+                self%SOSMP2 = .true.
+            endif
+            if (self%SOSMP2 .or. self%KMP2 .or. self%KOSMP2 .or. &
+                self%LTMP2 .or. self%LTSOSMP2) self%MP2 = .true.
+
             if (self%MP2) then
                 self%HF = .true.
                 self%DFT = .false.
+            endif
+
+            if (self%SPL2 .or. self%OSSPL2 .or. self%OSMPAC25 .or. &
+                self%MPAC25 .or. self%HFAC24) then
+                self%HF = .true.
+                self%DFT = .false.
+            endif
+
+            if (self%MP2 .and. self%UNRST) then
+                call PrtErr(io,"MP2-family methods currently require a closed-shell RHF reference.")
+                call quick_exit(io,1)
+            endif
+
+            if ((self%SPL2 .or. self%OSSPL2 .or. self%OSMPAC25 .or. &
+                self%MPAC25 .or. self%HFAC24) .and. self%UNRST) then
+                call PrtErr(io,"MPAC/HFAC methods currently require a closed-shell RHF reference.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%KMP2 .and. self%kmp2_kappa.le.0.0d0) then
+                call PrtErr(io,"KMP2_KAPPA must be positive.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%KOSMP2 .and. self%kos_mp2_kappa.le.0.0d0) then
+                call PrtErr(io,"KOSMP2_KAPPA must be positive.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%KOSMP2 .and. self%kos_mp2_scale.le.0.0d0) then
+                call PrtErr(io,"KOSMP2_SCALE must be positive.")
+                call quick_exit(io,1)
+            endif
+
+            if ((self%SPL2 .or. self%OSSPL2 .or. self%OSMPAC25 .or. &
+                self%MPAC25 .or. self%HFAC24) .and. self%mpac_rho_trunc.le.0.0d0) then
+                call PrtErr(io,"MPAC_RHO_TRUNC must be positive.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%SPL2 .and. self%spl2_b2.eq.0.0d0) then
+                call PrtErr(io,"SPL2_B2 must be nonzero.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%OSSPL2 .and. self%os_spl2_b2.eq.0.0d0) then
+                call PrtErr(io,"OS_SPL2_B2 must be nonzero.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%OSSPL2 .and. self%os_spl2_scale.le.0.0d0) then
+                call PrtErr(io,"OS_SPL2_SCALE must be positive.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%OSMPAC25 .and. self%os_mpac25_scale.le.0.0d0) then
+                call PrtErr(io,"OS_MPAC25_SCALE must be positive.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%HFAC24 .and. self%hfac24_nquad.lt.8) then
+                call PrtErr(io,"HFAC24_NQUAD must be at least 8.")
+                call quick_exit(io,1)
             endif
 
             if (self%opt) then
@@ -1067,6 +1384,20 @@ module quick_method_module
             if (self%MP2 .and. self%OPT) then
                 call PrtWrn(io,"GEOMETRY OPTIMIZAION IS NOT AVAILABLE WITH MP2, WILL DO MP2 SINGLE POINT ONLY")
                 self%OPT = .false.
+            endif
+
+            ! OPT/gradient derivatives for MPAC/HFAC are not implemented.
+            if ((self%SPL2 .or. self%OSSPL2 .or. self%OSMPAC25 .or. &
+                self%MPAC25 .or. self%HFAC24) .and. self%OPT) then
+                call PrtWrn(io,"GEOMETRY OPTIMIZATION IS NOT AVAILABLE WITH MPAC/HFAC, WILL DO SINGLE POINT ONLY")
+                self%OPT = .false.
+                self%grad = .false.
+            endif
+
+            if ((self%SPL2 .or. self%OSSPL2 .or. self%OSMPAC25 .or. &
+                self%MPAC25 .or. self%HFAC24) .and. self%grad) then
+                call PrtErr(io,"MPAC/HFAC gradients are not implemented.")
+                call quick_exit(io,1)
             endif
 
             ! OPT not available for BLYP and B3LYP DFT methods

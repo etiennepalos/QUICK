@@ -38,6 +38,8 @@
          exportMO, exportSCF, exportOPT
     use quick_io_module, only: chk_init, chk_close, chk_write, &
                                chk_create_opt_traj
+    use quick_mbpt_module, only: calculate_mbpt
+    use quick_mpac_module, only: calculate_mpac
     use quick_timer_module, only : timer_end, timer_cumer, timer_begin
     use quick_method_module, only : quick_method
     use quick_files_module, only: ioutfile, outFileName, iDataFile, dataFileName
@@ -312,22 +314,16 @@
 
     ! 6.b MP2,2nd order Møller–Plesset perturbation theory
     if(quick_method%MP2) then
-    !    if(.not. quick_method%DIVCON) then
-#ifdef MPIV
-           if (master) then
-!             call mpi_calmp2    ! MPI-MP2
-!           else
-#endif
-             call calmp2()      ! none-MPI MP2
-#ifdef MPIV
-           endif
-#endif
-    !    else
-    !        call calmp2divcon   ! DIV&CON MP2
-    !    endif
+        call calculate_mbpt()
     endif   !(quick_method%MP2)
 
-    ! 6.c Freqency calculation and mode analysis
+    ! 6.c MPAC/HFAC adiabatic-connection correlation functionals
+    if(quick_method%SPL2 .or. quick_method%OSSPL2 .or. quick_method%OSMPAC25 .or. &
+       quick_method%MPAC25 .or. quick_method%HFAC24) then
+        call calculate_mpac()
+    endif
+
+    ! 6.d Freqency calculation and mode analysis
     ! note the analytical calculation is broken and needs to be fixed
     if (quick_method%freq) then
         call calcHessian(failed)

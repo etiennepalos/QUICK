@@ -4,6 +4,16 @@ ene_BH3_rhf_sto3g                       #BH3: RHF energy test: STO-3G basis set
 ene_CaCl2_rhf_sto3g                     #CaCl2: RHF energy test: STO-3G basis set
 ene_CH4_rhf_sto3g                       #CH4: RHF energy test: STO-3G basis set
 ene_H2O_rhf_sto3g                       #H2O: RHF energy test: STO-3G basis set
+ene_H2O_mp2_sto3g                       #H2O: closed-shell canonical MP2 energy test: STO-3G basis set
+ene_H2O_sos_mp2_sto3g                   #H2O: closed-shell SOS-MP2 energy test: STO-3G basis set
+ene_H2O_k_mp2_sto3g                     #H2O: closed-shell kappa-MP2 energy test: STO-3G basis set
+ene_H2O_kos_mp2_sto3g                   #H2O: closed-shell KOS-MP2 energy test: STO-3G basis set
+ene_H2O_lt_mp2_sto3g                    #H2O: closed-shell LT-MP2 energy test: STO-3G basis set
+ene_H2O_lt_sos_mp2_sto3g                #H2O: closed-shell LT-SOS-MP2 energy test: STO-3G basis set
+ene_s22_01_mpac25_hfac24_sto3g          #S22 01: RHF/STO-3G MPAC25 and HFAC24 energy test
+ene_s22_02_mpac25_hfac24_sto3g          #S22 02: RHF/STO-3G MPAC25 and HFAC24 energy test
+ene_s22_03_mpac25_hfac24_sto3g          #S22 03: RHF/STO-3G MPAC25 and HFAC24 energy test
+ene_s22_04_mpac25_hfac24_sto3g          #S22 04: RHF/STO-3G MPAC25 and HFAC24 energy test
 ene_HBr_rhf_sto3g                       #HBr: RHF energy test: STO-3G basis set
 ene_HI_rhf_sto3g                        #HI: RHF energy test: STO-3G basis set
 ene_KCl_rhf_sto3g                       #KCl: RHF energy test: STO-3G basis set
