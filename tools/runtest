@@ -376,12 +376,12 @@ get_total_tests()
   fi
 
   if [ "$6" = 'yes' ]; then
-    esp_tests=(`grep "^esp_" "$test_list" | awk '{print $1}'`)
+    esp_tests=(`grep -E "^(esp_|efield_|efg_)" "$test_list" | awk '{print $1}'`)
     tot_esp_tests="${#esp_tests[@]}"
     tests+=(${esp_tests[@]})
     while IFS= read -r line; do
         test_names+=("$line")
-    done < <(grep "^esp_" "$test_list" | awk 'BEGIN { FS=" #"; OFS="\n"; } {print $2}')
+    done < <(grep -E "^(esp_|efield_|efg_)" "$test_list" | awk 'BEGIN { FS=" #"; OFS="\n"; } {print $2}')
   else
     tot_esp_tests=0 
   fi
@@ -425,9 +425,13 @@ set_test()
     cp "$2/saved/$1.out" "$1.ref.out"
   fi
 
-  # copy extra files generated while computing ESP on grid points
+  # copy extra files generated while computing electrostatic properties on grid points
   if [ `echo "$1" | grep '^esp_grid_'| wc -l` -gt 0 ]; then
     cp "$2/saved/$1.esp" "$1.ref.esp"
+  elif [ `echo "$1" | grep '^efield_'| wc -l` -gt 0 ]; then
+    cp "$2/saved/$1.efield" "$1.ref.efield"
+  elif [ `echo "$1" | grep '^efg_'| wc -l` -gt 0 ]; then
+    cp "$2/saved/$1.efg" "$1.ref.efg"
   elif [ `echo "$1" | grep '^esp_'| wc -l` -gt 0 ]; then
     cp "$2/saved/$1.vdw" "$1.ref.vdw"
   fi
@@ -779,6 +783,10 @@ run_esp_test()
     check_energy "$1" "$5" "$6"
     if [ `echo "$1" | grep '^esp_grid_'| wc -l` -gt 0 ]; then
       check_esp_grid "$1" "$5" "$6"
+    elif [ `echo "$1" | grep '^efield_'| wc -l` -gt 0 ]; then
+      check_efield_grid "$1" "$5" "$6"
+    elif [ `echo "$1" | grep '^efg_'| wc -l` -gt 0 ]; then
+      check_efg_grid "$1" "$5" "$6"
     elif [ `echo "$1" | grep '^esp_'| wc -l` -gt 0 ]; then
       check_esp_charge "$1" "$5" "$6"
       check_vdw_surface "$1" "$5" "$6"
@@ -873,6 +881,28 @@ check_esp_grid()
   "$2/dacdif" -k -a '2.0e-7' "$1.ref.esp" "$1.esp" | tee -a "$3"
 }
 
+# check electric field on external points output from test.
+#
+# arguments:
+#   $1: test name
+#   $2: directory containing test files and scripts
+#   $3: test summary log file
+check_efield_grid()
+{
+  "$2/dacdif" -k -a '2.0e-7' "$1.ref.efield" "$1.efield" | tee -a "$3"
+}
+
+# check electric field gradient on external points output from test.
+#
+# arguments:
+#   $1: test name
+#   $2: directory containing test files and scripts
+#   $3: test summary log file
+check_efg_grid()
+{
+  "$2/dacdif" -k -a '2.0e-7' "$1.ref.efg" "$1.efg" | tee -a "$3"
+}
+
 # check nuclear and point charge gradients output from test.
 #
 # arguments:
@@ -927,7 +957,7 @@ check_dipole()
 #   $1: test name
 clean_up()
 {
-  rm -f $1.ref.out $1.ref.vdw $1.ref.esp $1.in $1.tmp ddtmp.$1* $1.*ene $1.*grad $1.*dipole $1.*opt $1.*charge $1.*xyz
+  rm -f $1.ref.out $1.ref.vdw $1.ref.esp $1.ref.efield $1.ref.efg $1.efield $1.efg $1.in $1.tmp ddtmp.$1* $1.*ene $1.*grad $1.*dipole $1.*opt $1.*charge $1.*xyz
   rm -f $1_read.ref.out $1_read.in $1_read.*ene $1_read.*opt
 }
 

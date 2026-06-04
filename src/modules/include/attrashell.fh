@@ -141,7 +141,7 @@ subroutine attrashell(IIsh, JJsh)
 #endif
 
 #if defined (OEPROP)
-  subroutine efield_shell_pair(IIsh,JJsh,efield_electronic)
+  subroutine efield_shell_pair(IIsh,JJsh,npoints,xyz_points,efield_electronic)
 #elif defined (OEI)
   subroutine attrashellopt(IIsh,JJsh)
 #endif
@@ -168,8 +168,9 @@ subroutine attrashell(IIsh, JJsh)
     double precision RA(3),RB(3),RP(3), valopf, g_table(200)
 
 #if defined (OEPROP)
-    integer :: igridpoint
-    double precision, intent(inout) :: efield_electronic(3,quick_molspec%nextpoint)
+    integer :: igridpoint, npoints
+    double precision, intent(in) :: xyz_points(3,npoints)
+    double precision, intent(inout) :: efield_electronic(3,npoints)
 #elif defined (OEI)
     integer :: iatom
     double precision :: Z
@@ -219,10 +220,10 @@ subroutine attrashell(IIsh, JJsh)
             * 2.d0 * sqrt(g/Pi)
 
 #if defined (OEPROP)
-          do igridpoint=1,quick_molspec%nextpoint
-            Cx=quick_molspec%extpointxyz(1,igridpoint)
-            Cy=quick_molspec%extpointxyz(2,igridpoint)
-            Cz=quick_molspec%extpointxyz(3,igridpoint)
+          do igridpoint=1,npoints
+            Cx=xyz_points(1,igridpoint)
+            Cy=xyz_points(2,igridpoint)
+            Cz=xyz_points(3,igridpoint)
 #elif defined (OEI)
           do iatom=1,natom+quick_molspec%nextatom
             if(quick_basis%katom(IIsh).eq.iatom.and.quick_basis%katom(JJsh).eq.iatom)then

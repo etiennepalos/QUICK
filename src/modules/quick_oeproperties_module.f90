@@ -7,7 +7,8 @@
 !                                                                     !
 ! Capabilities:                                                       !
 !              - ESP        Serial and MPI                            !
-!              - EField     Serial                                    !
+!              - EField     Serial and MPI                            !
+!              - EFG        Serial and MPI                            !
 !                                                                     ! 
 ! Copyright (C) 2024-2025                                             !
 !                                                                     !
@@ -89,7 +90,9 @@ module quick_oeproperties_module
    double precision, allocatable :: esp_on_points(:)
    double precision, intent(in) :: xyz_points(:,:)
 
-   allocate(esp_on_points(npoints))
+   if (quick_method%esp_grid .or. quick_method%esp_charge) then
+     allocate(esp_on_points(npoints))
+   end if
 
    ierr = 0
 
@@ -138,10 +141,15 @@ module quick_oeproperties_module
 
    ! Electric field
    if (quick_method%efield_grid) then
-     call compute_efield()
+     call compute_efield(npoints,xyz_points)
    end if
 
-   deallocate(esp_on_points)
+   ! Electric field gradient
+   if (quick_method%efg_grid) then
+     call compute_efg(npoints,xyz_points)
+   end if
+
+   if (allocated(esp_on_points)) deallocate(esp_on_points)
 
  end Subroutine
 
@@ -503,12 +511,51 @@ module quick_oeproperties_module
  ! result to file.efield                                                            !
  !                                                                                  !
  !----------------------------------------------------------------------------------!
- subroutine compute_efield()
-  use quick_basis_module, only: jshell
+ subroutine compute_efield(npoints,xyz_points)
   use quick_exception_module
   use quick_files_module, only: iEFIELDFile, efieldFileName
-  use quick_molspec_module, only: quick_molspec
   use quick_timer_module, only: timer_begin, timer_end, timer_cumer
+#ifdef MPIV
+   use quick_mpi_module, only: master
+#endif
+
+   implicit none
+   integer, intent(in) :: npoints
+   integer :: ierr
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, allocatable :: efield(:,:)
+
+   ierr = 0
+   allocate(efield(3,npoints))
+
+   RECORD_TIME(timer_begin%TEFIELDGrid)
+
+   call compute_efield_values(npoints,xyz_points,efield)
+
+   RECORD_TIME(timer_end%TEFIELDGrid)
+   timer_cumer%TEFIELDGrid=timer_cumer%TEFIELDGrid+timer_end%TEFIELDGrid-timer_begin%TEFIELDGrid
+
+   ! Sum the nuclear and electronic part of EFIELD and print.
+#ifdef MPIV
+   if (master) then
+#endif
+     SAFE_CALL(quick_open(iEFIELDFile,efieldFileName,'U','F','R',.false.,ierr))
+     call print_efield(efield,npoints,xyz_points)
+     close(iEFIELDFile)
+#ifdef MPIV
+   endif
+#endif
+
+   deallocate(efield)
+
+ end subroutine compute_efield
+
+ !----------------------------------------------------------------------------------!
+ ! This subroutine computes EFIELD values at the given grid points.                  !
+ ! It is used by both EFIELD_GRID output and finite-difference EFG_GRID.             !
+ !----------------------------------------------------------------------------------!
+ subroutine compute_efield_values(npoints,xyz_points,efield)
+  use quick_basis_module, only: jshell
 #ifdef MPIV
    use mpi
    use quick_basis_module, only: mpi_jshelln, mpi_jshell
@@ -516,10 +563,11 @@ module quick_oeproperties_module
 #endif
 
    implicit none
-   integer :: ierr
+   integer, intent(in) :: npoints
    integer :: IIsh, JJsh
    integer :: igridpoint
-  
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, intent(out) :: efield(:,:)
    double precision, allocatable :: efield_electronic(:,:)
    double precision, allocatable :: efield_nuclear(:,:)
 #ifdef MPIV
@@ -527,63 +575,46 @@ module quick_oeproperties_module
 #endif
    integer :: Ish
 
-   ierr = 0
-  
-   ! Allocates efield_nuclear and efield_electronic arrays
-   allocate(efield_electronic(3,quick_molspec%nextpoint))
-   allocate(efield_nuclear(3,quick_molspec%nextpoint))
+   efield(:,:) = 0.0d0
 
+   ! Allocates efield_nuclear and efield_electronic arrays.
+   allocate(efield_electronic(3,npoints))
+   allocate(efield_nuclear(3,npoints))
 #ifdef MPIV
-   allocate(efield_electronic_aggregate(3,quick_molspec%nextpoint))
+   allocate(efield_electronic_aggregate(3,npoints))
 #endif
 
-   ! Initilizes efield_electronic as it will be updated to account
-   ! for contributions from different shell-pairs
+   ! Initializes efield_electronic as it will be updated to account
+   ! for contributions from different shell-pairs.
    efield_electronic(:,:) = 0.0d0
 
-   RECORD_TIME(timer_begin%TEFIELDGrid)
-
-   ! Computes efield_nuclear 
-   do igridpoint=1,quick_molspec%nextpoint
-     call efield_nuc(igridpoint, efield_nuclear(1,igridpoint))
+   ! Computes efield_nuclear.
+   do igridpoint=1,npoints
+     call efield_nuc(igridpoint, xyz_points, efield_nuclear(1,igridpoint))
    end do
 
-   ! Computes EField_ELEC by summing over contrbutions from individual shell-pairs
-
+   ! Computes EFIELD_ELEC by summing over contributions from individual shell-pairs.
 #ifdef MPIV
    do Ish=1,mpi_jshelln(mpirank)
       IIsh=mpi_jshell(mpirank,Ish)
       do JJsh=IIsh,jshell
-         call efield_shell_pair(IIsh, JJsh, efield_electronic)
+         call efield_shell_pair(IIsh, JJsh, npoints, xyz_points, efield_electronic)
       enddo
    enddo
-   call MPI_REDUCE(efield_electronic, efield_electronic_aggregate, 3 * quick_molspec%nextpoint, &
+   call MPI_REDUCE(efield_electronic, efield_electronic_aggregate, 3*npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
+
+   if (master) then
+     efield(:,:) = efield_nuclear(:,:) + efield_electronic_aggregate(:,:)
+   endif
 #else
    do IIsh = 1, jshell
       do JJsh = IIsh, jshell
-        call efield_shell_pair(IIsh, JJsh, efield_electronic)
+        call efield_shell_pair(IIsh, JJsh, npoints, xyz_points, efield_electronic)
       end do
    end do
-#endif
 
-   RECORD_TIME(timer_end%TEFIELDGrid)
-   timer_cumer%TEFIELDGrid=timer_cumer%TEFIELDGrid+timer_end%TEFIELDGrid-timer_begin%TEFIELDGrid
-
-   ! Sum the nuclear and electronic part of EField and print
-#ifdef MPIV
-   if (master) then
-#endif
-    ! for now, back to 'R' mode
-     SAFE_CALL(quick_open(iEFIELDFile,efieldFileName,'U','F','R',.false.,ierr))
-#ifdef MPIV
-     call print_efield(efield_nuclear, efield_electronic_aggregate, quick_molspec%nextpoint)
-#else
-     call print_efield(efield_nuclear, efield_electronic, quick_molspec%nextpoint)
-#endif
-     close(iEFIELDFile)
-#ifdef MPIV
-   endif
+   efield(:,:) = efield_nuclear(:,:) + efield_electronic(:,:)
 #endif
 
    deallocate(efield_electronic)
@@ -591,17 +622,101 @@ module quick_oeproperties_module
 #ifdef MPIV
    deallocate(efield_electronic_aggregate)
 #endif
- end subroutine compute_efield
+
+ end subroutine compute_efield_values
+
+ !----------------------------------------------------------------------------------!
+ ! This subroutine computes the Electric Field Gradient (EFG)                       !
+ ! at a given point by finite-differencing EFIELD along each Cartesian direction.   !
+ !                                                                                  !
+ !----------------------------------------------------------------------------------!
+ subroutine compute_efg(npoints,xyz_points)
+  use quick_exception_module
+  use quick_files_module, only: iEFGFile, efgFileName
+  use quick_timer_module, only: timer_begin, timer_end, timer_cumer
+#ifdef MPIV
+   use quick_mpi_module, only: master
+#endif
+
+   implicit none
+   integer, intent(in) :: npoints
+   integer :: ierr
+   integer :: igridpoint, ifield, idir
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, allocatable :: efg(:,:,:)
+   double precision, allocatable :: efield_plus(:,:), efield_minus(:,:)
+   double precision, allocatable :: xyz_plus(:,:), xyz_minus(:,:)
+   double precision, parameter :: efg_fd_step = 1.0d-4
+
+   ierr = 0
+
+   allocate(efg(3,3,npoints))
+   allocate(efield_plus(3,npoints))
+   allocate(efield_minus(3,npoints))
+   allocate(xyz_plus(3,npoints))
+   allocate(xyz_minus(3,npoints))
+
+   efg(:,:,:) = 0.0d0
+
+   RECORD_TIME(timer_begin%TEFGGrid)
+
+   ! The EFG tensor is the Cartesian derivative of EFIELD.
+   ! A central finite difference keeps the CPU implementation consistent
+   ! with the existing serial/MPI EFIELD shell-pair code.
+   do idir = 1, 3
+     xyz_plus(:,:) = xyz_points(:,:)
+     xyz_minus(:,:) = xyz_points(:,:)
+     xyz_plus(idir,:) = xyz_plus(idir,:) + efg_fd_step
+     xyz_minus(idir,:) = xyz_minus(idir,:) - efg_fd_step
+
+     call compute_efield_values(npoints,xyz_plus,efield_plus)
+     call compute_efield_values(npoints,xyz_minus,efield_minus)
+
+#ifdef MPIV
+     if (master) then
+#endif
+       do igridpoint = 1, npoints
+         do ifield = 1, 3
+           efg(ifield,idir,igridpoint) = &
+             (efield_plus(ifield,igridpoint)-efield_minus(ifield,igridpoint))/(2.0d0*efg_fd_step)
+         end do
+       end do
+#ifdef MPIV
+     endif
+#endif
+   end do
+
+   RECORD_TIME(timer_end%TEFGGrid)
+   timer_cumer%TEFGGrid=timer_cumer%TEFGGrid+timer_end%TEFGGrid-timer_begin%TEFGGrid
+
+#ifdef MPIV
+   if (master) then
+#endif
+     SAFE_CALL(quick_open(iEFGFile,efgFileName,'U','F','R',.false.,ierr))
+     call print_efg(efg,npoints,xyz_points)
+     close(iEFGFile)
+#ifdef MPIV
+   endif
+#endif
+
+   deallocate(efg)
+   deallocate(efield_plus)
+   deallocate(efield_minus)
+   deallocate(xyz_plus)
+   deallocate(xyz_minus)
+
+ end subroutine compute_efg
 
 !------------------------------------------------------------------------!
 ! This subroutine calculates EField_nuc(r) = sum Z_k*(r-Rk)/(|r-Rk|^3)   !
 !------------------------------------------------------------------------!
- subroutine efield_nuc(igridpoint, efield_nuclear_term)
+ subroutine efield_nuc(igridpoint, xyz_points, efield_nuclear_term)
   use quick_molspec_module, only: natom, quick_molspec, xyz
   implicit none
 
   integer, intent(in) :: igridpoint
   double precision, external :: rootSquare
+  double precision, intent(in) :: xyz_points(:,:)
   double precision, intent(out) :: efield_nuclear_term(3)
 
   double precision :: distance
@@ -612,24 +727,24 @@ module quick_oeproperties_module
 
   do inucleus = 1, natom+quick_molspec%nextatom
     if(inucleus<=natom)then
-      distance = rootSquare(xyz(1:3, inucleus), quick_molspec%extpointxyz(1:3, igridpoint), 3)
+      distance = rootSquare(xyz(1:3, inucleus), xyz_points(1:3, igridpoint), 3)
       inv_dist_cube = 1.0d0/(distance**3)
 
-      rx_nuc_gridpoint = (quick_molspec%extpointxyz(1, igridpoint) - xyz(1, inucleus))
-      ry_nuc_gridpoint = (quick_molspec%extpointxyz(2, igridpoint) - xyz(2, inucleus))
-      rz_nuc_gridpoint = (quick_molspec%extpointxyz(3, igridpoint) - xyz(3, inucleus))
+      rx_nuc_gridpoint = (xyz_points(1, igridpoint) - xyz(1, inucleus))
+      ry_nuc_gridpoint = (xyz_points(2, igridpoint) - xyz(2, inucleus))
+      rz_nuc_gridpoint = (xyz_points(3, igridpoint) - xyz(3, inucleus))
 
      ! Compute nuclear components to EFIELD_NUCLEAR
       efield_nuclear_term(1) = efield_nuclear_term(1) + quick_molspec%chg(inucleus) * (rx_nuc_gridpoint * inv_dist_cube)
       efield_nuclear_term(2) = efield_nuclear_term(2) + quick_molspec%chg(inucleus) * (ry_nuc_gridpoint * inv_dist_cube)
       efield_nuclear_term(3) = efield_nuclear_term(3) + quick_molspec%chg(inucleus) * (rz_nuc_gridpoint * inv_dist_cube)
     else
-      distance = rootSquare(quick_molspec%extxyz(1:3, inucleus-natom), quick_molspec%extpointxyz(1:3, igridpoint), 3)
+      distance = rootSquare(quick_molspec%extxyz(1:3, inucleus-natom), xyz_points(1:3, igridpoint), 3)
       inv_dist_cube = 1.0d0/(distance**3)
 
-      rx_nuc_gridpoint = (quick_molspec%extpointxyz(1, igridpoint) - quick_molspec%extxyz(1, inucleus-natom))
-      ry_nuc_gridpoint = (quick_molspec%extpointxyz(2, igridpoint) - quick_molspec%extxyz(2, inucleus-natom))
-      rz_nuc_gridpoint = (quick_molspec%extpointxyz(3, igridpoint) - quick_molspec%extxyz(3, inucleus-natom))
+      rx_nuc_gridpoint = (xyz_points(1, igridpoint) - quick_molspec%extxyz(1, inucleus-natom))
+      ry_nuc_gridpoint = (xyz_points(2, igridpoint) - quick_molspec%extxyz(2, inucleus-natom))
+      rz_nuc_gridpoint = (xyz_points(3, igridpoint) - quick_molspec%extxyz(3, inucleus-natom))
 
      ! Compute nuclear components to EFIELD_NUCLEAR
       efield_nuclear_term(1) = efield_nuclear_term(1) + quick_molspec%extchg(inucleus-natom) * (rx_nuc_gridpoint * inv_dist_cube)
@@ -643,21 +758,20 @@ end subroutine efield_nuc
  !---------------------------------------------------------------------------------------------!
  ! This subroutine formats and prints the EFIELD data to file.efield                           !
  !---------------------------------------------------------------------------------------------!
-subroutine print_efield(efield_nuclear, efield_electronic, nextpoint)
-  use quick_molspec_module, only: quick_molspec
+subroutine print_efield(efield, npoints, xyz_points)
   use quick_method_module, only: quick_method
   use quick_files_module, only: ioutfile, iEFIELDFile, efieldFileName
   use quick_constants_module, only: BOHRS_TO_A
 
   implicit none
-  integer, intent(in) :: nextpoint
+  integer, intent(in) :: npoints
 
-  double precision, intent(in) :: efield_nuclear(:,:), efield_electronic(:,:)
+  double precision, intent(in) :: efield(:,:), xyz_points(:,:)
 
   integer :: igridpoint
   double precision :: Cx, Cy, Cz
 
-  ! If ESP_GRID is true, print to table X, Y, Z, V(r)
+  ! If EFIELD_GRID is true, print to table X, Y, Z, EFIELD_X, EFIELD_Y and EFIELD_Z.
   write (ioutfile,'(" *** Printing Electric Field (EFIELD) &
           &[a.u.] on grid ",A,x,"***")') trim(efieldFileName)
   write (iEFIELDFile,'(/," ELECTRIC FIELD CALCULATION (EFIELD) &
@@ -667,27 +781,73 @@ subroutine print_efield(efield_nuclear, efield_electronic, nextpoint)
   write (iEFIELDFile,'(9x,"X",13x,"Y",12x,"Z",16x, &
           &"EFIELD_X",12x, "EFIELD_Y",8x,"EFIELD_Z")')
 
-  ! Collect ESP and print
-  do igridpoint = 1, nextpoint 
+  ! Collect EFIELD and print.
+  do igridpoint = 1, npoints
     if (quick_method%extgrid_angstrom)  then
-      Cx = (quick_molspec%extpointxyz(1, igridpoint)*BOHRS_TO_A)
-      Cy = (quick_molspec%extpointxyz(2, igridpoint)*BOHRS_TO_A)
-      Cz = (quick_molspec%extpointxyz(3, igridpoint)*BOHRS_TO_A)
+      Cx = (xyz_points(1, igridpoint)*BOHRS_TO_A)
+      Cy = (xyz_points(2, igridpoint)*BOHRS_TO_A)
+      Cz = (xyz_points(3, igridpoint)*BOHRS_TO_A)
     else
-      Cx = quick_molspec%extpointxyz(1, igridpoint)
-      Cy = quick_molspec%extpointxyz(2, igridpoint)
-      Cz = quick_molspec%extpointxyz(3, igridpoint)
+      Cx = xyz_points(1, igridpoint)
+      Cy = xyz_points(2, igridpoint)
+      Cz = xyz_points(3, igridpoint)
     endif
 
-    ! Sum nuclear and electric components of EField and print.
     if (quick_method%efield_grid) then
-      write(iEFIELDFile, '(3x,ES14.6,3x,ES14.6,3x,ES14.6)') &
-      (efield_nuclear(1,igridpoint)+efield_electronic(1,igridpoint)), &
-      (efield_nuclear(2,igridpoint)+efield_electronic(2,igridpoint)), &
-      (efield_nuclear(3,igridpoint)+efield_electronic(3,igridpoint))
+      write(iEFIELDFile, '(3x,6(ES14.6,3x))') Cx, Cy, Cz, &
+      efield(1,igridpoint), efield(2,igridpoint), efield(3,igridpoint)
     endif
   end do
 
 end subroutine print_efield
+
+ !---------------------------------------------------------------------------------------------!
+ ! This subroutine formats and prints the EFG data to file.efg                                  !
+ !---------------------------------------------------------------------------------------------!
+subroutine print_efg(efg, npoints, xyz_points)
+  use quick_method_module, only: quick_method
+  use quick_files_module, only: ioutfile, iEFGFile, efgFileName
+  use quick_constants_module, only: BOHRS_TO_A
+
+  implicit none
+  integer, intent(in) :: npoints
+
+  double precision, intent(in) :: efg(:,:,:), xyz_points(:,:)
+
+  integer :: igridpoint
+  double precision :: Cx, Cy, Cz
+
+  write (ioutfile,'(" *** Printing Electric Field Gradient (EFG) &
+          &[a.u.] on grid ",A,x,"***")') trim(efgFileName)
+  write (iEFGFile,'(/," ELECTRIC FIELD GRADIENT CALCULATION (EFG) &
+          &[atomic units] ")')
+  write (iEFGFile,'(150("-"))')
+
+  write (iEFGFile,'(9x,"X",13x,"Y",12x,"Z",16x, &
+          &"EFG_XX",11x,"EFG_XY",11x,"EFG_XZ",11x, &
+          &"EFG_YX",11x,"EFG_YY",11x,"EFG_YZ",11x, &
+          &"EFG_ZX",11x,"EFG_ZY",11x,"EFG_ZZ")')
+
+  ! Collect EFG and print.
+  do igridpoint = 1, npoints
+    if (quick_method%extgrid_angstrom)  then
+      Cx = (xyz_points(1, igridpoint)*BOHRS_TO_A)
+      Cy = (xyz_points(2, igridpoint)*BOHRS_TO_A)
+      Cz = (xyz_points(3, igridpoint)*BOHRS_TO_A)
+    else
+      Cx = xyz_points(1, igridpoint)
+      Cy = xyz_points(2, igridpoint)
+      Cz = xyz_points(3, igridpoint)
+    endif
+
+    if (quick_method%efg_grid) then
+      write(iEFGFile, '(3x,12(ES14.6,3x))') Cx, Cy, Cz, &
+      efg(1,1,igridpoint), efg(1,2,igridpoint), efg(1,3,igridpoint), &
+      efg(2,1,igridpoint), efg(2,2,igridpoint), efg(2,3,igridpoint), &
+      efg(3,1,igridpoint), efg(3,2,igridpoint), efg(3,3,igridpoint)
+    endif
+  end do
+
+end subroutine print_efg
 
 end module quick_oeproperties_module

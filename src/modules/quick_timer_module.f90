@@ -61,6 +61,7 @@ module quick_timer_module
         double precision:: Tdisp=0.0d0       ! Time for computing dispersion correction
         double precision:: TESPGrid=0.0d0    ! Time for computing ESP on grid
         double precision:: TEFIELDGrid=0.0d0 ! Time for computing EFIELD on grid
+        double precision:: TEFGGrid=0.0d0    ! Time for computing EFG on grid
         double precision:: TESPSurface=0.0d0    ! Time for creating vanderwaals surface for ESP charge calculation
         double precision:: TESPCharge=0.0d0    ! Time for computing ESP charge using points on the surface
     end type quick_timer
@@ -110,6 +111,7 @@ module quick_timer_module
         double precision:: Tdisp=0.0d0      ! Time for computing dispersion correction
         double precision:: TESPGrid=0.0d0      ! Time for computing ESP on grid
         double precision:: TEFIELDGrid=0.0d0      ! Time for computing EFEILD on grid
+        double precision:: TEFGGrid=0.0d0      ! Time for computing EFG on grid
         double precision:: TESPSurface=0.0d0    ! Time for creating vanderwaals surface for ESP charge calculation
         double precision:: TESPCharge=0.0d0    ! Time for computing ESP charge using points on the surface
 
@@ -235,6 +237,11 @@ module quick_timer_module
             if(quick_method%efield_grid) then
                 write (io,'("| EFIELD COMPUTATION TIME =",F16.9,"( ",F5.2,"%)")') timer_cumer%TEFIELDGrid, &
                 timer_cumer%TEFIELDGrid/(timer_end%TTotal-timer_begin%TTotal)*100
+            endif
+
+            if(quick_method%efg_grid) then
+                write (io,'("| EFG COMPUTATION TIME =",F16.9,"( ",F5.2,"%)")') timer_cumer%TEFGGrid, &
+                timer_cumer%TEFGGrid/(timer_end%TTotal-timer_begin%TTotal)*100
             endif
 
             if (quick_method%nodirect) &
