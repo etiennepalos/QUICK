@@ -63,6 +63,18 @@ module quick_method_module
         logical :: efield_grid =  .false.   ! Electrostatic field (EFIELD)
         logical :: efg_grid =  .false.      ! Electrostatic field gradient (EFG)
         logical :: efg_grid_numerical = .false. ! Numerical finite-difference EFG
+        logical :: density_surface = .false. ! Electron-density isosurface for ESP/EFIELD/EFG
+        double precision :: density_surface_value = 1.0d-3
+                                       ! Electron density isovalue in a.u.
+        double precision :: density_surface_spacing = 0.50d0
+                                       ! Approximate surface point spacing in Angstroms
+        double precision :: density_surface_max_radius = 10.0d0
+                                       ! Maximum ray length in Angstroms
+        logical :: external_efield = .false. ! Uniform external electric field
+        double precision :: external_efield_vector(3) = (/0.0d0,0.0d0,0.0d0/)
+                                       ! External electric field vector in a.u.
+        double precision :: external_efield_origin(3) = (/0.0d0,0.0d0,0.0d0/)
+                                       ! Origin for the finite-field dipole operator
         logical :: diisOpt =  .false.  ! DIIS Optimization
         logical :: core =  .false.     ! Add core
         logical :: annil =  .false.    ! Annil Spin Contamination
@@ -244,6 +256,13 @@ module quick_method_module
             call MPI_BCAST(self%efield_grid,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%efg_grid,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%efg_grid_numerical,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%density_surface,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%density_surface_value,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%density_surface_spacing,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%density_surface_max_radius,1,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%external_efield,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%external_efield_vector,3,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%external_efield_origin,3,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%diisOpt,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%core,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%annil,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
@@ -510,6 +529,21 @@ module quick_method_module
            if (self%efield_grid)      write(io,'(" ELECTROSTATIC FIELD CALCULATION")')
            if (self%efg_grid)      write(io,'(" ELECTRIC FIELD GRADIENT CALCULATION")')
            if (self%efg_grid_numerical) write(io,'(" NUMERICAL EFG FINITE DIFFERENCE")')
+           if (self%density_surface) then
+             write(io,'(" ELECTRON-DENSITY SURFACE OEPROP")')
+             write(io,'(" DENSITY SURFACE ISOVALUE = ",ES14.6," A.U.")') &
+               self%density_surface_value
+             write(io,'(" DENSITY SURFACE SPACING = ",F7.3," A")') &
+               self%density_surface_spacing
+           endif
+           if (self%external_efield) then
+             write(io,'(" EXTERNAL ELECTRIC FIELD = ",3(ES14.6,1x)," A.U.")') &
+               self%external_efield_vector(1), self%external_efield_vector(2), &
+               self%external_efield_vector(3)
+             write(io,'(" EXTERNAL ELECTRIC FIELD ORIGIN = ",3(ES14.6,1x)," BOHR")') &
+               self%external_efield_origin(1), self%external_efield_origin(2), &
+               self%external_efield_origin(3)
+           endif
 
             if (self%DIVCON) then
                 write(io,'(" DIV & CON METHOD")',advance="no")
@@ -874,6 +908,35 @@ module quick_method_module
                self%esp_grid=.true.
                self%ext_grid=.true.
            endif
+           if (index(keyWD,'ESP_SURFACE').ne.0) then
+               self%esp_grid=.true.
+               self%density_surface=.true.
+               self%extgrid_angstrom=.true.
+               self%ext_grid=.false.
+           endif
+           if (index(keyWD,'EFIELD_SURFACE').ne.0) then
+               self%efield_grid=.true.
+               self%density_surface=.true.
+               self%extgrid_angstrom=.true.
+               self%ext_grid=.false.
+           endif
+           if (index(keyWD,'EFG_SURFACE').ne.0) then
+               self%efg_grid=.true.
+               self%density_surface=.true.
+               self%extgrid_angstrom=.true.
+               self%ext_grid=.false.
+           endif
+           if (index(keyWD,'DENSITY_SURFACE').ne.0) then
+               self%density_surface=.true.
+               self%extgrid_angstrom=.true.
+               self%ext_grid=.false.
+               if (index(keyWD,'DENSITY_SURFACE_VALUE').ne.0) &
+                 call read(keywd,'DENSITY_SURFACE_VALUE', self%density_surface_value)
+               if (index(keyWD,'DENSITY_SURFACE_SPACING').ne.0) &
+                 call read(keywd,'DENSITY_SURFACE_SPACING', self%density_surface_spacing)
+               if (index(keyWD,'DENSITY_SURFACE_MAX_RADIUS').ne.0) &
+                 call read(keywd,'DENSITY_SURFACE_MAX_RADIUS', self%density_surface_max_radius)
+           endif
            if (index(keyWD,'ESP_CHARGE').ne.0) then
                self%esp_charge=.true.
                if (index(keyWD,'ESPGRID_SPACING').ne.0) then
@@ -887,6 +950,33 @@ module quick_method_module
            if (index(keyWD,'EXTGRID_ANGSTROM').ne.0) then
                self%extgrid_angstrom=.true.
                self%ext_grid=.true.
+           endif
+           if (index(keyWD,'EXTERNAL_EFIELD').ne.0 .or. index(keyWD,'FINITE_FIELD').ne.0) then
+               self%external_efield=.true.
+               if (index(keyWD,'EXTERNAL_EFIELD_X=').ne.0) &
+                 call read(keywd,'EXTERNAL_EFIELD_X', self%external_efield_vector(1))
+               if (index(keyWD,'EXTERNAL_EFIELD_Y=').ne.0) &
+                 call read(keywd,'EXTERNAL_EFIELD_Y', self%external_efield_vector(2))
+               if (index(keyWD,'EXTERNAL_EFIELD_Z=').ne.0) &
+                 call read(keywd,'EXTERNAL_EFIELD_Z', self%external_efield_vector(3))
+               if (index(keyWD,'FINITE_FIELD_X=').ne.0) &
+                 call read(keywd,'FINITE_FIELD_X', self%external_efield_vector(1))
+               if (index(keyWD,'FINITE_FIELD_Y=').ne.0) &
+                 call read(keywd,'FINITE_FIELD_Y', self%external_efield_vector(2))
+               if (index(keyWD,'FINITE_FIELD_Z=').ne.0) &
+                 call read(keywd,'FINITE_FIELD_Z', self%external_efield_vector(3))
+               if (index(keyWD,'EXTERNAL_EFIELD_ORIGIN_X=').ne.0) &
+                 call read(keywd,'EXTERNAL_EFIELD_ORIGIN_X', self%external_efield_origin(1))
+               if (index(keyWD,'EXTERNAL_EFIELD_ORIGIN_Y=').ne.0) &
+                 call read(keywd,'EXTERNAL_EFIELD_ORIGIN_Y', self%external_efield_origin(2))
+               if (index(keyWD,'EXTERNAL_EFIELD_ORIGIN_Z=').ne.0) &
+                 call read(keywd,'EXTERNAL_EFIELD_ORIGIN_Z', self%external_efield_origin(3))
+               if (index(keyWD,'FINITE_FIELD_ORIGIN_X=').ne.0) &
+                 call read(keywd,'FINITE_FIELD_ORIGIN_X', self%external_efield_origin(1))
+               if (index(keyWD,'FINITE_FIELD_ORIGIN_Y=').ne.0) &
+                 call read(keywd,'FINITE_FIELD_ORIGIN_Y', self%external_efield_origin(2))
+               if (index(keyWD,'FINITE_FIELD_ORIGIN_Z=').ne.0) &
+                 call read(keywd,'FINITE_FIELD_ORIGIN_Z', self%external_efield_origin(3))
            endif
            if (index(keyWD,'LSHIFT_CYCLE').ne.0) then
                call read(keywd,'LSHIFT_CYCLE', self%LShift_cycle)
@@ -946,6 +1036,13 @@ module quick_method_module
             self%efield_grid = .false.     ! Electric field (EFIELD) evaluated on grid
             self%efg_grid = .false.        ! Electric field gradient (EFG)
             self%efg_grid_numerical = .false. ! Numerical finite-difference EFG
+            self%density_surface = .false. ! Electron-density isosurface for ESP/EFIELD/EFG
+            self%density_surface_value = 1.0d-3
+            self%density_surface_spacing = 0.50d0
+            self%density_surface_max_radius = 10.0d0
+            self%external_efield = .false. ! Uniform external electric field
+            self%external_efield_vector(:) = 0.0d0
+            self%external_efield_origin(:) = 0.0d0
 
             self%LShift_cycle = 3     ! After what cycle allow Level shifting
             self%LShift_err = 0.1d0   ! Minimum error for allowing Level shifting
@@ -1078,6 +1175,18 @@ module quick_method_module
             if(self%DFT.and. self%OPT .and. (.not. (self%BLYP .or. self%B3LYP) .and. .not.(self%uselibxc)))then
                 call PrtWrn(io,"GEOMETRY OPTIMIZATION is only available with HF, DFT/BLYP, DFT/B3LYP" )
                 self%OPT = .false.
+            endif
+
+            if (self%external_efield .and. self%grad) then
+                call PrtErr(io,"EXTERNAL_EFIELD currently supports SCF energies and properties only.")
+                call PrtErr(io,"Analytic finite-field gradients are not implemented.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%density_surface .and. &
+                .not.(self%esp_grid .or. self%efield_grid .or. self%efg_grid)) then
+                call PrtErr(io,"DENSITY_SURFACE requires ESP_SURFACE, EFIELD_SURFACE, or EFG_SURFACE.")
+                call quick_exit(io,1)
             endif
 
             ! tighten XCCutoff if diffuse functions exist

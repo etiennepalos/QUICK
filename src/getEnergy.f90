@@ -27,6 +27,7 @@ subroutine getEnergy(isGuess, ierr)
    implicit none
 
    double precision :: distance
+   double precision :: field_dot_r
    double precision, external :: rootSquare
    integer i,j
    logical, intent(in) :: isGuess
@@ -88,6 +89,31 @@ subroutine getEnergy(isGuess, ierr)
                         quick_molspec%extchg(I-natom)*quick_molspec%extchg(J-natom)/distance
                endif
             enddo
+         enddo
+      endif
+
+      ! A uniform external electric field contributes the classical
+      ! charge-field term to Ecore.  The electronic counterpart is added
+      ! as a one-electron operator in quick_oei_module.
+      if (quick_method%external_efield) then
+         do I=1,natom
+            field_dot_r = quick_method%external_efield_vector(1) &
+               *(xyz(1,I)-quick_method%external_efield_origin(1)) &
+               + quick_method%external_efield_vector(2) &
+               *(xyz(2,I)-quick_method%external_efield_origin(2)) &
+               + quick_method%external_efield_vector(3) &
+               *(xyz(3,I)-quick_method%external_efield_origin(3))
+            quick_qm_struct%Ecore = quick_qm_struct%Ecore - quick_molspec%chg(I)*field_dot_r
+         enddo
+
+         do I=1,quick_molspec%nextatom
+            field_dot_r = quick_method%external_efield_vector(1) &
+               *(quick_molspec%extxyz(1,I)-quick_method%external_efield_origin(1)) &
+               + quick_method%external_efield_vector(2) &
+               *(quick_molspec%extxyz(2,I)-quick_method%external_efield_origin(2)) &
+               + quick_method%external_efield_vector(3) &
+               *(quick_molspec%extxyz(3,I)-quick_method%external_efield_origin(3))
+            quick_qm_struct%Ecore = quick_qm_struct%Ecore - quick_molspec%extchg(I)*field_dot_r
          enddo
       endif
    endif

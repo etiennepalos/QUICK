@@ -4,6 +4,7 @@ ene_BH3_rhf_sto3g                       #BH3: RHF energy test: STO-3G basis set
 ene_CaCl2_rhf_sto3g                     #CaCl2: RHF energy test: STO-3G basis set
 ene_CH4_rhf_sto3g                       #CH4: RHF energy test: STO-3G basis set
 ene_H2O_rhf_sto3g                       #H2O: RHF energy test: STO-3G basis set
+ene_H2O_external_efield_rhf_sto3g       #H2O: RHF finite external electric field energy test: STO-3G basis set
 ene_HBr_rhf_sto3g                       #HBr: RHF energy test: STO-3G basis set
 ene_HI_rhf_sto3g                        #HI: RHF energy test: STO-3G basis set
 ene_KCl_rhf_sto3g                       #KCl: RHF energy test: STO-3G basis set
@@ -177,10 +178,13 @@ opt_const_dh_c2h4f2_hf_3-21g            #C2H4F2: RHF DL-FIND constraint dihedral
 opt_const_freeze_c2h4f2_hf_3-21g        #C2H4F2: RHF DL-FIND constraint freeze atoms optimizaton test: s and p basis functions
 api_water_rhf_631g                      #Water: API test
 esp_charge_acetone_b3lyp_def2svp        #ESP test: Tests both ESP charges and ESP on van der Waals surface.
-esp_grid_acetone_b3lyp_def2svp          #ESP test: Tests ESP calculation on external points
-efield_grid_acetone_b3lyp_def2svp       #ESP test: Tests EFIELD calculation on external points
-efg_grid_acetone_b3lyp_def2svp          #ESP test: Tests EFG calculation on external points
-efg_grid_numerical_acetone_b3lyp_def2svp #ESP test: Tests finite-difference EFG calculation on external points
+esp_grid_acetone_pbe0_d3bj_ccpvdz       #ESP test: Tests ESP calculation on external points
+efield_grid_acetone_pbe0_d3bj_ccpvdz    #ESP test: Tests EFIELD calculation on external points
+efg_grid_acetone_pbe0_d3bj_ccpvdz       #ESP test: Tests EFG calculation on external points
+efg_grid_numerical_acetone_pbe0_d3bj_ccpvdz #ESP test: Tests finite-difference EFG calculation on external points
+esp_grid_density_surface_H2O_rhf_sto3g  #ESP test: Tests ESP on electron-density surface
+efield_density_surface_H2O_rhf_sto3g    #ESP test: Tests EFIELD on electron-density surface
+efg_density_surface_H2O_rhf_sto3g       #ESP test: Tests EFG on electron-density surface
 esp_charge_acetate_radical              #ESP test: Tests ESP evaluation and charge calculation for unrestricted DFT
 esp_charge_acetate_anion                #ESP test: Tests ESP evaluation and charge calculation for charged molecule
 ene_multiple_keyword_lines              #Acetate: DFT energy test: Tests if reading of keywords from multiple lines works

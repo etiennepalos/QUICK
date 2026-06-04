@@ -1,0 +1,218 @@
+| *********************************************************************************************************
+| **                                                                                                     **
+| **           888888888888                                                                              **
+| **         8888888888888888                                                                            **
+| **      888888888888888888                                                                             **
+| **     888888888888888888                                                                              **
+| **    888888888888888                                                                                  **
+| **   88888888888888888888                               88888                       8888:              **
+| **   8888888888888888888888Z                            88888                       8888:              **
+| **   888888888888888888888888?                          88888                       8888:              **
+| **   8888888888888      8888888                                        888888       8888:              **
+| **    88888888888         888888     8888:     88888    88888        888888888I     8888:    888888    **
+| **    8888888888           88888:    8888:     88888    88888      $888888888888    8888:   888888     **
+| **    I8Z 88888             88888    8888:     88888    88888    .888888     8888   8888: 888888       **
+| **    .8Z 88888             88888    8888:     88888    88888    $88888             8888:88888         **
+| **     8I 88888      .=88. .88888    8888:     88888    88888    88888              8888888888         **
+| **    :8  88888      888888$8888$    8888:     88888    88888    8888O              88888888888        **
+| **   ,7   +88888.     8888888888.    8888:     88888    88888    888888             88888O888888       **
+| **         $888888:.   .8888888      88888....888888    88888     888888     8888   8888:  888888      **
+| **          I8888888888888888888     888888888888888    88888     O888888888888O    8888:   888888     **
+| **            O888888888888888888     88888888888888    88888       88888888888$    8888:    888888    **
+| **               8888888Z     888      .8888I  88888    88888         8888888       8888:     888888   **
+| **                                                                                                     **
+| **                                                                                                     **
+| **                                         Copyright (c) 2026                                          **
+| **                          Regents of the University of California San Diego                          **
+| **                                    & Michigan State University                                      **
+| **                                        All Rights Reserved.                                         **
+| **                                                                                                     **
+| **             This software is subject to the terms of the Mozilla Public License, v. 2.0.            **
+| **                                                                                                     **
+| *********************************************************************************************************
+|                                                                                                          
+| Cite this work as:                                                                                       
+| Manathunga, M.; O'Hearn, K. A.; Shajan, A.; Smith, J.; Miao, Y.; He, X.; Ayers, K.;                      
+| Brothers, E.; Palos, E.; Tripathy, V.; Goetz, A.W.; Merz, K.M. QUICK-26.03.                              
+| University of California,San Diego, CA and                                                               
+| Michigan State University, East Lansing, MI, 2026                                                        
+|                                                                                                          
+| If you have any comments or queries, please reach out to us on GitHub issues or discussion sections:     
+| https://github.com/merzlab/QUICK.                                                                        
+|                                                                                                          
+| TASK STARTS ON: Wed Jun  3 23:42:43 2026
+| INPUT FILE :    efg_grid_acetone_pbe0_d3bj_ccpvdz.in
+| OUTPUT FILE:    efg_grid_acetone_pbe0_d3bj_ccpvdz.out
+| BASIS SET PATH: /Users/etiennepalos/Documents/Research/QUICK/QUICK/basis
+
+ @ Read Job And Atom
+
+  KEYWORD=PBE0 D3BJ BASIS=CC-PVDZ XCCUTOFF=1.0E-12 BASISCUTOFF=1.0E-12 CUTOFF=1.0E-12 DENSERMS=4.0E-8 EFG_GRID
+ ============== JOB CARD =============
+ METHOD = DENSITY FUNCTIONAL THEORY
+ USING LIBXC VERSION: 4.3.4
+ FUNCTIONAL INFORMATION:
+ NAME = PBEH (PBE0) FAMILY = HYBRID GGA KIND = EXCHANGE CORRELATION
+ USING GRIMME DISPERSION CORRECTION: REPACKAGED DFT-D3 LIBRARY v0.9
+   DISPERSION METHOD = D3, BJ DAMPING
+ DIRECT SCF 
+ SAD INITAL GUESS 
+ USE DIIS SCF
+ PRINT ENERGY EVERY CYCLE
+ READ SAD GUESS FROM FILE
+ EXTERNAL GRID POINTS
+ STANDARD GRID = SG1
+ Level shifting allowed after cycle    3
+ DIIS error must exceed 0.100 for level shifting
+ Max HOMO-LUMO gap to allow level shifting = 0.200
+ ELECTRIC FIELD GRADIENT CALCULATION
+ MAX SCF CYCLES =    200
+ MAX DIIS CYCLES =   10
+ DELTA DENSITY START CYCLE =    3
+ COMPUTATIONAL CUTOFF: 
+      TWO-e INTEGRAL         =  0.100E-11
+      BASIS SET PRIME        =  0.100E-12
+      MATRIX ELEMENTS        =  0.100E-09
+      BASIS FUNCTION         =  0.100E-11
+      NEAR-LINEAR DEPENDENCY =  0.100E-04
+ DENSITY MATRIX MAXIMUM RMS FOR CONVERGENCE  =  0.400E-07
+ BASIS SET = CC-PVDZ,  TYPE = CARTESIAN
+| BASIS FILE = /Users/etiennepalos/Documents/Research/QUICK/QUICK/basis/CC-PVDZ.BAS
+| DATA FILE  =    efg_grid_acetone_pbe0_d3bj_ccpvdz.dat
+
+ @ Finish reading job
+
+
+ @ Begin SAD initial guess
+
+ For Atom Kind =    1
+ ELEMENT = C 
+ BASIS FUNCTIONS =   15
+ For Atom Kind =    2
+ ELEMENT = O 
+ BASIS FUNCTIONS =   15
+ For Atom Kind =    3
+ ELEMENT = H 
+ BASIS FUNCTIONS =    5
+
+ @ Finish SAD initial guess
+
+
+ @ Begin Reading Molecular Information
+
+
+ =========== Molecule Input ==========
+ TOTAL MOLECULAR CHARGE  =    0    MULTIPLICITY                =    1
+ TOTAL ATOM NUMBER       =   10    NUMBER OF ATOM TYPES        =    3
+ NUMBER OF HYDROGEN ATOM =    6    NUMBER OF NON-HYDROGEN ATOM =    4
+ NUMBER OF ELECTRONS     =   32
+
+ -- INPUT GEOMETRY -- :
+    C           0.0000       0.0000       0.0000
+    O           1.2273      -0.0000      -0.0020
+    C          -0.8212       1.3028       0.0000
+    H          -0.5860       1.8727      -0.8745
+    H          -1.8648       1.0666       0.0018
+    H          -0.5834       1.8743       0.8728
+    C          -0.8212      -1.3028       0.0027
+    H          -1.4367      -1.3346       0.8774
+    H          -1.4395      -1.3365      -0.8699
+    H          -0.1580      -2.1424       0.0026
+
+ -- DISTANCE MATRIX -- :
+              1           2           3           4           5
+      1     0.00000
+      2     2.31929     0.00000
+      3     2.91018     4.58766     0.00000
+      4     4.05963     5.19457     2.02201     0.00000
+      5     4.05963     6.18109     2.02201     3.30192     0.00000
+      6     4.05963     5.19481     2.02201     3.30192     3.30192
+      7     2.91018     4.58766     4.92380     6.24136     4.89250
+      8     4.05963     5.87073     5.37973     7.09077     4.89716
+      9     4.05963     5.87073     5.37980     6.27524     4.89697
+     10     4.05963     4.82125     6.63007     7.80838     6.86858
+              6           7           8           9          10
+      6     0.00000
+      7     6.24103     0.00000
+      8     6.27464     2.02201     0.00000
+      9     7.09055     2.02201     3.30192     0.00000
+     10     7.80811     2.02201     3.30192     3.30192     0.00000
+
+============== BASIS INFOS ==============
+ BASIS FUNCTIONS =   90
+ NSHELL =   42 NPRIM  =  174
+ JSHELL =   42 JBASIS =  110
+
+
+ @ End Reading Molecular Information 
+
+
+ @ Begin XC Quadrature Formation
+
+ OCTAGO: OCTree Algorithm for Grid Operations 
+   PRUNING CUTOFF       = 0.100E-11
+   INITIAL GRID POINTS  =       37776
+|   FINAL GRID POINTS    =       25332
+|   SIGNIFICANT NUMBER OF BASIS FUNCTIONS     =       34113
+|   SIGNIFICANT NUMBER OF PRIMITIVE FUNCTIONS =       39694
+
+ @ End XC Quadrature Formation
+
+
+ @ Begin Energy Calculation
+
+| condition number of overlap matrix:    1.905E+03
+| Smallest eigenvalue of overlap matrix:    4.062E-03
+
+                                         SCF ENERGY
+| ------------------------------------------------------------------------------------------------------------------------
+| NCYC       ENERGY         DELTA_E      SCF_TIME  DII_CYC   DII_TIME   O_TIME  DIAG_TIME    MAX_ERR    RMS_CHG    MAX_CHG
+| ------------------------------------------------------------------------------------------------------------------------
+|  1   -193.449794451      ------         0.477     1        0.00      0.48      0.00    0.1985E+01  0.3525E-01  0.4887E+00
+|  2   -192.819075054  -.630719E+00       0.799     2        0.00      0.80      0.00    0.1626E+00  0.1356E-01  0.2279E+00
+|  3   -192.839606032  0.205310E-01       0.775     3        0.00      0.77      0.00    0.1396E+00  0.7293E-02  0.1162E+00
+|  4   -192.929785680  0.901796E-01       0.769     4        0.00      0.77      0.00    0.6605E-01  0.1523E-02  0.4422E-01
+|  5   -192.933381179  0.359550E-02       0.760     5        0.00      0.76      0.00    0.2148E-01  0.5750E-03  0.9747E-02
+|  6   -192.933953455  0.572276E-03       0.751     6        0.00      0.75      0.00    0.1679E-02  0.9518E-04  0.1530E-02
+|  7   -192.933964415  0.109596E-04       0.724     7        0.00      0.72      0.00    0.6302E-03  0.3453E-04  0.5318E-03
+|  8   -192.933965596  0.118130E-05       0.702     8        0.00      0.70      0.00    0.1397E-03  0.8041E-05  0.1180E-03
+|  9   -192.933965686  0.905042E-07       0.682     9        0.00      0.68      0.00    0.2468E-04  0.2862E-05  0.5179E-04
+| 10   -192.933965692  0.613329E-08       0.659    10        0.00      0.66      0.00    0.7664E-05  0.8535E-06  0.1774E-04
+| 11   -192.933965693  0.444345E-09       0.632     1        0.00      0.63      0.00    0.1652E-05  0.1764E-06  0.3493E-05
+| 12   -192.933965693  0.233058E-10       0.600     2        0.00      0.60      0.00    0.4250E-06  0.3901E-07  0.7005E-06
+| ------------------------------------------------------------------------------------------------------------------------
+| REACH CONVERGENCE AFTER  12 CYCLES
+| MAX ERROR = 0.424978E-06   RMS CHANGE = 0.390146E-07   MAX CHANGE = 0.700544E-06
+| -----------------------------------------------
+ ALPHA ELECTRON DENSITY    =    15.9999876770
+ BETA ELECTRON DENSITY     =    15.9999876770
+ ELECTRONIC ENERGY    =   -311.551449870
+ CORE_CORE REPULSION  =    118.617484177
+ DISPERSION CORRECTION  =     -0.004917980
+ TOTAL ENERGY         =   -192.938883673
+
+ @ End Energy calculation
+
+ *** Printing Electric Field Gradient (EFG) [a.u.] on grid efg_grid_acetone_pbe0_d3bj_ccpvdz.efg ***
+
+ @ Output Timing Information
+
+------------- TIMING ---------------
+| INITIAL GUESS TIME  =     0.073561000(  0.61%)
+| DFT GRID OPERATIONS =     0.036970000(  0.31%)
+| DISPERSION CORRECTION TIME  =     0.000916000(  0.01%)
+| EFG COMPUTATION TIME =     3.633062000( 30.05%)
+| TOTAL SCF TIME      =     8.332663000( 68.93%)
+|       TOTAL OP TIME      =     8.325054000( 68.87%)
+|             TOTAL 1e TIME      =     0.003397000(  0.03%)
+|             TOTAL 2e TIME      =     6.452380000( 53.38%)
+|             TOTAL EXC TIME     =     1.865462000( 15.43%)
+|       TOTAL DII TIME      =     0.007462000(  0.06%)
+|             TOTAL DIAG TIME    =     0.005336000(  0.04%)
+| TOTAL TIME          =    12.088566000
+------------------------------------
+| Job cpu time:  0 days  0 hours  0 minutes 12.1 seconds.
+
+ @ Finish Output Timing Information
+
+| Normal Termination. Task Finished on: Wed Jun  3 23:42:55 2026

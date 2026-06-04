@@ -31,7 +31,7 @@ module quick_oeproperties_module
  Subroutine compute_oeprop()
    use quick_method_module, only: quick_method
    use quick_files_module, only : ioutfile
-   use quick_molsurface_module, only: generate_MKS_surfaces
+   use quick_molsurface_module, only: generate_MKS_surfaces, generate_density_surfaces
    use quick_molspec_module, only: quick_molspec
    use quick_calculated_module, only: quick_qm_struct
 #ifdef MPIV
@@ -45,6 +45,30 @@ module quick_oeproperties_module
 
    if (quick_method%ext_grid) then
       call compute_oeprop_grid(quick_molspec%nextpoint,quick_molspec%extpointxyz)
+   else if (quick_method%density_surface) then
+
+#ifdef MPIV
+      if(master)then
+#endif
+        call generate_density_surfaces()
+#ifdef MPIV
+      endif
+      call MPI_BCAST(quick_molspec%nvdwpoint,1,mpi_integer,0,MPI_COMM_WORLD,mpierror)
+      if(.not.master)then
+        allocate(quick_molspec%vdwpointxyz(3,quick_molspec%nvdwpoint), stat=alloc_status)
+
+        if(alloc_status /= 0) then
+          call PrtErr(OUTFILEHANDLE, '!!quick_molspec%vdwpointxyz array reallocation failed in compute_oeprop!!')
+          call quick_exit(OUTFILEHANDLE,1)
+        endif
+
+      endif
+      call MPI_BCAST(quick_molspec%vdwpointxyz,quick_molspec%nvdwpoint*3,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+#endif
+
+      call compute_oeprop_grid(quick_molspec%nvdwpoint,quick_molspec%vdwpointxyz)
+
+      deallocate(quick_molspec%vdwpointxyz)
    else if (quick_method%esp_charge) then
 
 #ifdef MPIV
@@ -458,6 +482,14 @@ module quick_oeproperties_module
            trim(espFileName)
        write (iESPFile,'(/," ELECTROSTATIC POTENTIAL CALCULATION (ESP) &
                &with coordinates of the points on vdw surface in angstroms")')
+     else if (quick_method%density_surface) then
+       write (ioutfile,'(" *** Printing Electrostatic Potential (ESP) &
+               &at points on electron-density surface to ",A,x,"with &
+               &coordinates in angstroms***")') &
+           trim(espFileName)
+       write (iESPFile,'(/," ELECTROSTATIC POTENTIAL CALCULATION (ESP) &
+               &with coordinates of the points on electron-density &
+               &surface in angstroms")')
      else
        write (ioutfile,'(" *** Printing Electrostatic Potential (ESP) &
                at external points to ",A,x,"with coordinates &
@@ -821,11 +853,11 @@ module quick_oeproperties_module
    double precision, intent(in) :: xyz_points(:,:)
    double precision, intent(out) :: efg(:,:,:)
    double precision, allocatable :: efield_plus(:,:), efield_minus(:,:)
-   double precision, allocatable :: xyz_plus(:,:), xyz_minus(:,:)
+   double precision, allocatable :: xyz_displaced(:,:)
    double precision, parameter :: efg_fd_step = 1.0d-4
 
    allocate(efield_plus(3,npoints), efield_minus(3,npoints), &
-            xyz_plus(3,npoints), xyz_minus(3,npoints), stat=alloc_status)
+            xyz_displaced(3,npoints), stat=alloc_status)
    if(alloc_status /= 0) then
      call PrtErr(OUTFILEHANDLE, '!! EFG finite-difference arrays allocation failed in compute_efg_values_numerical!!')
      call quick_exit(OUTFILEHANDLE,1)
@@ -834,13 +866,12 @@ module quick_oeproperties_module
    efg(:,:,:) = 0.0d0
 
    do idir=1,3
-     xyz_plus(:,:) = xyz_points(:,:)
-     xyz_minus(:,:) = xyz_points(:,:)
-     xyz_plus(idir,:) = xyz_plus(idir,:) + efg_fd_step
-     xyz_minus(idir,:) = xyz_minus(idir,:) - efg_fd_step
+     xyz_displaced(:,:) = xyz_points(:,:)
+     xyz_displaced(idir,:) = xyz_displaced(idir,:) + efg_fd_step
+     call compute_efield_values(npoints,xyz_displaced,efield_plus)
 
-     call compute_efield_values(npoints,xyz_plus,efield_plus)
-     call compute_efield_values(npoints,xyz_minus,efield_minus)
+     xyz_displaced(idir,:) = xyz_points(idir,:) - efg_fd_step
+     call compute_efield_values(npoints,xyz_displaced,efield_minus)
 
 #ifdef MPIV
      if (master) then
@@ -856,7 +887,7 @@ module quick_oeproperties_module
 #endif
    end do
 
-   deallocate(efield_plus, efield_minus, xyz_plus, xyz_minus)
+   deallocate(efield_plus, efield_minus, xyz_displaced)
 
  end subroutine compute_efg_values_numerical
 
@@ -868,36 +899,37 @@ module quick_oeproperties_module
   implicit none
 
   integer, intent(in) :: igridpoint
-  double precision, external :: rootSquare
   double precision, intent(in) :: xyz_points(:,:)
   double precision, intent(out) :: efield_nuclear_term(3)
 
-  double precision :: distance
-  double precision :: inv_dist_cube, rx_nuc_gridpoint, ry_nuc_gridpoint, rz_nuc_gridpoint
+  double precision :: dist_square, inv_dist, inv_dist_cube
+  double precision :: rx_nuc_gridpoint, ry_nuc_gridpoint, rz_nuc_gridpoint
   integer :: inucleus
 
   efield_nuclear_term = 0.0d0
 
   do inucleus = 1, natom+quick_molspec%nextatom
     if(inucleus<=natom)then
-      distance = rootSquare(xyz(1:3,inucleus),xyz_points(1:3,igridpoint),3)
-      inv_dist_cube = 1.0d0/(distance**3)
-
       rx_nuc_gridpoint = xyz_points(1,igridpoint) - xyz(1,inucleus)
       ry_nuc_gridpoint = xyz_points(2,igridpoint) - xyz(2,inucleus)
       rz_nuc_gridpoint = xyz_points(3,igridpoint) - xyz(3,inucleus)
+      dist_square = rx_nuc_gridpoint*rx_nuc_gridpoint + &
+        ry_nuc_gridpoint*ry_nuc_gridpoint + rz_nuc_gridpoint*rz_nuc_gridpoint
+      inv_dist = 1.0d0/dsqrt(dist_square)
+      inv_dist_cube = inv_dist*inv_dist*inv_dist
 
       ! Compute nuclear components to EFIELD_NUCLEAR.
       efield_nuclear_term(1) = efield_nuclear_term(1) + quick_molspec%chg(inucleus)*(rx_nuc_gridpoint*inv_dist_cube)
       efield_nuclear_term(2) = efield_nuclear_term(2) + quick_molspec%chg(inucleus)*(ry_nuc_gridpoint*inv_dist_cube)
       efield_nuclear_term(3) = efield_nuclear_term(3) + quick_molspec%chg(inucleus)*(rz_nuc_gridpoint*inv_dist_cube)
     else
-      distance = rootSquare(quick_molspec%extxyz(1:3,inucleus-natom),xyz_points(1:3,igridpoint),3)
-      inv_dist_cube = 1.0d0/(distance**3)
-
       rx_nuc_gridpoint = xyz_points(1,igridpoint) - quick_molspec%extxyz(1,inucleus-natom)
       ry_nuc_gridpoint = xyz_points(2,igridpoint) - quick_molspec%extxyz(2,inucleus-natom)
       rz_nuc_gridpoint = xyz_points(3,igridpoint) - quick_molspec%extxyz(3,inucleus-natom)
+      dist_square = rx_nuc_gridpoint*rx_nuc_gridpoint + &
+        ry_nuc_gridpoint*ry_nuc_gridpoint + rz_nuc_gridpoint*rz_nuc_gridpoint
+      inv_dist = 1.0d0/dsqrt(dist_square)
+      inv_dist_cube = inv_dist*inv_dist*inv_dist
 
       ! Compute external-charge components to EFIELD_NUCLEAR.
       efield_nuclear_term(1) = efield_nuclear_term(1) + quick_molspec%extchg(inucleus-natom)*(rx_nuc_gridpoint*inv_dist_cube)
@@ -916,11 +948,10 @@ module quick_oeproperties_module
   implicit none
 
   integer, intent(in) :: igridpoint
-  double precision, external :: rootSquare
   double precision, intent(in) :: xyz_points(:,:)
   double precision, intent(out) :: efg_nuclear_term(3,3)
 
-  double precision :: charge, distance, inv_dist_cube, inv_dist_fifth
+  double precision :: charge, dist_square, inv_dist, inv_dist_cube, inv_dist_fifth
   double precision :: rx_nuc_gridpoint, ry_nuc_gridpoint, rz_nuc_gridpoint
   double precision :: rvec(3)
   integer :: inucleus, i, j
@@ -929,14 +960,12 @@ module quick_oeproperties_module
 
   do inucleus = 1, natom+quick_molspec%nextatom
     if(inucleus<=natom)then
-      distance = rootSquare(xyz(1:3,inucleus),xyz_points(1:3,igridpoint),3)
       charge = quick_molspec%chg(inucleus)
 
       rx_nuc_gridpoint = xyz_points(1,igridpoint) - xyz(1,inucleus)
       ry_nuc_gridpoint = xyz_points(2,igridpoint) - xyz(2,inucleus)
       rz_nuc_gridpoint = xyz_points(3,igridpoint) - xyz(3,inucleus)
     else
-      distance = rootSquare(quick_molspec%extxyz(1:3,inucleus-natom),xyz_points(1:3,igridpoint),3)
       charge = quick_molspec%extchg(inucleus-natom)
 
       rx_nuc_gridpoint = xyz_points(1,igridpoint) - quick_molspec%extxyz(1,inucleus-natom)
@@ -944,8 +973,11 @@ module quick_oeproperties_module
       rz_nuc_gridpoint = xyz_points(3,igridpoint) - quick_molspec%extxyz(3,inucleus-natom)
     endif
 
-    inv_dist_cube = 1.0d0/(distance**3)
-    inv_dist_fifth = 1.0d0/(distance**5)
+    dist_square = rx_nuc_gridpoint*rx_nuc_gridpoint + &
+      ry_nuc_gridpoint*ry_nuc_gridpoint + rz_nuc_gridpoint*rz_nuc_gridpoint
+    inv_dist = 1.0d0/dsqrt(dist_square)
+    inv_dist_cube = inv_dist*inv_dist*inv_dist
+    inv_dist_fifth = inv_dist_cube/dist_square
     rvec(1) = rx_nuc_gridpoint
     rvec(2) = ry_nuc_gridpoint
     rvec(3) = rz_nuc_gridpoint
@@ -977,13 +1009,33 @@ module quick_oeproperties_module
   integer :: igridpoint
   double precision :: Cx, Cy, Cz
 
-  write (ioutfile,'(" *** Printing Electric Field (EFIELD) &
-          &[a.u.] on grid ",A,x,"***")') trim(efieldFileName)
-  write (iEFIELDFile,'(/," ELECTRIC FIELD CALCULATION (EFIELD) &
-          &[atomic units] ")')
-  write (iEFIELDFile,'(100("-"))')
-  write (iEFIELDFile,'(9x,"X",13x,"Y",12x,"Z",16x, &
-          &"EFIELD_X",12x, "EFIELD_Y",8x,"EFIELD_Z")')
+  if (quick_method%density_surface) then
+    write (ioutfile,'(" *** Printing Electric Field (EFIELD) &
+            &[a.u.] on electron-density surface ",A,x,"***")') &
+      trim(efieldFileName)
+  else
+    write (ioutfile,'(" *** Printing Electric Field (EFIELD) &
+            &[a.u.] on grid ",A,x,"***")') trim(efieldFileName)
+  endif
+  if (quick_method%extgrid_angstrom)  then
+    if (quick_method%density_surface) then
+      write (iEFIELDFile,'(/," ELECTRIC FIELD CALCULATION (EFIELD) &
+              &[atomic units] with coordinates of the points on &
+              &electron-density surface in angstroms")')
+    else
+      write (iEFIELDFile,'(/," ELECTRIC FIELD CALCULATION (EFIELD) &
+              &[atomic units] with coordinates in angstroms")')
+    endif
+    write (iEFIELDFile,'(100("-"))')
+    write (iEFIELDFile,'(6x,"X[A]",10x,"Y[A]",9x,"Z[A]",16x, &
+            &"EFIELD_X",12x, "EFIELD_Y",8x,"EFIELD_Z")')
+  else
+    write (iEFIELDFile,'(/," ELECTRIC FIELD CALCULATION (EFIELD) &
+            &[atomic units] ")')
+    write (iEFIELDFile,'(100("-"))')
+    write (iEFIELDFile,'(9x,"X",13x,"Y",12x,"Z",16x, &
+            &"EFIELD_X",12x, "EFIELD_Y",8x,"EFIELD_Z")')
+  endif
 
   do igridpoint = 1, npoints
     if (quick_method%extgrid_angstrom)  then
@@ -1017,15 +1069,37 @@ module quick_oeproperties_module
   integer :: igridpoint
   double precision :: Cx, Cy, Cz
 
-  write (ioutfile,'(" *** Printing Electric Field Gradient (EFG) &
-          &[a.u.] on grid ",A,x,"***")') trim(efgFileName)
-  write (iEFGFile,'(/," ELECTRIC FIELD GRADIENT CALCULATION (EFG) &
-          &[atomic units] ")')
-  write (iEFGFile,'(140("-"))')
-  write (iEFGFile,'(9x,"X",13x,"Y",12x,"Z",16x, &
-          &"EFG_XX",10x,"EFG_XY",10x,"EFG_XZ",10x, &
-          &"EFG_YX",10x,"EFG_YY",10x,"EFG_YZ",10x, &
-          &"EFG_ZX",10x,"EFG_ZY",10x,"EFG_ZZ")')
+  if (quick_method%density_surface) then
+    write (ioutfile,'(" *** Printing Electric Field Gradient (EFG) &
+            &[a.u.] on electron-density surface ",A,x,"***")') &
+      trim(efgFileName)
+  else
+    write (ioutfile,'(" *** Printing Electric Field Gradient (EFG) &
+            &[a.u.] on grid ",A,x,"***")') trim(efgFileName)
+  endif
+  if (quick_method%extgrid_angstrom)  then
+    if (quick_method%density_surface) then
+      write (iEFGFile,'(/," ELECTRIC FIELD GRADIENT CALCULATION (EFG) &
+              &[atomic units] with coordinates of the points on &
+              &electron-density surface in angstroms")')
+    else
+      write (iEFGFile,'(/," ELECTRIC FIELD GRADIENT CALCULATION (EFG) &
+              &[atomic units] with coordinates in angstroms")')
+    endif
+    write (iEFGFile,'(140("-"))')
+    write (iEFGFile,'(6x,"X[A]",10x,"Y[A]",9x,"Z[A]",16x, &
+            &"EFG_XX",10x,"EFG_XY",10x,"EFG_XZ",10x, &
+            &"EFG_YX",10x,"EFG_YY",10x,"EFG_YZ",10x, &
+            &"EFG_ZX",10x,"EFG_ZY",10x,"EFG_ZZ")')
+  else
+    write (iEFGFile,'(/," ELECTRIC FIELD GRADIENT CALCULATION (EFG) &
+            &[atomic units] ")')
+    write (iEFGFile,'(140("-"))')
+    write (iEFGFile,'(9x,"X",13x,"Y",12x,"Z",16x, &
+            &"EFG_XX",10x,"EFG_XY",10x,"EFG_XZ",10x, &
+            &"EFG_YX",10x,"EFG_YY",10x,"EFG_YZ",10x, &
+            &"EFG_ZX",10x,"EFG_ZY",10x,"EFG_ZZ")')
+  endif
 
   do igridpoint = 1, npoints
     if (quick_method%extgrid_angstrom)  then

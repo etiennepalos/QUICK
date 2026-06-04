@@ -1355,6 +1355,96 @@ subroutine efg_1pdm(Ips,Jps,IIsh,JJsh,NIJ1, &
 
 end subroutine efg_1pdm
 
+subroutine efg_1pdm_grid_block(Ips,Jps,IIsh,JJsh,NIJ1, &
+      Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g,nblock,igridstart,xyz_points,aux_block,efg)
+   use quick_params_module, only: trans
+   use quick_method_module, only: quick_method
+   use quick_basis_module, only: quick_basis
+   use quick_calculated_module, only: quick_qm_struct
+   implicit none
+
+   integer Ips, Jps, IIsh, JJsh, NIJ1
+   integer Iang, Jang, III, III1, III2, JJJ, JJJ1, JJJ2, NBI1, NBI2, NBJ1, NBJ2
+   integer iblockpoint, igridpoint, igridstart, nblock
+   integer lx1, ly1, lz1, lx2, ly2, lz2
+   double precision Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g
+   double precision, intent(in) :: aux_block(0:20,nblock), xyz_points(:,:)
+   double precision, intent(inout) :: efg(:,:,:)
+   double precision Cx,Cy,Cz
+   double precision X1temp, Xconstant, Xconstant1, Xconstant2, DENSEJI
+   double precision efg_xx, efg_xy, efg_xz, efg_yy, efg_yz, efg_zz
+
+   do Iang=quick_basis%Qstart(IIsh),quick_basis%Qfinal(IIsh)
+      X1temp=quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)+Iang)
+      do Jang=quick_basis%Qstart(JJsh),quick_basis%Qfinal(JJsh)
+         NBI1=quick_basis%Qsbasis(IIsh,Iang)
+         NBI2=quick_basis%Qfbasis(IIsh,Iang)
+         NBJ1=quick_basis%Qsbasis(JJsh,Jang)
+         NBJ2=quick_basis%Qfbasis(JJsh,Jang)
+
+         III1=quick_basis%ksumtype(IIsh)+NBI1
+         III2=quick_basis%ksumtype(IIsh)+NBI2
+         JJJ1=quick_basis%ksumtype(JJsh)+NBJ1
+         JJJ2=quick_basis%ksumtype(JJsh)+NBJ2
+
+         Xconstant=X1temp*quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)+Jang)
+
+         do III=III1,III2
+            Xconstant1=Xconstant*quick_basis%cons(III)
+            lx1=quick_basis%KLMN(1,III)
+            ly1=quick_basis%KLMN(2,III)
+            lz1=quick_basis%KLMN(3,III)
+            do JJJ=max(III,JJJ1),JJJ2
+
+               if (quick_method%UNRST) then
+                  DENSEJI=quick_qm_struct%dense(JJJ,III)+quick_qm_struct%denseb(JJJ,III)
+               else
+                  DENSEJI=quick_qm_struct%dense(JJJ,III)
+               endif
+
+               if(III.ne.JJJ)DENSEJI=2.0d0*DENSEJI
+               Xconstant2=Xconstant1*quick_basis%cons(JJJ)*DENSEJI
+
+               lx2=quick_basis%KLMN(1,JJJ)
+               ly2=quick_basis%KLMN(2,JJJ)
+               lz2=quick_basis%KLMN(3,JJJ)
+
+               do iblockpoint=1,nblock
+                  igridpoint=igridstart+iblockpoint-1
+                  Cx=xyz_points(1,igridpoint)
+                  Cy=xyz_points(2,igridpoint)
+                  Cz=xyz_points(3,igridpoint)
+
+                  efg_xx=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,2,0,0,0,aux_block(0,iblockpoint), &
+                       Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+                  efg_xy=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,1,1,0,0,aux_block(0,iblockpoint), &
+                       Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+                  efg_xz=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,1,0,1,0,aux_block(0,iblockpoint), &
+                       Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+                  efg_yy=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,0,2,0,0,aux_block(0,iblockpoint), &
+                       Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+                  efg_yz=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,0,1,1,0,aux_block(0,iblockpoint), &
+                       Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+                  efg_zz=efg_attra_recurse(lx1,ly1,lz1,lx2,ly2,lz2,0,0,2,0,aux_block(0,iblockpoint), &
+                       Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+
+                  efg(1,1,igridpoint)=efg(1,1,igridpoint)+Xconstant2*efg_xx
+                  efg(1,2,igridpoint)=efg(1,2,igridpoint)+Xconstant2*efg_xy
+                  efg(1,3,igridpoint)=efg(1,3,igridpoint)+Xconstant2*efg_xz
+                  efg(2,1,igridpoint)=efg(2,1,igridpoint)+Xconstant2*efg_xy
+                  efg(2,2,igridpoint)=efg(2,2,igridpoint)+Xconstant2*efg_yy
+                  efg(2,3,igridpoint)=efg(2,3,igridpoint)+Xconstant2*efg_yz
+                  efg(3,1,igridpoint)=efg(3,1,igridpoint)+Xconstant2*efg_xz
+                  efg(3,2,igridpoint)=efg(3,2,igridpoint)+Xconstant2*efg_yz
+                  efg(3,3,igridpoint)=efg(3,3,igridpoint)+Xconstant2*efg_zz
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+
+end subroutine efg_1pdm_grid_block
+
 double precision recursive function efg_att_recurse(i,j,k,ii,jj,kk,m,aux,Ax,Ay, &
       Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) result(attrec)
    implicit double precision(a-h,o-z)

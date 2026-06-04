@@ -145,7 +145,7 @@ subroutine attrashell(IIsh, JJsh)
 #elif defined (OEI)
   subroutine attrashellopt(IIsh,JJsh)
 #endif
-    use quick_overlap_module, only: opf, overlap
+    use quick_overlap_module, only: opf
     use quick_molspec_module, only: quick_molspec, xyz
     use quick_basis_module, only: quick_basis, attraxiaoopt, attraxiao
     use quick_method_module, only: quick_method
@@ -160,12 +160,13 @@ subroutine attrashell(IIsh, JJsh)
     integer :: IIsh, JJsh, ips, jps, L, Maxm, NII2, NIJ1, NJJ2
     double precision :: a, b, Ax, Ay, Az, Bx, By, Bz, Cx, Cy, Cz, g, U
     double precision :: attra, constant, constanttemp, PCsquare, Px, Py, Pz
+    double precision :: inv_g, rABsquare
 
     double precision, dimension(0:20) :: aux
     double precision AA(3),BB(3),CC(3),PP(3)
     common /xiaoattra/attra,aux,AA,BB,CC,PP,g
 
-    double precision RA(3),RB(3),RP(3), valopf, g_table(200)
+    double precision RA(3),RB(3),RP(3), valopf
 
 #if defined (OEPROP)
     integer :: igridpoint, npoints
@@ -201,6 +202,7 @@ subroutine attrashell(IIsh, JJsh)
     NII2=quick_basis%Qfinal(IIsh)
     NJJ2=quick_basis%Qfinal(JJsh)
     Maxm=NII2+NJJ2+1+1
+    rABsquare=(Ax-Bx)**2.d0 + (Ay-By)**2.d0 + (Az-Bz)**2.d0
 
     do ips=1,quick_basis%kprim(IIsh)
       a=quick_basis%gcexpo(ips,quick_basis%ksumtype(IIsh))
@@ -211,13 +213,12 @@ subroutine attrashell(IIsh, JJsh)
 
         if(abs(valopf) .gt. quick_method%coreIntegralCutoff) then
           g = a+b
-          Px = (a*Ax + b*Bx)/g
-          Py = (a*Ay + b*By)/g
-          Pz = (a*Az + b*Bz)/g
-          g_table = g**(-1.5)
+          inv_g = 1.0d0/g
+          Px = (a*Ax + b*Bx)*inv_g
+          Py = (a*Ay + b*By)*inv_g
+          Pz = (a*Az + b*Bz)*inv_g
 
-          constant = overlap(a,b,0,0,0,0,0,0,Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g_table) &
-            * 2.d0 * sqrt(g/Pi)
+          constant = dexp(-a*b*rABsquare*inv_g) * 2.d0 * Pi * inv_g
 
 #if defined (OEPROP)
           do igridpoint=1,npoints
@@ -292,17 +293,19 @@ subroutine attrashell(IIsh, JJsh)
     use quick_method_module, only: quick_method
     use quick_basis_module, only: quick_basis
     use quick_molspec_module, only: xyz
-    use quick_overlap_module, only: gpt, opf
+    use quick_overlap_module, only: opf
     use quick_constants_module, only : Pi
 
     implicit none
 
+    integer, parameter :: EFG_GRID_BLOCK = 128
     integer :: IIsh, JJsh, ips, jps, L, Maxm, NII2, NIJ1, NJJ2
-    integer :: igridpoint, npoints
+    integer :: iblockpoint, igridpoint, igridstart, nblock, npoints
     double precision :: a, b, Ax, Ay, Az, Bx, By, Bz, Cx, Cy, Cz, g, U
     double precision :: overlap_ss_prefix, PCsquare, Px, Py, Pz
-    double precision :: inv_g, g_table(200), valopf
+    double precision :: inv_g, rABsquare, valopf
     double precision, dimension(0:20) :: aux
+    double precision, dimension(0:20,EFG_GRID_BLOCK) :: aux_block
     double precision, intent(in) :: xyz_points(3,npoints)
     double precision, intent(inout) :: efg_electronic(3,3,npoints)
 
@@ -318,6 +321,7 @@ subroutine attrashell(IIsh, JJsh)
     NJJ2=quick_basis%Qfinal(JJsh)
     Maxm=NII2+NJJ2+2
     NIJ1=10*NII2+NJJ2
+    rABsquare=(Ax-Bx)**2.d0 + (Ay-By)**2.d0 + (Az-Bz)**2.d0
 
     do ips=1,quick_basis%kprim(IIsh)
       a=quick_basis%gcexpo(ips,quick_basis%ksumtype(IIsh))
@@ -328,27 +332,35 @@ subroutine attrashell(IIsh, JJsh)
           quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)), Ax, Ay, Az, Bx, By, Bz)
 
         if(abs(valopf) .gt. quick_method%coreIntegralCutoff) then
-          call gpt(a,b,Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,0,g_table)
           g = a+b
-          inv_g = 1.0d0 / dble(g)
-          overlap_ss_prefix = dexp(-(a*b*((Ax - Bx)**2.d0 + (Ay - By)**2.d0 + &
-            (Az - Bz)**2.d0)*inv_g)) * 2.d0 * Pi * inv_g
+          inv_g = 1.0d0/g
+          Px = (a*Ax + b*Bx)*inv_g
+          Py = (a*Ay + b*By)*inv_g
+          Pz = (a*Az + b*Bz)*inv_g
+          overlap_ss_prefix = dexp(-a*b*rABsquare*inv_g) * 2.d0 * Pi * inv_g
 
-          do igridpoint=1,npoints
-            Cx=xyz_points(1,igridpoint)
-            Cy=xyz_points(2,igridpoint)
-            Cz=xyz_points(3,igridpoint)
+          ! Process grid points in blocks so that density/contraction
+          ! factors are reused across several EFG points.
+          do igridstart=1,npoints,EFG_GRID_BLOCK
+            nblock = min(EFG_GRID_BLOCK,npoints-igridstart+1)
 
-            PCsquare = (Px-Cx)**2 + (Py-Cy)**2 + (Pz-Cz)**2
-            U = g*PCsquare
-            call FmT(Maxm,U,aux)
+            do iblockpoint=1,nblock
+              igridpoint=igridstart+iblockpoint-1
+              Cx=xyz_points(1,igridpoint)
+              Cy=xyz_points(2,igridpoint)
+              Cz=xyz_points(3,igridpoint)
 
-            do L = 0,Maxm
-              aux(L) = aux(L)*overlap_ss_prefix
+              PCsquare = (Px-Cx)**2 + (Py-Cy)**2 + (Pz-Cz)**2
+              U = g*PCsquare
+              call FmT(Maxm,U,aux)
+
+              do L = 0,Maxm
+                aux_block(L,iblockpoint) = aux(L)*overlap_ss_prefix
+              enddo
             enddo
 
-            call efg_1pdm(ips,jps,IIsh,JJsh,NIJ1,Ax,Ay,Az,Bx,By,Bz, &
-              Cx,Cy,Cz,Px,Py,Pz,g,aux,efg_electronic(1,1,igridpoint))
+            call efg_1pdm_grid_block(ips,jps,IIsh,JJsh,NIJ1,Ax,Ay,Az,Bx,By,Bz, &
+              Px,Py,Pz,g,nblock,igridstart,xyz_points,aux_block,efg_electronic)
           enddo
         endif
       enddo

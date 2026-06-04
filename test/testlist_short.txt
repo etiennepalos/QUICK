@@ -1,4 +1,5 @@
 ene_psb5_rhf_631g	            #PSB5: RHF energy test: s and p basis functions
+ene_H2O_external_efield_rhf_sto3g   #H2O: RHF finite external electric field energy test: STO-3G basis set
 ene_acetone_rhf_321g                #Acetone: RHF energy test: s and p basis functions
 ene_psb3_blyp_631g	            #PSB3: DFT energy test: s and p basis functions, BLYP functional
 ene_psb3_blyp_631gss	            #PSB3: DFT energy test: s, p and d basis functions, BLYP functional
@@ -28,5 +29,8 @@ opt_const_dh_c2h4f2_hf_3-21g        #C2H4F2: RHF DL-FIND constraint dihedral opt
 opt_const_freeze_c2h4f2_hf_3-21g    #C2H4F2: RHF DL-FIND constraint freeze atoms optimizaton test: s and p basis functions
 api_water_rhf_631g                  #Water: API test
 esp_charge_acetone_b3lyp_def2svp    #ESP test: Tests both ESP charges and ESP on van der Waals surface.
+esp_grid_density_surface_H2O_rhf_sto3g #ESP test: Tests ESP on electron-density surface
+efield_density_surface_H2O_rhf_sto3g #ESP test: Tests EFIELD on electron-density surface
+efg_density_surface_H2O_rhf_sto3g #ESP test: Tests EFG on electron-density surface
 chk_acetate_xyz_density             #CHK test: writing/reading densities and coordinates
 ene_benzene_b3lyp_aug-cc-pvdz       #C6H6: DFT energy test: B3LYP/aug-cc-pvtz near-linear dependency of basis sets
