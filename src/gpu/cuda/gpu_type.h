@@ -41,8 +41,12 @@ struct gpu_calculated_type {
 #endif
     gpu_buffer_type<QUICKDouble> *distance; // distance matrix
     gpu_buffer_type<QUICKDouble> *esp_electronic; // electronic contribution to ESP
+    gpu_buffer_type<QUICKDouble> *efield_electronic; // electronic contribution to EFIELD, component-fast
+    gpu_buffer_type<QUICKDouble> *efg_electronic; // electronic contribution to EFG, component-fast
 #if defined(USE_LEGACY_ATOMICS)
     gpu_buffer_type<QUICKULL> *esp_electronicULL; // Unsigned long long int type electronic contribution to ESP
+    gpu_buffer_type<QUICKULL> *efield_electronicULL; // Unsigned long long int type electronic contribution to EFIELD
+    gpu_buffer_type<QUICKULL> *efg_electronicULL; // Unsigned long long int type electronic contribution to EFG
 #endif
 };
 
@@ -313,7 +317,11 @@ struct gpu_simulation_type {
 
     // OEPROP
     QUICKDouble *esp_electronic;
+    QUICKDouble *efield_electronic;
+    QUICKDouble *efg_electronic;
     QUICKULL *esp_electronicULL;
+    QUICKULL *efield_electronicULL;
+    QUICKULL *efg_electronicULL;
 
     QUICKDouble *distance;
     QUICKDouble *Xcoeff;

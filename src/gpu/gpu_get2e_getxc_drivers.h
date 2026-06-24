@@ -356,6 +356,52 @@ extern "C" void gpu_get_oeprop_(QUICKDouble* esp_electronic)
     gpu->gpu_calculated->esp_electronic->DownloadSum(esp_electronic);
 }
 
+extern "C" void gpu_get_oeprop_efield_(QUICKDouble* efield_electronic)
+{
+    upload_sim_to_constant_oeprop(gpu);
+    upload_para_to_const_oeprop();
+
+    getOEPROPEField(gpu);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efield_electronicULL->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efield_electronicULL->_devData, 0, sizeof(QUICKULL) * 3 * gpu->nextpoint, 0);
+
+    for (int i = 0; i < 3 * gpu->nextpoint; i++) {
+        gpu->gpu_calculated->efield_electronic->_hostData[i]
+            = ULLTODOUBLE(gpu->gpu_calculated->efield_electronicULL->_hostData[i]) * ONEOVEROSCALE;
+    }
+#else
+    gpu->gpu_calculated->efield_electronic->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efield_electronic->_devData, 0, sizeof(QUICKDouble) * 3 * gpu->nextpoint, 0);
+#endif
+
+    gpu->gpu_calculated->efield_electronic->DownloadSum(efield_electronic);
+}
+
+extern "C" void gpu_get_oeprop_efg_(QUICKDouble* efg_electronic)
+{
+    upload_sim_to_constant_oeprop(gpu);
+    upload_para_to_const_oeprop();
+
+    getOEPROPEFG(gpu);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efg_electronicULL->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efg_electronicULL->_devData, 0, sizeof(QUICKULL) * 9 * gpu->nextpoint, 0);
+
+    for (int i = 0; i < 9 * gpu->nextpoint; i++) {
+        gpu->gpu_calculated->efg_electronic->_hostData[i]
+            = ULLTODOUBLE(gpu->gpu_calculated->efg_electronicULL->_hostData[i]) * ONEOVEROSCALE;
+    }
+#else
+    gpu->gpu_calculated->efg_electronic->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efg_electronic->_devData, 0, sizeof(QUICKDouble) * 9 * gpu->nextpoint, 0);
+#endif
+
+    gpu->gpu_calculated->efg_electronic->DownloadSum(efg_electronic);
+}
+
 
 extern "C" void gpu_get_oei_(QUICKDouble* o)
 {

@@ -246,6 +246,7 @@ extern "C" void gpu_new_(
     gpu->iattype = NULL;
     gpu->xyz = NULL;
     gpu->allxyz = NULL;
+    gpu->extpointxyz = NULL;
     gpu->chg = NULL;
     gpu->allchg = NULL;
     gpu->DFT_calculated = NULL;
@@ -566,8 +567,12 @@ extern "C" void gpu_setup_(int* natom, int* nbasis, int* nElec, int* imult, int*
 #endif
     gpu->gpu_calculated->distance = NULL;
     gpu->gpu_calculated->esp_electronic = NULL;
+    gpu->gpu_calculated->efield_electronic = NULL;
+    gpu->gpu_calculated->efg_electronic = NULL;
 #if defined(USE_LEGACY_ATOMICS)
     gpu->gpu_calculated->esp_electronicULL = NULL;
+    gpu->gpu_calculated->efield_electronicULL = NULL;
+    gpu->gpu_calculated->efg_electronicULL = NULL;
 #endif
 
     gpu->gpu_basis = new gpu_basis_type;
@@ -1662,6 +1667,15 @@ extern "C" void gpu_upload_oeprop_(int * nextpoint, QUICKDouble * extpointxyz,
         QUICKDouble * esp_electronic, int *ierr)
 {
     // store coordinates and charges for oeprop calculation
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
     gpu->nextpoint = *nextpoint;
     gpu->extpointxyz = new gpu_buffer_type<QUICKDouble>(extpointxyz, 3, gpu->nextpoint);
 
@@ -1680,6 +1694,74 @@ extern "C" void gpu_upload_oeprop_(int * nextpoint, QUICKDouble * extpointxyz,
 #else
     gpu->gpu_calculated->esp_electronic->Upload();
     gpu->gpu_sim.esp_electronic = gpu->gpu_calculated->esp_electronic->_devData;
+#endif
+}
+
+extern "C" void gpu_upload_oeprop_efield_(int * nextpoint, QUICKDouble * extpointxyz,
+        QUICKDouble * efield_electronic, int *ierr)
+{
+    // EFIELD uses component-fast Fortran layout: (Ex,Ey,Ez) for each point.
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
+    gpu->nextpoint = *nextpoint;
+    gpu->extpointxyz = new gpu_buffer_type<QUICKDouble>(extpointxyz, 3, gpu->nextpoint);
+
+    gpu->extpointxyz->Upload();
+
+    gpu->gpu_sim.nextpoint = *nextpoint;
+    gpu->gpu_sim.extpointxyz = gpu->extpointxyz->_devData;
+
+    gpu->gpu_calculated->efield_electronic = new gpu_buffer_type<QUICKDouble>(efield_electronic, 3, gpu->nextpoint);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efield_electronic->DeleteGPU();
+    gpu->gpu_calculated->efield_electronicULL = new gpu_buffer_type<QUICKULL>(3, gpu->nextpoint);
+    gpu->gpu_calculated->efield_electronicULL->Upload();
+    gpu->gpu_sim.efield_electronicULL = gpu->gpu_calculated->efield_electronicULL->_devData;
+#else
+    gpu->gpu_calculated->efield_electronic->Upload();
+    gpu->gpu_sim.efield_electronic = gpu->gpu_calculated->efield_electronic->_devData;
+#endif
+}
+
+extern "C" void gpu_upload_oeprop_efg_(int * nextpoint, QUICKDouble * extpointxyz,
+        QUICKDouble * efg_electronic, int *ierr)
+{
+    // EFG uses component-fast Fortran layout: (xx,yx,zx,xy,yy,zy,xz,yz,zz) for each point.
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
+    gpu->nextpoint = *nextpoint;
+    gpu->extpointxyz = new gpu_buffer_type<QUICKDouble>(extpointxyz, 3, gpu->nextpoint);
+
+    gpu->extpointxyz->Upload();
+
+    gpu->gpu_sim.nextpoint = *nextpoint;
+    gpu->gpu_sim.extpointxyz = gpu->extpointxyz->_devData;
+
+    gpu->gpu_calculated->efg_electronic = new gpu_buffer_type<QUICKDouble>(efg_electronic, 9, gpu->nextpoint);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efg_electronic->DeleteGPU();
+    gpu->gpu_calculated->efg_electronicULL = new gpu_buffer_type<QUICKULL>(9, gpu->nextpoint);
+    gpu->gpu_calculated->efg_electronicULL->Upload();
+    gpu->gpu_sim.efg_electronicULL = gpu->gpu_calculated->efg_electronicULL->_devData;
+#else
+    gpu->gpu_calculated->efg_electronic->Upload();
+    gpu->gpu_sim.efg_electronic = gpu->gpu_calculated->efg_electronic->_devData;
 #endif
 }
 
@@ -2916,7 +2998,16 @@ extern "C" void gpu_cleanup_()
     SAFE_DELETE(gpu->gpu_cutoff->cutPrim);
 
     SAFE_DELETE(gpu->allxyz);
+    SAFE_DELETE(gpu->extpointxyz);
     SAFE_DELETE(gpu->allchg);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
     SAFE_DELETE(gpu->gpu_cutoff->sorted_OEICutoffIJ);
 }
 

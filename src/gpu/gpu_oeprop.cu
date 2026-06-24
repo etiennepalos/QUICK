@@ -191,3 +191,13 @@ void getOEPROP(_gpu_type gpu)
 {
     QUICK_SAFE_CALL((getOEPROP_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
 }
+
+void getOEPROPEField(_gpu_type gpu)
+{
+    QUICK_SAFE_CALL((getOEPROP_efield_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+}
+
+void getOEPROPEFG(_gpu_type gpu)
+{
+    QUICK_SAFE_CALL((getOEPROP_efg_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+}

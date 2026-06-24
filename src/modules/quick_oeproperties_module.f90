@@ -653,15 +653,19 @@ module quick_oeproperties_module
 !----------------------------------------------------------------------------------!
  subroutine compute_efield_values(npoints,xyz_points,efield)
   use quick_basis_module, only: jshell
+  use quick_calculated_module, only: quick_qm_struct
   use quick_exception_module
 #ifdef MPIV
    use mpi
    use quick_basis_module, only: mpi_jshelln, mpi_jshell
    use quick_mpi_module, only: master, mpirank, mpierror
 #endif
+#if defined(GPU) || defined(MPIV_GPU)
+   use quick_method_module, only: quick_method
+#endif
 
    implicit none
-   integer :: IIsh, JJsh
+   integer :: ierr, IIsh, JJsh
    integer :: igridpoint, npoints, alloc_status
    double precision, intent(in) :: xyz_points(:,:)
    double precision, intent(out) :: efield(:,:)
@@ -702,7 +706,17 @@ module quick_oeproperties_module
    end do
 
    ! Computes EFIELD_ELEC by summing over contributions from shell-pairs.
-#ifdef MPIV
+#if defined(GPU) || defined(MPIV_GPU)
+   ierr = 0
+   call gpu_upload_oeprop_efield(npoints, xyz_points, efield_electronic, ierr)
+   call gpu_upload_density_matrix(quick_qm_struct%dense)
+   if (quick_method%UNRST) call gpu_upload_beta_density_matrix(quick_qm_struct%denseb)
+   call gpu_get_oeprop_efield(efield_electronic)
+#if defined MPIV
+   call MPI_REDUCE(efield_electronic, efield_electronic_aggregate, 3*npoints, &
+     MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
+#endif
+#elif defined MPIV
    do Ish=1,mpi_jshelln(mpirank)
       IIsh=mpi_jshell(mpirank,Ish)
       do JJsh=IIsh,jshell
@@ -795,15 +809,19 @@ module quick_oeproperties_module
 !----------------------------------------------------------------------------------!
  subroutine compute_efg_values_analytic(npoints,xyz_points,efg)
   use quick_basis_module, only: jshell
+  use quick_calculated_module, only: quick_qm_struct
   use quick_exception_module
 #ifdef MPIV
    use mpi
    use quick_basis_module, only: mpi_jshelln, mpi_jshell
    use quick_mpi_module, only: master, mpirank, mpierror
 #endif
+#if defined(GPU) || defined(MPIV_GPU)
+   use quick_method_module, only: quick_method
+#endif
 
    implicit none
-   integer :: IIsh, JJsh
+   integer :: ierr, IIsh, JJsh
    integer :: igridpoint, npoints, alloc_status
    double precision, intent(in) :: xyz_points(:,:)
    double precision, intent(out) :: efg(:,:,:)
@@ -844,7 +862,17 @@ module quick_oeproperties_module
    end do
 
    ! Computes EFG_ELEC by summing over contributions from shell-pairs.
-#ifdef MPIV
+#if defined(GPU) || defined(MPIV_GPU)
+   ierr = 0
+   call gpu_upload_oeprop_efg(npoints, xyz_points, efg_electronic, ierr)
+   call gpu_upload_density_matrix(quick_qm_struct%dense)
+   if (quick_method%UNRST) call gpu_upload_beta_density_matrix(quick_qm_struct%denseb)
+   call gpu_get_oeprop_efg(efg_electronic)
+#if defined MPIV
+   call MPI_REDUCE(efg_electronic, efg_electronic_aggregate, 9*npoints, &
+     MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
+#endif
+#elif defined MPIV
    do Ish=1,mpi_jshelln(mpirank)
       IIsh=mpi_jshell(mpirank,Ish)
       do JJsh=IIsh,jshell
