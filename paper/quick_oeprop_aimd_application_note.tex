@@ -1,0 +1,384 @@
+\documentclass[journal=jctcce,manuscript=article]{achemso}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{siunitx}
+
+\newcommand{\quick}{QUICK}
+\newcommand{\keyword}[1]{\texttt{#1}}
+\newcommand{\esp}{ESP}
+\newcommand{\efield}{EFIELD}
+\newcommand{\efg}{EFG}
+
+\SectionNumbersOn
+
+\title{Application Note: On-the-Fly Electrostatic Potentials, Electric Fields, and Field Gradients for Microdroplet Chemistry in QUICK}
+
+\author{Etienne Palos}
+\affiliation{Department of Chemistry, Michigan State University, East Lansing, Michigan, United States}
+\alsoaffiliation{TODO: Add complete affiliation list}
+\email{TODO: email}
+
+\author{TODO: Coauthors}
+\affiliation{TODO: Affiliations}
+
+\keywords{electrostatic potential, electric field, electric field gradient, microdroplet chemistry, air-water interface, ab initio molecular dynamics, trajectory analysis, Gaussian basis sets, QUICK}
+
+\begin{document}
+
+\begin{abstract}
+Local electrostatic observables provide a compact bridge between electronic
+structure and chemically interpretable molecular environments in
+microdroplets, sea-spray aerosols, and air-water interfaces.  The
+electrostatic potential (ESP), electric field (EFIELD), and electric
+field-gradient tensor (EFG) are the scalar, vector, and tensor descriptors
+obtained from a single quantum-mechanical charge distribution at arbitrary
+probe points.  Here we describe an application-oriented implementation in
+\quick{} for evaluating ESP, EFIELD, and analytic EFG on user-supplied
+external grids, electron-density isosurfaces, and fixed probe sets along
+molecular trajectories.  The target application is trajectory-resolved
+microdroplet chemistry, where interfacial charge separation, partial
+solvation, photochemical channels, and heterogeneous local fields have
+been proposed to control reactivity.  The same post-SCF property engine is
+exposed through a no-I/O library API, allowing external molecular dynamics
+drivers or trajectory-analysis tools to request ESP/EFIELD/EFG immediately
+after each converged single-point, geometry-optimization, or
+Born-Oppenheimer molecular dynamics step.  The tensor convention is
+explicitly defined as
+\(E_i(\mathbf{C})=-\partial V(\mathbf{C})/\partial C_i\) and
+\(G_{ij}(\mathbf{C})=\partial E_i(\mathbf{C})/\partial C_j\), the negative
+of the electrostatic-potential Hessian convention sometimes also denoted
+EFG.  CPU serial and MPI implementations are available for ESP, EFIELD,
+and analytic EFG; the existing GPU ESP path defines the accelerator
+template for EFIELD and EFG kernels.  File-based and no-I/O API
+evaluations agree to better than \(5\times10^{-9}\) a.u. for a water
+RHF/STO-3G validation grid, and analytic EFG agrees with a central
+finite-difference EFIELD reference to approximately \(10^{-9}\) a.u. in
+the current regression case.  We outline an on-the-fly AIMD workflow for
+converting electronic trajectories into time series of local potentials,
+fields, field magnitudes, tensor traces, Frobenius norms, and
+anisotropies at chemically selected probes.
+\end{abstract}
+
+\section{Introduction}
+
+Electrostatic observables are among the most direct ways to interpret a
+quantum-mechanical density in real space.  The electrostatic potential
+reports the scalar potential experienced by a test charge, the electric
+field reports the directional force per unit charge, and the electric
+field gradient reports how rapidly that field changes locally.  These
+quantities are useful for charge-model construction, field-sensitive
+reactivity, vibrational Stark interpretation, interfacial electrostatics,
+and polarizable embedding.
+
+The motivating application for the present work is microdroplet chemistry.
+Aqueous microdroplets and sea-spray aerosols can display chemical behavior
+that differs strongly from bulk solution, including interfacial oxidation,
+photochemistry, and rate acceleration.  Recent studies, including work by
+Francisco and co-workers on sea-spray microdroplet oxidation and hydrogen
+peroxide photolysis, have emphasized the possible roles of the air-water
+interface, charge separation, partial solvation, and heterogeneous local
+electric fields.\cite{RaoFranciscoThiol2023,RaoFranciscoH2O22023}
+Recent reviews and perspectives have likewise identified interfacial
+charge and local electrostatics as central, but not yet fully resolved,
+ingredients in microdroplet reactivity.\cite{LaCourHeadGordon2025}
+This creates a practical need for quantum-mechanical tools that can report
+not only energies and structures, but also the instantaneous scalar,
+vector, and tensor electrostatic environment experienced by reactive
+sites.
+
+Trajectory-resolved electrostatics are especially useful because many
+chemical environments are intrinsically dynamic.  Recent molecular
+simulation studies of interfacial and condensed-phase electrostatics have
+shown that analyzing local fields along trajectories can reveal
+heterogeneous microscopic environments that are obscured by structural
+averages alone.\cite{MartinsCostaRuizLopez2023}  For ab initio molecular
+dynamics (AIMD) or Born-Oppenheimer molecular dynamics (BOMD), the natural
+computational object is the converged electronic density at each frame.
+Once that density exists, evaluating ESP/EFIELD/EFG at selected probe
+points is a post-SCF property task, not a new electronic-structure problem.
+
+This Application Note describes the current \quick{} workflow for local
+electrostatic analysis along trajectories, with microdroplet and
+air-water-interface chemistry as the target use case.  The implementation
+is staged: external-grid and electron-density-surface ESP/EFIELD/EFG are
+available in the standard input/output path; the same kernels are exposed
+through a no-I/O API for trajectory and driver use; and GPU ESP already
+exists as the accelerator template for future GPU EFIELD and EFG kernels.
+We focus on the application interface, sign conventions, validation
+protocol, and data products needed to use these observables in AIMD-style
+studies of reactive interfacial environments.
+
+\section{Definitions}
+
+For a probe point \(\mathbf{C}\), nuclear positions \(\mathbf{R}_A\), and
+electron density \(\rho(\mathbf{r})\), the electrostatic potential is
+\begin{equation}
+  V(\mathbf{C}) =
+  \sum_A \frac{Z_A}{|\mathbf{C}-\mathbf{R}_A|}
+  -
+  \int
+  \frac{\rho(\mathbf{r})}{|\mathbf{C}-\mathbf{r}|}
+  d\mathbf{r}.
+  \label{eq:esp}
+\end{equation}
+The electric field is
+\begin{equation}
+  E_i(\mathbf{C}) =
+  -\frac{\partial V(\mathbf{C})}{\partial C_i},
+  \label{eq:efield}
+\end{equation}
+and the field-gradient tensor reported by \quick{} is
+\begin{equation}
+  G_{ij}(\mathbf{C}) =
+  \frac{\partial E_i(\mathbf{C})}{\partial C_j}
+  =
+  -\frac{\partial^2 V(\mathbf{C})}{\partial C_i\partial C_j}.
+  \label{eq:efg}
+\end{equation}
+Equation~\ref{eq:efg} is the field-gradient convention.  Some
+quantum-chemistry texts define EFG as the Hessian of the electrostatic
+potential itself; that convention differs by an overall sign.
+
+In an AO basis, the electronic EFG contribution can be written as
+\begin{equation}
+  G_{ij}^{\mathrm{elec}}(\mathbf{C}) =
+  \sum_{\mu\nu} P_{\mu\nu}
+  \frac{\partial^2}{\partial C_i\partial C_j}
+  (\mu|r_C^{-1}|\nu),
+  \label{eq:ao_efg}
+\end{equation}
+where \(P_{\mu\nu}\) is the density matrix and
+\begin{equation}
+  (\mu|r_C^{-1}|\nu) =
+  \int
+  \chi_\mu(\mathbf{r})
+  \frac{1}{|\mathbf{r}-\mathbf{C}|}
+  \chi_\nu(\mathbf{r})d\mathbf{r}.
+\end{equation}
+The analytic CPU EFG implementation evaluates these center derivatives by
+Obara--Saika-style recurrence over Gaussian basis functions.\cite{ObaraSaika1986}
+A central finite-difference EFG from the analytic EFIELD remains available
+as a reference path.
+
+\section{Implementation in QUICK}
+
+\quick{} now supports three complementary property routes:
+\begin{enumerate}
+  \item File-based external-grid properties through the grid keywords
+    for ESP, EFIELD, and EFG.
+  \item Electron-density isosurface properties through the corresponding
+    surface keywords for ESP, EFIELD, and EFG.
+  \item A no-I/O API routine, \keyword{getQuickOEPROP}, that evaluates
+    ESP, EFIELD, and/or EFG after a converged API energy or gradient call.
+\end{enumerate}
+
+The no-I/O API has the form
+\begin{verbatim}
+call getQuickOEPROP(npoints, probe_xyz_bohr, ierr, &
+                    esp=esp, efield=efield, efg=efg)
+\end{verbatim}
+where the probe coordinates are in bohr and the optional output arrays are
+\begin{verbatim}
+esp(npoints)
+efield(3,npoints)
+efg(3,3,npoints)
+\end{verbatim}
+The API delegates all property evaluation to the same OEPROP kernels used
+by the file-based routes.  It returns a clean error when called before a
+converged density exists, when no output property is requested, or when the
+probe set is invalid.
+
+The implementation uses the existing shell-pair decomposition in serial
+and MPI builds.  For MPI, each rank accumulates its owned electronic
+shell-pair contribution and the electronic property arrays are reduced over
+\(N_{\mathrm{grid}}\), \(3N_{\mathrm{grid}}\), or \(9N_{\mathrm{grid}}\)
+double-precision values for ESP, EFIELD, or EFG, respectively.  The direct
+nuclear terms are inexpensive and are evaluated on the host.
+
+\section{Trajectory and AIMD Workflow}
+
+The intended AIMD use pattern is post-SCF and frame local:
+\begin{enumerate}
+  \item Converge the electronic structure for the current geometry.
+  \item Define probe points in a fixed laboratory frame, in a
+    molecule-attached local frame, or on a generated density isosurface.
+  \item Evaluate ESP/EFIELD/EFG at those points using the file path or
+    \keyword{getQuickOEPROP}.
+  \item Append compact descriptors to a trajectory CSV or binary analysis
+    file.
+  \item Continue to the next geometry or dynamics step.
+\end{enumerate}
+For externally generated trajectories, this workflow is trajectory
+post-processing.  For an external MD or QM/MM driver linked against the
+\quick{} API, the same call is on-the-fly because properties are requested
+immediately after each SCF or gradient evaluation.  A native \quick{} BOMD
+driver can use the same hook once the integration, restart, and energy
+conservation infrastructure is in place.
+
+The validation trajectory driver writes one row per frame and probe point.
+The current CSV columns are:
+\begin{verbatim}
+frame,probe,energy_hartree,x_ang,y_ang,z_ang,esp,
+efield_x,efield_y,efield_z,efield_mag,
+efg_xx,efg_xy,efg_xz,efg_yx,efg_yy,efg_yz,
+efg_zx,efg_zy,efg_zz,efg_trace,
+efg_frobenius,efg_anisotropy
+\end{verbatim}
+The tensor anisotropy is reported as the rotationally invariant deviatoric
+norm,
+\begin{equation}
+  \eta_G =
+  \left[
+    \frac{3}{2}
+    \sum_{ij}
+    \left(G_{ij}-\frac{\mathrm{Tr}(G)}{3}\delta_{ij}\right)^2
+  \right]^{1/2}.
+  \label{eq:anisotropy}
+\end{equation}
+This descriptor is useful for detecting locally anisotropic electrostatic
+environments, while \(|\mathbf{E}|\), \(\mathrm{Tr}(G)\), and
+\(\|G\|_F\) provide complementary scalar summaries.
+
+\section{Validation}
+
+The present validation set covers file-based properties, no-I/O API
+properties, trajectory output, analytic EFG, and serial/MPI consistency.
+The no-I/O API was compared against the standard file-producing grid
+property route for ESP, EFIELD, and EFG.  The test case is water
+RHF/STO-3G with four fixed probe points.  The first frame of a three-frame
+trajectory driver test is identical to the validation geometry, providing
+an additional trajectory-vs-API comparison.
+
+\begin{table}[htbp]
+\centering
+\caption{Current no-I/O OEPROP API validation for water RHF/STO-3G.}
+\begin{tabular}{lcc}
+\toprule
+Comparison & Values & Max. abs. dev. / a.u. \\
+\midrule
+File ESP vs API ESP & 4 & \(3.66\times10^{-11}\) \\
+File EFIELD vs API EFIELD & 12 & \(4.71\times10^{-9}\) \\
+File EFG vs API EFG & 36 & \(3.85\times10^{-9}\) \\
+Trajectory frame 1 ESP vs validation & 4 & \(0.0\) \\
+Trajectory frame 1 EFIELD vs validation & 12 & \(0.0\) \\
+Trajectory frame 1 EFG vs validation & 36 & \(0.0\) \\
+\bottomrule
+\end{tabular}
+\label{tab:api_validation}
+\end{table}
+
+Analytic EFG is also checked against the retained numerical EFG reference,
+which uses a central finite difference of EFIELD.  In the current external
+grid regression case, analytic and numerical EFG agree to approximately
+\(10^{-9}\) a.u.  Independent PySCF cross-code validation on external-grid
+and density-surface points gives maximum absolute differences of
+\(4.2\times10^{-6}\) a.u. or smaller across ESP, EFIELD, and EFG test
+sets, with stricter \(10^{-7}\)--\(10^{-8}\) a.u. agreement for the
+water RHF/STO-3G surface cases.
+
+\section{GPU and Performance Considerations}
+
+The current implementation separates the property workflow from the SCF
+procedure: the density is converged once per frame, and ESP/EFIELD/EFG are
+then evaluated on the requested probe set.  For a small number of probe
+points, the incremental cost is typically dominated by the SCF.  For large
+external grids or dense molecular surfaces, the OEPROP contraction becomes
+a natural accelerator target.
+
+\quick{} already contains a CUDA/HIP electronic ESP path for external-grid
+OEPROP calculations.  That path uploads grid coordinates and the converged
+density, evaluates the electronic attraction contribution on the
+accelerator, downloads the electronic property buffer, and adds the direct
+nuclear contribution on the host.  The planned GPU EFIELD and EFG kernels
+preserve the same host/device division, buffer ordering, and MPI reduction
+lengths as the CPU reference.  The acceptance target for the accelerator
+extension is CPU/GPU agreement for ESP, EFIELD, analytic EFG, and the
+numerical EFG reference on the existing OEPROP regression suite.
+
+\section{Microdroplet-Chemistry Target}
+
+The immediate application target is compact local-electrostatics analysis
+of microdroplet, aerosol, and air-water-interface trajectories.  In this
+setting, the quantities of interest are not only global dipoles or average
+surface potentials.  The chemically relevant questions are local: what
+field does a peroxide O--O bond, thiol S--H bond, adsorbed ion, radical
+precursor, or surface hydroxyl group experience at the instant a reactive
+configuration appears?  How anisotropic is the field around the reactive
+center?  Does the local environment look bulk-like, interface-like, or
+charge-separated?
+
+The present workflow is designed to answer these questions without
+claiming that \quick{} is already a complete droplet dynamics package.
+One may generate AIMD or BOMD frames for finite water clusters,
+nanodroplets, slabs, or reactive solute-water aggregates, define
+chemically meaningful probe points, and then report time series such as
+\[
+  V(t),\quad
+  |\mathbf{E}(t)|,\quad
+  \mathrm{Tr}\,G(t),\quad
+  \|G(t)\|_F,\quad
+  \eta_G(t).
+\]
+For microdroplet chemistry, useful probes include bond midpoints,
+projected points along putative reaction coordinates, ion-solvation shell
+centers, density-isosurface points near adsorbed reactants, and
+surface-normal scan points that connect interior and interfacial regions.
+These observables can be correlated with bond distances, hydrogen-bond
+counts, proton-transfer coordinates, radical-pair separations,
+photochemical coordinates, solvent orientation, or vibrational frequency
+shifts.  Because ESP, EFIELD, and EFG are evaluated from the same density
+and probe coordinates, they also provide a hierarchy of scalar, vector,
+and tensor descriptors for testing field-driven mechanistic hypotheses in
+microdroplet chemistry and for constructing machine-learning or
+charge-model representations of reactive interfaces.
+
+\section{Limitations and Outlook}
+
+The present workflow should be described carefully.  \quick{} can evaluate
+ESP, EFIELD, and EFG after each converged energy or gradient call and
+exposes that capability through a no-I/O API.  This is sufficient for
+trajectory post-processing and for on-the-fly property emission by an
+external driver.  It is not yet a complete native AIMD package with
+thermostats, restartable dynamics, and automated OEPROP output at every
+step.
+
+The next development steps are:
+\begin{enumerate}
+  \item add production GPU EFIELD and EFG kernels using the existing GPU
+    ESP implementation as the template;
+  \item benchmark OEPROP overhead on realistic AIMD probe sets, for
+    example reactive water clusters, nanodroplet models, and interfacial
+    slabs;
+  \item add native BOMD hooks that call \keyword{getQuickOEPROP} after
+    each accepted step;
+  \item extend validation from small fixed water trajectories to
+    finite-temperature AIMD trajectories of surface and interior water
+    environments;
+  \item add small reactive microdroplet benchmarks, such as peroxide,
+    thiol, halide, or proton-transfer motifs at finite water interfaces;
+  \item document sign, origin, and unit conventions in every trajectory
+    output file.
+\end{enumerate}
+These steps would turn the present validated property and API machinery
+into a publishable AIMD electrostatics workflow for local fields and field
+gradients in chemically heterogeneous environments, with microdroplet
+chemistry as the first application domain.
+
+\section{Data and Software Availability}
+
+The implementation is under development in \quick{}.  Validation inputs,
+API drivers, and trajectory-analysis scripts are included in the OEPROP API
+and GPU OEPROP validation directories of the development tree.  TODO: add
+repository URL, commit hash, archived release DOI, and exact build
+instructions for the submitted version.
+
+\begin{acknowledgement}
+TODO: Add funding, computing, and contributor acknowledgments.
+\end{acknowledgement}
+
+\bibliography{quick_oeprop_aimd_application_note_refs}
+
+\end{document}

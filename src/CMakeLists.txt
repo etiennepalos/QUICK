@@ -332,8 +332,20 @@ endif()
 config_module_dirs(test-api quick/serial libxc/serial)
 target_link_libraries(test-api libquick)
 
+add_executable(test-api-oeprop ../validation/oeprop_api/quick_oeprop_api_driver.f90)
+set_target_properties(test-api-oeprop PROPERTIES LINKER_LANGUAGE Fortran)
+target_compile_options(test-api-oeprop PRIVATE
+	"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+if(HDF5)
+	target_compile_definitions(test-api-oeprop PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+endif()
+config_module_dirs(test-api-oeprop quick/serial libxc/serial)
+target_link_libraries(test-api-oeprop libquick)
+
 install(TARGETS quick DESTINATION ${BINDIR} EXPORT QUICK)
 install(TARGETS test-api DESTINATION ${BINDIR} EXPORT QUICK)
+install(TARGETS test-api-oeprop DESTINATION ${BINDIR} EXPORT QUICK)
 
 if(MPI)
 	make_mpi_version(quick quick.MPI LANGUAGES Fortran)
@@ -341,6 +353,8 @@ if(MPI)
 
 	make_mpi_version(test-api test-api.MPI LANGUAGES Fortran)
 	target_compile_definitions(test-api.MPI PRIVATE MPIV)
+	make_mpi_version(test-api-oeprop test-api-oeprop.MPI LANGUAGES Fortran)
+	target_compile_definitions(test-api-oeprop.MPI PRIVATE MPIV)
 
 	# change link libraries and mod dirs for MPI
 	remove_link_libraries(quick.MPI libquick)
@@ -350,9 +364,13 @@ if(MPI)
 	remove_link_libraries(test-api.MPI libquick)
 	target_link_libraries(test-api.MPI libquick_mpi)
 	config_module_dirs(test-api.MPI quick/mpi libxc/serial)
+	remove_link_libraries(test-api-oeprop.MPI libquick)
+	target_link_libraries(test-api-oeprop.MPI libquick_mpi)
+	config_module_dirs(test-api-oeprop.MPI quick/mpi libxc/serial)
 
 	install(TARGETS quick.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api.MPI DESTINATION ${BINDIR} EXPORT QUICK)
+	install(TARGETS test-api-oeprop.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 endif()
 
 if(CUDA)
@@ -361,6 +379,8 @@ if(CUDA)
 
 	copy_target(test-api test-api.${QUICK_GPU_TARGET_NAME})
 	target_compile_definitions(test-api.${QUICK_GPU_TARGET_NAME} PRIVATE GPU ${QUICK_GPU_PLATFORM})
+	copy_target(test-api-oeprop test-api-oeprop.${QUICK_GPU_TARGET_NAME})
+	target_compile_definitions(test-api-oeprop.${QUICK_GPU_TARGET_NAME} PRIVATE GPU ${QUICK_GPU_PLATFORM})
 
 	remove_link_libraries(quick.${QUICK_GPU_TARGET_NAME} libquick)
 	target_link_libraries(quick.${QUICK_GPU_TARGET_NAME} libquick_${QUICK_GPU_TARGET_NAME})
@@ -369,9 +389,13 @@ if(CUDA)
 	remove_link_libraries(test-api.${QUICK_GPU_TARGET_NAME} libquick)
 	target_link_libraries(test-api.${QUICK_GPU_TARGET_NAME} libquick_${QUICK_GPU_TARGET_NAME})
 	config_module_dirs(test-api.${QUICK_GPU_TARGET_NAME} quick/${QUICK_GPU_TARGET_NAME} libxc/gpu)
+	remove_link_libraries(test-api-oeprop.${QUICK_GPU_TARGET_NAME} libquick)
+	target_link_libraries(test-api-oeprop.${QUICK_GPU_TARGET_NAME} libquick_${QUICK_GPU_TARGET_NAME})
+	config_module_dirs(test-api-oeprop.${QUICK_GPU_TARGET_NAME} quick/${QUICK_GPU_TARGET_NAME} libxc/gpu)
 
 	install(TARGETS quick.${QUICK_GPU_TARGET_NAME} DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api.${QUICK_GPU_TARGET_NAME} DESTINATION ${BINDIR} EXPORT QUICK)
+	install(TARGETS test-api-oeprop.${QUICK_GPU_TARGET_NAME} DESTINATION ${BINDIR} EXPORT QUICK)
 endif()
 
 if(CUDA AND MPI)
@@ -380,6 +404,8 @@ if(CUDA AND MPI)
 
 	copy_target(test-api.MPI test-api.${QUICK_GPU_TARGET_NAME}.MPI)
 	target_compile_definitions(test-api.${QUICK_GPU_TARGET_NAME}.MPI PRIVATE MPIV_GPU ${QUICK_GPU_PLATFORM}_MPIV)
+	copy_target(test-api-oeprop.MPI test-api-oeprop.${QUICK_GPU_TARGET_NAME}.MPI)
+	target_compile_definitions(test-api-oeprop.${QUICK_GPU_TARGET_NAME}.MPI PRIVATE MPIV_GPU ${QUICK_GPU_PLATFORM}_MPIV)
 
 	remove_link_libraries(quick.${QUICK_GPU_TARGET_NAME}.MPI libquick_mpi)
 	target_link_libraries(quick.${QUICK_GPU_TARGET_NAME}.MPI libquick_mpi_${QUICK_GPU_TARGET_NAME})
@@ -388,7 +414,11 @@ if(CUDA AND MPI)
 	remove_link_libraries(test-api.${QUICK_GPU_TARGET_NAME}.MPI libquick_mpi)
 	target_link_libraries(test-api.${QUICK_GPU_TARGET_NAME}.MPI libquick_mpi_${QUICK_GPU_TARGET_NAME})
 	config_module_dirs(test-api.${QUICK_GPU_TARGET_NAME}.MPI quick/mpi_${QUICK_GPU_TARGET_NAME} libxc/gpu)
+	remove_link_libraries(test-api-oeprop.${QUICK_GPU_TARGET_NAME}.MPI libquick_mpi)
+	target_link_libraries(test-api-oeprop.${QUICK_GPU_TARGET_NAME}.MPI libquick_mpi_${QUICK_GPU_TARGET_NAME})
+	config_module_dirs(test-api-oeprop.${QUICK_GPU_TARGET_NAME}.MPI quick/mpi_${QUICK_GPU_TARGET_NAME} libxc/gpu)
 
 	install(TARGETS quick.${QUICK_GPU_TARGET_NAME}.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api.${QUICK_GPU_TARGET_NAME}.MPI DESTINATION ${BINDIR} EXPORT QUICK)
+	install(TARGETS test-api-oeprop.${QUICK_GPU_TARGET_NAME}.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 endif()

@@ -19,6 +19,7 @@ module quick_api_module
 
   public :: quick_api
   public :: setQuickJob, getQuickEnergy, getQuickEnergyGradients, deleteQuickJob
+  public :: getQuickOEPROP
 
 #ifdef MPIV
   public :: setQuickMPI
@@ -78,6 +79,10 @@ module quick_api_module
     ! total energy in hartree
     double precision :: tot_ene = 0.0d0
 
+    ! true after a successful energy or gradient evaluation has produced
+    ! a density matrix that can be used by no-I/O OEPROP evaluators.
+    logical :: density_ready = .false.
+
     ! if gradients and point charge gradients are requested
     logical :: isForce = .false.
 
@@ -114,6 +119,10 @@ module quick_api_module
 
   interface getQuickEnergyGradients
     module procedure get_quick_energy_gradients
+  end interface
+
+  interface getQuickOEPROP
+    module procedure get_quick_oeprop
   end interface
 
   interface deleteQuickJob
@@ -154,6 +163,7 @@ subroutine new_quick_api_type(self, natoms, atomic_numbers, ierr)
 
   ! set result vectors and matrices to zero
   self%gradient  = 0.0d0
+  self%density_ready = .false.
 
 end subroutine new_quick_api_type
 
@@ -169,7 +179,12 @@ subroutine check_fqin(fqin, keywd, ierr)
 
   call upcase(keywd, 256)
 
-  if ((index(keywd, 'HF') .ne. 0) .or. (index(keywd, 'DFT') .ne. 0) .and. (index(keywd, 'BASIS=') .ne. 0 )) then
+  if (index(keywd, 'BASIS=') .ne. 0 .and. &
+      (index(keywd, 'HF') .ne. 0 .or. &
+       index(keywd, 'DFT') .ne. 0 .or. &
+       index(keywd, 'PBE0') .ne. 0 .or. &
+       index(keywd, 'B3LYP') .ne. 0 .or. &
+       index(keywd, 'LIBXC=') .ne. 0)) then
     quick_api%hasKeywd = .true.
     quick_api%Keywd = keywd
   endif
@@ -385,6 +400,7 @@ subroutine get_quick_energy(coords, nxt_ptchg, ptchg_crd, energy, ierr)
   ! assign passed parameter values into quick_api struct
   quick_api%nxt_ptchg = nxt_ptchg
   quick_api%coords        = coords
+  quick_api%density_ready = .false.
 
   ! set number of external atoms in quick_molspec
   quick_molspec%nextatom  = quick_api%nxt_ptchg
@@ -395,6 +411,7 @@ subroutine get_quick_energy(coords, nxt_ptchg, ptchg_crd, energy, ierr)
   endif
 
   call run_quick(quick_api,ierr)
+  if (ierr == 0) quick_api%density_ready = .true.
 
   ! send back total energy and charges
   energy = quick_api%tot_ene
@@ -423,6 +440,7 @@ subroutine get_quick_energy_gradients(coords, nxt_ptchg, ptchg_crd, &
   ! assign passed parameter values into quick_api struct
   quick_api%coords         = coords
   quick_api%nxt_ptchg = nxt_ptchg
+  quick_api%density_ready = .false.
 
   ! set number of external atoms in quick_molspec
   quick_molspec%nextatom  = quick_api%nxt_ptchg
@@ -433,6 +451,7 @@ subroutine get_quick_energy_gradients(coords, nxt_ptchg, ptchg_crd, &
   endif
 
   call run_quick(quick_api,ierr)
+  if (ierr == 0) quick_api%density_ready = .true.
 
   ! send back total energy, gradients and point charge gradients
   energy     = quick_api%tot_ene
@@ -444,6 +463,44 @@ subroutine get_quick_energy_gradients(coords, nxt_ptchg, ptchg_crd, &
   endif
 
 end subroutine get_quick_energy_gradients
+
+
+! evaluates no-I/O electrostatic properties at caller-supplied probe points.
+! Probe coordinates are in bohr. Returned properties are in QUICK atomic units:
+! ESP V(C), E_i(C)=-dV/dC_i, and G_ij(C)=dE_i/dC_j.
+subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
+
+  use quick_oeproperties_module, only: compute_oeprop_values
+
+  implicit none
+
+  integer, intent(in) :: npoints
+  double precision, intent(in) :: probe_xyz_bohr(3,npoints)
+  integer, intent(out) :: ierr
+  double precision, intent(out), optional :: esp(npoints)
+  double precision, intent(out), optional :: efield(3,npoints)
+  double precision, intent(out), optional :: efg(3,3,npoints)
+
+  ierr = 0
+
+  if (npoints <= 0) then
+    ierr = 46
+    return
+  endif
+
+  if (.not. quick_api%density_ready) then
+    ierr = 47
+    return
+  endif
+
+  if (.not. (present(esp) .or. present(efield) .or. present(efg))) then
+    ierr = 48
+    return
+  endif
+
+  call compute_oeprop_values(npoints, probe_xyz_bohr, esp, efield, efg)
+
+end subroutine get_quick_oeprop
 
 
 ! runs quick, partially resembles quick main program

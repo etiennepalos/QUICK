@@ -19,6 +19,8 @@
 module quick_oeproperties_module
  private
  public :: compute_oeprop
+ public :: compute_oeprop_values, compute_esp_values
+ public :: compute_efield_values, compute_efg_values_analytic, compute_efg_values_numerical
 
  contains
 
@@ -189,6 +191,38 @@ module quick_oeproperties_module
  end Subroutine
 
 !--------------------------------------------------------------------!
+!  No-I/O OEPROP evaluator for external embedding interfaces.        !
+!  Coordinates are in bohr. Returned ESP, EFIELD, and EFG values use !
+!  QUICK atomic-unit conventions. EFG follows G_ij=dE_i/dC_j.        !
+!--------------------------------------------------------------------!
+
+ subroutine compute_oeprop_values(npoints,xyz_points,esp,efield,efg)
+   implicit none
+
+   integer, intent(in) :: npoints
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, intent(out), optional :: esp(:)
+   double precision, intent(out), optional :: efield(:,:)
+   double precision, intent(out), optional :: efg(:,:,:)
+
+   if (present(esp)) call compute_esp(npoints,xyz_points,esp)
+   if (present(efield)) call compute_efield_values(npoints,xyz_points,efield)
+   if (present(efg)) call compute_efg_values_analytic(npoints,xyz_points,efg)
+
+ end subroutine compute_oeprop_values
+
+ subroutine compute_esp_values(npoints,xyz_points,esp)
+   implicit none
+
+   integer, intent(in) :: npoints
+   double precision, intent(in) :: xyz_points(:,:)
+   double precision, intent(out) :: esp(:)
+
+   call compute_esp(npoints,xyz_points,esp)
+
+ end subroutine compute_esp_values
+
+!--------------------------------------------------------------------!
 !   The subroutines esp_shell_pair, efield_shell_pair and            !
 !   esp_1pdm, efield_1pdm are present in ./include/attrashell.fh     !
 !   and ./include/nuclearattra.fh header files respectively.         !
@@ -217,7 +251,7 @@ module quick_oeproperties_module
 #ifdef MPIV
     use mpi
     use quick_basis_module, only: mpi_jshelln, mpi_jshell
-    use quick_mpi_module, only: mpirank, mpierror 
+    use quick_mpi_module, only: master, mpirank, mpierror
 #endif
 #if defined(GPU) || defined(MPIV_GPU)
     use quick_method_module, only: quick_method
@@ -305,6 +339,9 @@ module quick_oeproperties_module
 #endif
 
    ! Sum the nuclear and electronic part of ESP
+#ifdef MPIV
+   if (master) then
+#endif
    do igridpoint=1,npoints
 #ifdef MPIV
      esp(igridpoint) = esp_nuclear(igridpoint)+esp_electronic_aggregate(igridpoint)
@@ -312,6 +349,11 @@ module quick_oeproperties_module
      esp(igridpoint) = esp_nuclear(igridpoint)+esp_electronic(igridpoint)
 #endif
    end do
+#ifdef MPIV
+   else
+     esp(:) = 0.0d0
+   endif
+#endif
 
    RECORD_TIME(timer_end%TESPGrid)
    timer_cumer%TESPGrid=timer_cumer%TESPGrid+timer_end%TESPGrid-timer_begin%TESPGrid

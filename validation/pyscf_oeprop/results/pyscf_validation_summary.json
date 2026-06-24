@@ -1,0 +1,117 @@
+{
+  "python": "/opt/anaconda3/bin/python",
+  "pyscf_version": "2.6.2",
+  "fd_step_bohr": 0.0005,
+  "energies": [
+    {
+      "case": "external PBE0-D3BJ/cc-pVDZ without dispersion energy",
+      "quick": -192.933965693,
+      "pyscf": -192.9339795440917,
+      "delta": -1.385109169405041e-05
+    },
+    {
+      "case": "surface HF/STO-3G",
+      "quick": -74.947863811,
+      "pyscf": -74.94786378951005,
+      "delta": 2.148995292827749e-08
+    }
+  ],
+  "finite_field": [
+    {
+      "quantity": "E(+Fx) / Eh",
+      "quick": -74.947913548,
+      "pyscf": -74.94791352642305,
+      "delta": 2.1576951780843956e-08
+    },
+    {
+      "quantity": "E(-Fx) / Eh",
+      "quick": -74.947814117,
+      "pyscf": -74.94781409520243,
+      "delta": 2.1797561089442752e-08
+    },
+    {
+      "quantity": "E(0) / Eh",
+      "quick": -74.947863811,
+      "pyscf": -74.94786378951005,
+      "delta": 2.148995292827749e-08
+    },
+    {
+      "quantity": "central dE/dFx / a.u.",
+      "quick": -0.49715500004765545,
+      "pyscf": -0.49715610309419844,
+      "delta": -1.1030465429939795e-06
+    }
+  ],
+  "metrics": [
+    {
+      "name": "external ESP_GRID acetone PBE0-D3BJ/cc-pVDZ",
+      "nvalues": 663,
+      "max_abs": 4.109968722434271e-06,
+      "rms": 8.527963455664304e-07,
+      "mean_abs": 6.83490716965102e-07,
+      "max_rel": 0.014175520058633423,
+      "tolerance": 1e-05,
+      "pass": true
+    },
+    {
+      "name": "external EFIELD_GRID acetone PBE0-D3BJ/cc-pVDZ",
+      "nvalues": 1989,
+      "max_abs": 2.399803459928948e-06,
+      "rms": 2.974033521604602e-07,
+      "mean_abs": 2.0526433928872853e-07,
+      "max_rel": 0.07942181728014555,
+      "tolerance": 5e-06,
+      "pass": true
+    },
+    {
+      "name": "external EFG_GRID acetone PBE0-D3BJ/cc-pVDZ",
+      "nvalues": 5967,
+      "max_abs": 1.5104777764821456e-06,
+      "rms": 1.6894091799588093e-07,
+      "mean_abs": 1.0946673497271782e-07,
+      "max_rel": 0.8753131048646755,
+      "tolerance": 1e-05,
+      "pass": true
+    },
+    {
+      "name": "surface ESP_SURFACE H2O RHF/STO-3G",
+      "nvalues": 62,
+      "max_abs": 2.582370236883791e-07,
+      "rms": 1.4381682787349122e-07,
+      "mean_abs": 1.2348940333157595e-07,
+      "max_rel": 0.00011928373691740259,
+      "tolerance": 5e-06,
+      "pass": true
+    },
+    {
+      "name": "surface EFIELD_SURFACE H2O RHF/STO-3G",
+      "nvalues": 186,
+      "max_abs": 3.122545429168344e-08,
+      "rms": 1.1078341654308404e-08,
+      "mean_abs": 9.11360374810727e-09,
+      "max_rel": 5.319960430408079e-05,
+      "tolerance": 5e-06,
+      "pass": true
+    },
+    {
+      "name": "surface EFG_SURFACE H2O RHF/STO-3G",
+      "nvalues": 558,
+      "max_abs": 4.113813049586024e-08,
+      "rms": 1.1359706220625617e-08,
+      "mean_abs": 8.882615577911496e-09,
+      "max_rel": 7.755481410620398e-05,
+      "tolerance": 1e-05,
+      "pass": true
+    },
+    {
+      "name": "finite field H2O RHF/STO-3G +Fx energy",
+      "nvalues": 1,
+      "max_abs": 2.1576951780843956e-08,
+      "rms": 2.1576951780843956e-08,
+      "mean_abs": 2.1576951780843956e-08,
+      "max_rel": 2.87892627818453e-10,
+      "tolerance": 1e-06,
+      "pass": true
+    }
+  ]
+}

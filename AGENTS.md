@@ -6,6 +6,80 @@ QUICK is a GPU-accelerated quantum chemistry package written primarily in Fortra
 with C/C++ and CUDA/HIP code for GPU support. The codebase uses two parallel build systems:
 a legacy `configure`+`make` system and a modern CMake system.
 
+### Current Local OEPROP Context
+
+This working tree has active one-electron-property work in `src/modules/quick_oeproperties_module.f90`
+and the OEPROP include paths `src/modules/include/attrashell.fh` and
+`src/modules/include/nuclearattra.fh`.
+
+Current external-grid property keywords:
+
+| Keyword | Meaning |
+|---|---|
+| `ESP_GRID` | Electrostatic potential on user-supplied grid points |
+| `EFIELD_GRID` | Electric field on user-supplied grid points |
+| `EFG_GRID` | Analytic electric-field-gradient tensor on user-supplied grid points |
+| `EFG_GRID_NUMERICAL` | Central finite-difference EFG reference from `EFIELD_GRID` |
+| `ESP_SURFACE` | Electrostatic potential on an internally generated electron-density isosurface |
+| `EFIELD_SURFACE` | Electric field on an internally generated electron-density isosurface |
+| `EFG_SURFACE` | Analytic electric-field-gradient tensor on an internally generated electron-density isosurface |
+| `DENSITY_SURFACE_VALUE` | Electron-density isovalue in a.u.; default `1.0d-3` |
+| `DENSITY_SURFACE_SPACING` | Approximate surface-point spacing in Angstrom; default `0.50` |
+| `DENSITY_SURFACE_MAX_RADIUS` | Maximum atom-centered ray length in Angstrom; default `10.0` |
+| `EXTERNAL_EFIELD_X/Y/Z` | Uniform external electric-field components in a.u. |
+| `FINITE_FIELD_X/Y/Z` | Alias for the uniform external electric-field components |
+
+Implementation notes for this feature:
+
+- `EFG_GRID` is the default analytic route. `EFG_GRID_NUMERICAL` is retained as a
+  regression/reference path.
+- The printed tensor follows the QUICK field-gradient convention
+  `G_ij(C) = d E_i(C) / d C_j`, i.e. the negative of the electrostatic-potential
+  Hessian convention sometimes denoted EFG in quantum-chemistry texts.
+- CPU serial and MPI paths are implemented. MPI follows the existing shell-pair
+  distribution and reduces `9*npoints` tensor components to the master rank.
+- The analytic electronic contribution uses Obara-Saika style attraction-integral
+  recurrences, matching the structure already used in `src/hessian.f90`.
+- Current local optimization notes: EFIELD/EFG shell-pair setup uses direct
+  Gaussian product centers and primitive attraction prefactors; EFIELD/EFG
+  nuclear kernels use direct inverse-distance powers; numerical EFG reuses a
+  single displaced-coordinate work array; analytic EFG contracts grid points in
+  128-point auxiliary blocks.
+- Density-surface properties are generated in `quick_molsurface_module.f90` by
+  atom-centered radial rays, first-crossing bracketing, bisection to
+  `rho(r)=DENSITY_SURFACE_VALUE`, and light duplicate pruning. The generated
+  points are stored in `quick_molspec%vdwpointxyz` and then passed through the
+  same OEPROP grid evaluators used by external grids.
+- In MPI density-surface calculations, the master rank generates the point cloud
+  and broadcasts `nvdwpoint` and `vdwpointxyz`; ESP/EFIELD/EFG then use the
+  existing shell-pair distribution and reductions.
+- A deeper future optimization is to replace the analytic EFG recursive
+  evaluator with generated or iterative second-derivative recurrence tables,
+  analogous to the optimized first-derivative arrays used by EFIELD.
+- Finite external fields are Hamiltonian perturbations, not OEPROP grid
+  evaluators.  They add \(F_i\langle \chi_\mu | r_i-r_{0i}|\chi_\nu\rangle\)
+  to Hcore and add the matching classical charge-field term to `Ecore`.  The
+  field-polarized density can then be analyzed by ESP, EFIELD, and EFG.
+- `EXTERNAL_EFIELD_ORIGIN_X/Y/Z` and `FINITE_FIELD_ORIGIN_X/Y/Z` set the
+  finite-field origin in bohr.  The default is the Cartesian origin; charged
+  systems are origin-dependent.
+- Finite external fields currently support SCF energies and post-SCF
+  properties.  Analytic gradients under finite fields are intentionally blocked
+  until moment-integral derivative terms are implemented.
+- Regression coverage lives in the ESP/OEPROP subset of `test/testlist_full.txt`.
+  The numerical EFG saved `.out` baseline may be ignored by `.gitignore`; use
+  `git add -f test/saved/efg_grid_numerical_acetone_b3lyp_def2svp.out` when this
+  feature is intentionally staged.
+- The finite-field saved `.out` baseline is also ignored by `.gitignore`; use
+  `git add -f test/saved/ene_H2O_external_efield_rhf_sto3g.out` when staging the
+  external-field regression test.
+- Density-surface tests currently use separate regression inputs for the harness:
+  `esp_grid_density_surface_H2O_rhf_sto3g.in`,
+  `efield_density_surface_H2O_rhf_sto3g.in`, and
+  `efg_density_surface_H2O_rhf_sto3g.in`. The saved `.out` baselines are ignored
+  by `.gitignore`; use `git add -f test/saved/*density_surface_H2O_rhf_sto3g.out`
+  if those outputs should be staged.
+
 ---
 
 ## Build Commands
