@@ -20,6 +20,8 @@ module quick_api_module
   public :: quick_api
   public :: setQuickJob, getQuickEnergy, getQuickEnergyGradients, deleteQuickJob
   public :: getQuickOEPROP
+  public :: setQuickMBXSystem, setQuickMBXWaterSystem, clearQuickMBXSystem
+  public :: getQuickMBXEnergyGradientsFD
 
 #ifdef MPIV
   public :: setQuickMPI
@@ -125,8 +127,24 @@ module quick_api_module
     module procedure get_quick_oeprop
   end interface
 
+  interface getQuickMBXEnergyGradientsFD
+    module procedure get_quick_mbx_energy_gradients_fd_water
+  end interface
+
   interface deleteQuickJob
     module procedure delete_quick_job
+  end interface
+
+  interface setQuickMBXSystem
+    module procedure set_quick_mbx_system
+  end interface
+
+  interface setQuickMBXWaterSystem
+    module procedure set_quick_mbx_water_system
+  end interface
+
+  interface clearQuickMBXSystem
+    module procedure clear_quick_mbx_system
   end interface
 
 contains
@@ -304,6 +322,104 @@ subroutine set_quick_job(fqin, keywd, natoms, atomic_numbers, reusedmx, ierr)
   SAFE_CALL(alloc(quick_molspec, quick_method%readxyz, ierr))
 
 end subroutine set_quick_job
+
+
+! initialize an optional MBX environment for QM/MB-pol library-mode jobs
+subroutine set_quick_mbx_system(natoms, nsites, nmon, nat_monomers, coords_ang, &
+           atom_names, monomer_names, json_file, ierr)
+
+  use quick_mbx_module, only: quick_mbx_initialize_system
+
+  implicit none
+
+  integer, intent(in) :: natoms, nsites, nmon
+  integer, intent(in) :: nat_monomers(nmon)
+  double precision, intent(in) :: coords_ang(3,natoms)
+  character(len=*), intent(in) :: atom_names(natoms)
+  character(len=*), intent(in) :: monomer_names(nmon)
+  character(len=*), intent(in) :: json_file
+  integer, intent(inout) :: ierr
+
+  call quick_mbx_initialize_system(natoms, nsites, nmon, nat_monomers, coords_ang, &
+       atom_names, monomer_names, json_file, ierr)
+
+end subroutine set_quick_mbx_system
+
+
+! initialize an MB-pol water environment; MBX uses four electrostatic sites per water
+subroutine set_quick_mbx_water_system(nwaters, coords_ang, json_file, ierr)
+
+  use quick_mbx_module, only: quick_mbx_initialize_system
+
+  implicit none
+
+  integer, intent(in) :: nwaters
+  double precision, intent(in) :: coords_ang(:,:)
+  character(len=*), intent(in) :: json_file
+  integer, intent(inout) :: ierr
+
+  integer :: iwater, iatom, natoms, nsites
+  integer, allocatable :: nat_monomers(:)
+  double precision, allocatable :: coords_local(:,:)
+  character(len=1), allocatable :: atom_names(:)
+  character(len=3), allocatable :: monomer_names(:)
+
+  if (ierr /= 0) return
+  if (nwaters <= 0) then
+     ierr = 45
+     return
+  endif
+
+  natoms = 3*nwaters
+  nsites = 4*nwaters
+  if (size(coords_ang,1) < 3 .or. size(coords_ang,2) < natoms) then
+     ierr = 45
+     return
+  endif
+
+  allocate(nat_monomers(nwaters), stat=ierr)
+  if (ierr /= 0) return
+  allocate(coords_local(3,natoms), stat=ierr)
+  if (ierr /= 0) return
+  allocate(atom_names(natoms), stat=ierr)
+  if (ierr /= 0) return
+  allocate(monomer_names(nwaters), stat=ierr)
+  if (ierr /= 0) return
+
+  nat_monomers(:) = 3
+  monomer_names(:) = 'h2o'
+  coords_local(:,:) = coords_ang(1:3,1:natoms)
+  do iwater=1,nwaters
+     iatom = 3*(iwater-1)
+     atom_names(iatom+1) = 'O'
+     atom_names(iatom+2) = 'H'
+     atom_names(iatom+3) = 'H'
+  enddo
+
+  call quick_mbx_initialize_system(natoms, nsites, nwaters, nat_monomers, coords_local, &
+       atom_names, monomer_names, json_file, ierr)
+
+  if (allocated(nat_monomers)) deallocate(nat_monomers)
+  if (allocated(coords_local)) deallocate(coords_local)
+  if (allocated(atom_names)) deallocate(atom_names)
+  if (allocated(monomer_names)) deallocate(monomer_names)
+
+end subroutine set_quick_mbx_water_system
+
+
+! finalize and clear the optional MBX environment
+subroutine clear_quick_mbx_system(ierr)
+
+  use quick_mbx_module, only: quick_mbx_finalize
+
+  implicit none
+
+  integer, intent(out) :: ierr
+
+  ierr = 0
+  call quick_mbx_finalize()
+
+end subroutine clear_quick_mbx_system
 
 
 ! computes atom types
@@ -501,6 +617,111 @@ subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
   call compute_oeprop_values(npoints, probe_xyz_bohr, esp, efield, efg)
 
 end subroutine get_quick_oeprop
+
+
+! Reference finite-difference total QUICK-MBX gradients for tiny water
+! environments.  Coordinates are Angstrom, displacements are bohr, and
+! gradients are dE/dR in hartree/bohr.  This routine is intentionally for
+! validation and CPU smoke dynamics, not production analytic MD.
+subroutine get_quick_mbx_energy_gradients_fd_water(qm_coords, nwaters, mbx_coords, &
+           json_file, fd_step_bohr, energy, qm_grad, mbx_grad, ierr)
+
+  use quick_constants_module, only: BOHRS_TO_A
+
+  implicit none
+
+  integer, intent(in) :: nwaters
+  double precision, intent(in) :: qm_coords(3,quick_api%natoms)
+  double precision, intent(in) :: mbx_coords(3,3*nwaters)
+  character(len=*), intent(in) :: json_file
+  double precision, intent(in) :: fd_step_bohr
+  double precision, intent(out) :: energy
+  double precision, intent(out) :: qm_grad(3,quick_api%natoms)
+  double precision, intent(out) :: mbx_grad(3,3*nwaters)
+  integer, intent(out) :: ierr
+
+  integer :: iatom, ixyz, nmbx_atoms
+  double precision :: disp_ang, eplus, eminus
+  double precision :: qm_p(3,quick_api%natoms), qm_m(3,quick_api%natoms)
+  double precision :: mbx_p(3,3*nwaters), mbx_m(3,3*nwaters)
+
+  ierr = 0
+  energy = 0.0d0
+  qm_grad(:,:) = 0.0d0
+  mbx_grad(:,:) = 0.0d0
+
+  if (nwaters <= 0 .or. fd_step_bohr <= 0.0d0) then
+    ierr = 45
+    return
+  endif
+
+  nmbx_atoms = 3*nwaters
+  disp_ang = fd_step_bohr*BOHRS_TO_A
+
+  call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_coords,json_file,energy,ierr)
+  if (ierr /= 0) return
+
+  do iatom=1,quick_api%natoms
+    do ixyz=1,3
+      qm_p(:,:) = qm_coords(:,:)
+      qm_m(:,:) = qm_coords(:,:)
+      qm_p(ixyz,iatom) = qm_p(ixyz,iatom) + disp_ang
+      qm_m(ixyz,iatom) = qm_m(ixyz,iatom) - disp_ang
+      call evaluate_quick_mbx_water_energy(qm_p,nwaters,mbx_coords,json_file,eplus,ierr)
+      if (ierr /= 0) return
+      call evaluate_quick_mbx_water_energy(qm_m,nwaters,mbx_coords,json_file,eminus,ierr)
+      if (ierr /= 0) return
+      qm_grad(ixyz,iatom) = (eplus - eminus)/(2.0d0*fd_step_bohr)
+    enddo
+  enddo
+
+  do iatom=1,nmbx_atoms
+    do ixyz=1,3
+      mbx_p(:,:) = mbx_coords(:,:)
+      mbx_m(:,:) = mbx_coords(:,:)
+      mbx_p(ixyz,iatom) = mbx_p(ixyz,iatom) + disp_ang
+      mbx_m(ixyz,iatom) = mbx_m(ixyz,iatom) - disp_ang
+      call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_p,json_file,eplus,ierr)
+      if (ierr /= 0) return
+      call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_m,json_file,eminus,ierr)
+      if (ierr /= 0) return
+      mbx_grad(ixyz,iatom) = (eplus - eminus)/(2.0d0*fd_step_bohr)
+    enddo
+  enddo
+
+  ! Leave MBX in the undisplaced geometry for callers that reuse the job.
+  call set_quick_mbx_water_system(nwaters,mbx_coords,json_file,ierr)
+
+end subroutine get_quick_mbx_energy_gradients_fd_water
+
+
+subroutine evaluate_quick_mbx_water_energy(qm_coords, nwaters, mbx_coords, json_file, energy, ierr)
+
+  implicit none
+
+  integer, intent(in) :: nwaters
+  double precision, intent(in) :: qm_coords(3,quick_api%natoms)
+  double precision, intent(in) :: mbx_coords(3,3*nwaters)
+  character(len=*), intent(in) :: json_file
+  double precision, intent(out) :: energy
+  integer, intent(out) :: ierr
+
+  double precision, allocatable :: no_point_charges(:,:)
+
+  ierr = 0
+  energy = 0.0d0
+
+  call clear_quick_mbx_system(ierr)
+  if (ierr /= 0) return
+  call set_quick_mbx_water_system(nwaters,mbx_coords,json_file,ierr)
+  if (ierr /= 0) return
+
+  allocate(no_point_charges(4,0), stat=ierr)
+  if (ierr /= 0) return
+  call get_quick_energy(qm_coords,0,no_point_charges,energy,ierr)
+  if (allocated(no_point_charges)) deallocate(no_point_charges)
+
+end subroutine evaluate_quick_mbx_water_energy
 
 
 ! runs quick, partially resembles quick main program
@@ -881,6 +1102,7 @@ subroutine delete_quick_job(ierr)
   use quick_mpi_module
   use quick_exception_module
   use quick_method_module
+  use quick_mbx_module, only: quick_mbx_finalize
 
   implicit none
   integer, intent(out) :: ierr
@@ -894,6 +1116,8 @@ subroutine delete_quick_job(ierr)
 #endif
   SAFE_CALL(gpu_delete(ierr))
 #endif
+
+  call quick_mbx_finalize()
 
   ! finalize quick
   call finalize(iOutFile,ierr,1)

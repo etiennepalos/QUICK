@@ -25,16 +25,17 @@ set(QUICK_MODULES_SOURCES
 	quick_divcon_module.f90 quick_ecp_module.f90 quick_electrondensity_module.f90
 	quick_files_module.f90 quick_timer_module.f90 quick_gridpoints_module.f90
 	quick_mfcc_module.f90 quick_params_module.f90 quick_pb_module.f90
-	quick_scratch_module.f90 quick_all_module.f90 quick_scf_module.f90
-	quick_grad_cshell_module.f90 quick_api_module.f90 quick_api_test_module.f90
-	quick_cutoff_module.f90 quick_exception_module.f90 quick_input_parser_module.f90
-	quick_eri_cshell_module.f90 quick_eri_grad_cshell_module.f90 quick_oei_module.f90
-	quick_dft_module.f90 quick_scf_operator_module.f90 quick_uscf_operator_module.f90
-	quick_uscf_module.f90 quick_sad_guess_module.f90 quick_optimizer_module.f90
-        quick_cew_module.f90 quick_lri_module.f90 quick_lri_grad_module.f90
-	quick_eri_oshell_module.f90 quick_eri_grad_oshell_module.f90 quick_molsurface_module.f90
-	quick_grad_oshell_module.f90 quick_dftd3_module.f90 quick_molden_module.f90 quick_oeproperties_module.f90
-	quick_io_module.f90)
+		quick_scratch_module.f90 quick_all_module.f90 quick_scf_module.f90
+		quick_grad_cshell_module.f90 quick_api_module.f90 quick_api_test_module.f90
+		quick_cutoff_module.f90 quick_exception_module.f90 quick_input_parser_module.f90
+		quick_eri_cshell_module.f90 quick_eri_grad_cshell_module.f90 quick_oei_module.f90
+		quick_dft_module.f90 quick_scf_operator_module.f90 quick_uscf_operator_module.f90
+		quick_uscf_module.f90 quick_sad_guess_module.f90 quick_optimizer_module.f90
+	        quick_cew_module.f90 quick_lri_module.f90 quick_lri_grad_module.f90
+		quick_eri_oshell_module.f90 quick_eri_grad_oshell_module.f90 quick_molsurface_module.f90
+		quick_grad_oshell_module.f90 quick_dftd3_module.f90 quick_molden_module.f90 quick_oeproperties_module.f90
+		quick_mbx_module.f90
+		quick_io_module.f90)
 
 set(QUICK_SUBS_FORTRAN_SOURCES Angles.f90 copyDMat.f90 copySym.f90
 	degen.f90 denspt.f90 dipole.f90 EffChar.f90
@@ -84,7 +85,7 @@ endif()
 set(QUICK_GENERAL_SOURCES initialize.f90 read_job_and_atom.f90
 	getMol.f90 quick_one_electron_integral.f90 getEnergy.f90
 	ecp.f90 nuclear.f90 finalize.f90 mpi_setup.f90 quick_debug.f90
-	calMP2.f90 hessian.f90 CPHF.f90 frequency.f90 basis.f90)
+	hessian.f90 CPHF.f90 frequency.f90 basis.f90)
 
 set(QUICK_GPU_FORTRAN_SOURCE gpu/${QUICK_GPU_TARGET_NAME}/gpu_write_info.f90)
 
@@ -148,6 +149,10 @@ endif()
 
 if(INSIDE_AMBER)
 	target_link_libraries(libquick PRIVATE libcew)
+endif()
+if(MBX)
+	target_compile_definitions(libquick PRIVATE MBX)
+	target_link_libraries(libquick PRIVATE ${MBX_LIBRARY})
 endif()
 install_libraries(libquick EXPORT QUICK)
 
@@ -343,9 +348,125 @@ endif()
 config_module_dirs(test-api-oeprop quick/serial libxc/serial)
 target_link_libraries(test-api-oeprop libquick)
 
+add_executable(test-api-qmmm-perm-grad ../validation/quick_mbx/quick_qmmm_perm_grad_probe.f90)
+set_target_properties(test-api-qmmm-perm-grad PROPERTIES LINKER_LANGUAGE Fortran)
+target_compile_options(test-api-qmmm-perm-grad PRIVATE
+	"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+if(HDF5)
+	target_compile_definitions(test-api-qmmm-perm-grad PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+endif()
+config_module_dirs(test-api-qmmm-perm-grad quick/serial libxc/serial)
+target_link_libraries(test-api-qmmm-perm-grad libquick)
+
+if(MBX)
+	add_executable(test-api-mbx ../validation/quick_mbx/quick_mbx_api_smoke.f90)
+	set_target_properties(test-api-mbx PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx libquick)
+
+	add_executable(test-api-mbx-dimer-scan ../validation/quick_mbx/quick_mbx_dimer_scan.f90)
+	set_target_properties(test-api-mbx-dimer-scan PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-dimer-scan PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-dimer-scan PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-dimer-scan quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-dimer-scan libquick)
+
+	add_executable(test-api-mbx-ch4-dimer-scan ../validation/quick_mbx/quick_mbx_ch4_dimer_scan.f90)
+	set_target_properties(test-api-mbx-ch4-dimer-scan PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-ch4-dimer-scan PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-ch4-dimer-scan PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-ch4-dimer-scan quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-ch4-dimer-scan libquick)
+
+	add_executable(test-api-mbx-pair-scan ../validation/quick_mbx/quick_mbx_pair_scan.f90)
+	set_target_properties(test-api-mbx-pair-scan PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-pair-scan PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-pair-scan PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-pair-scan quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-pair-scan libquick)
+
+	add_executable(test-api-mbx-water-xyz-scan ../validation/quick_mbx/quick_mbx_water_xyz_scan.f90)
+	set_target_properties(test-api-mbx-water-xyz-scan PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-water-xyz-scan PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-water-xyz-scan PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-water-xyz-scan quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-water-xyz-scan libquick)
+
+	add_executable(test-api-mbx-gradient-parity ../validation/quick_mbx/quick_mbx_gradient_parity.f90)
+	set_target_properties(test-api-mbx-gradient-parity PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-gradient-parity PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-gradient-parity PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-gradient-parity quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-gradient-parity libquick)
+
+	add_executable(test-api-mbx-total-fd-gradient ../validation/quick_mbx/quick_mbx_total_fd_gradient_probe.f90)
+	set_target_properties(test-api-mbx-total-fd-gradient PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-total-fd-gradient PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-total-fd-gradient PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-total-fd-gradient quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-total-fd-gradient libquick)
+
+	add_executable(test-api-mbx-fd-md-smoke ../validation/quick_mbx/quick_mbx_fd_md_smoke.f90)
+	set_target_properties(test-api-mbx-fd-md-smoke PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-fd-md-smoke PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-fd-md-smoke PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-fd-md-smoke quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-fd-md-smoke libquick)
+
+	add_executable(test-api-mbx-gradient-decomp ../validation/quick_mbx/quick_mbx_gradient_decomp_probe.f90)
+	set_target_properties(test-api-mbx-gradient-decomp PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-gradient-decomp PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-gradient-decomp PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-gradient-decomp quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-gradient-decomp libquick)
+endif()
+
 install(TARGETS quick DESTINATION ${BINDIR} EXPORT QUICK)
 install(TARGETS test-api DESTINATION ${BINDIR} EXPORT QUICK)
 install(TARGETS test-api-oeprop DESTINATION ${BINDIR} EXPORT QUICK)
+install(TARGETS test-api-qmmm-perm-grad DESTINATION ${BINDIR} EXPORT QUICK)
+if(MBX)
+	install(TARGETS test-api-mbx DESTINATION ${BINDIR} EXPORT QUICK)
+endif()
 
 if(MPI)
 	make_mpi_version(quick quick.MPI LANGUAGES Fortran)
@@ -355,6 +476,12 @@ if(MPI)
 	target_compile_definitions(test-api.MPI PRIVATE MPIV)
 	make_mpi_version(test-api-oeprop test-api-oeprop.MPI LANGUAGES Fortran)
 	target_compile_definitions(test-api-oeprop.MPI PRIVATE MPIV)
+	make_mpi_version(test-api-qmmm-perm-grad test-api-qmmm-perm-grad.MPI LANGUAGES Fortran)
+	target_compile_definitions(test-api-qmmm-perm-grad.MPI PRIVATE MPIV)
+	if(MBX)
+		make_mpi_version(test-api-mbx test-api-mbx.MPI LANGUAGES Fortran)
+		target_compile_definitions(test-api-mbx.MPI PRIVATE MPIV)
+	endif()
 
 	# change link libraries and mod dirs for MPI
 	remove_link_libraries(quick.MPI libquick)
@@ -367,10 +494,22 @@ if(MPI)
 	remove_link_libraries(test-api-oeprop.MPI libquick)
 	target_link_libraries(test-api-oeprop.MPI libquick_mpi)
 	config_module_dirs(test-api-oeprop.MPI quick/mpi libxc/serial)
+	remove_link_libraries(test-api-qmmm-perm-grad.MPI libquick)
+	target_link_libraries(test-api-qmmm-perm-grad.MPI libquick_mpi)
+	config_module_dirs(test-api-qmmm-perm-grad.MPI quick/mpi libxc/serial)
+	if(MBX)
+		remove_link_libraries(test-api-mbx.MPI libquick)
+		target_link_libraries(test-api-mbx.MPI libquick_mpi)
+		config_module_dirs(test-api-mbx.MPI quick/mpi libxc/serial)
+	endif()
 
 	install(TARGETS quick.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api-oeprop.MPI DESTINATION ${BINDIR} EXPORT QUICK)
+	install(TARGETS test-api-qmmm-perm-grad.MPI DESTINATION ${BINDIR} EXPORT QUICK)
+	if(MBX)
+		install(TARGETS test-api-mbx.MPI DESTINATION ${BINDIR} EXPORT QUICK)
+	endif()
 endif()
 
 if(CUDA)

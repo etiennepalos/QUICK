@@ -24,6 +24,7 @@ module quick_oei_module
   private
 
   public :: get1eEnergy, get1e, attrashellopt, ekinetic, kineticO, attrashell
+  public :: add_point_charge_operator, add_point_dipole_field_operator
   public :: bCalc1e
 
   logical :: bCalc1e = .false.
@@ -53,10 +54,16 @@ contains
      RECORD_TIME(timer_begin%tE)
   
      if(.not. deltaO) quick_qm_struct%E1e=0.0d0
-     quick_qm_struct%E1e=quick_qm_struct%E1e+sum2mat(quick_qm_struct%dense,quick_qm_struct%oneElecO,nbasis)
-
-     if (quick_method%unrst) then
-       quick_qm_struct%E1e = quick_qm_struct%E1e+sum2mat(quick_qm_struct%denseb,quick_qm_struct%oneElecO,nbasis)
+     if (deltaO) then
+       quick_qm_struct%E1e=quick_qm_struct%E1e+sum2mat(quick_qm_struct%dense,quick_qm_struct%oneElecO,nbasis)
+       if (quick_method%unrst) then
+         quick_qm_struct%E1e = quick_qm_struct%E1e+sum2mat(quick_qm_struct%denseb,quick_qm_struct%oneElecO,nbasis)
+       endif
+     else
+       quick_qm_struct%E1e=quick_qm_struct%E1e+sum2mat(quick_qm_struct%dense,quick_qm_struct%o,nbasis)
+       if (quick_method%unrst) then
+         quick_qm_struct%E1e = quick_qm_struct%E1e+sum2mat(quick_qm_struct%denseb,quick_qm_struct%o,nbasis)
+       endif
      endif
 
      quick_qm_struct%Eel=quick_qm_struct%E1e
@@ -406,6 +413,205 @@ subroutine externalEFieldO(IBAS)
    enddo
 
 end subroutine externalEFieldO
+
+subroutine add_point_charge_operator(nsites,site_xyz_bohr,site_charge_e)
+
+   !------------------------------------------------
+   ! Add the one-electron operator from classical
+   ! point charges to the lower triangle of O.
+   !------------------------------------------------
+   use allmod
+#ifdef MPIV
+   use mpi
+#endif
+
+   implicit double precision(a-h,o-z)
+
+   integer, intent(in) :: nsites
+   double precision, intent(in) :: site_xyz_bohr(3,nsites)
+   double precision, intent(in) :: site_charge_e(nsites)
+
+   integer :: isite, ish
+
+   if (nsites <= 0) return
+
+#ifdef MPIV
+   if (bMPI) then
+      do ish=1,mpi_jshelln(mpirank)
+         IIsh=mpi_jshell(mpirank,ish)
+         do JJsh=IIsh,jshell
+            do isite=1,nsites
+               if (abs(site_charge_e(isite)) > 0.0d0) then
+                  call point_charge_operator_shell_pair(IIsh,JJsh,site_xyz_bohr(:,isite),site_charge_e(isite))
+               endif
+            enddo
+         enddo
+      enddo
+   else
+#endif
+      do IIsh=1,jshell
+         do JJsh=IIsh,jshell
+            do isite=1,nsites
+               if (abs(site_charge_e(isite)) > 0.0d0) then
+                  call point_charge_operator_shell_pair(IIsh,JJsh,site_xyz_bohr(:,isite),site_charge_e(isite))
+               endif
+            enddo
+         enddo
+      enddo
+#ifdef MPIV
+   endif
+#endif
+
+end subroutine add_point_charge_operator
+
+subroutine add_point_dipole_field_operator(nsites,site_xyz_bohr,site_mu_au)
+
+   !------------------------------------------------
+   ! Add h_mu = -mu . E_mu_nu(C) for classical point
+   ! dipoles to the lower triangle of the AO operator.
+   ! The current CPU path obtains the field operator as
+   ! a centered derivative of QUICK's point-charge OEI.
+   !------------------------------------------------
+   use allmod
+#ifdef MPIV
+   use mpi
+#endif
+
+   implicit double precision(a-h,o-z)
+
+   integer, intent(in) :: nsites
+   double precision, intent(in) :: site_xyz_bohr(3,nsites)
+   double precision, intent(in) :: site_mu_au(3,nsites)
+
+   double precision, parameter :: DIPOLE_FD_STEP = 1.0d-4
+   integer :: isite, idir, ish
+   double precision :: xyz_disp(3), qscale
+
+   if (nsites <= 0) return
+
+#ifdef MPIV
+   if (bMPI) then
+      do ish=1,mpi_jshelln(mpirank)
+         IIsh=mpi_jshell(mpirank,ish)
+         do JJsh=IIsh,jshell
+            do isite=1,nsites
+               do idir=1,3
+                  if (abs(site_mu_au(idir,isite)) > 0.0d0) then
+                     qscale = site_mu_au(idir,isite)/(2.0d0*DIPOLE_FD_STEP)
+                     xyz_disp(:) = site_xyz_bohr(:,isite)
+                     xyz_disp(idir) = xyz_disp(idir) + DIPOLE_FD_STEP
+                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,qscale)
+                     xyz_disp(:) = site_xyz_bohr(:,isite)
+                     xyz_disp(idir) = xyz_disp(idir) - DIPOLE_FD_STEP
+                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,-qscale)
+                  endif
+               enddo
+            enddo
+         enddo
+      enddo
+   else
+#endif
+      do IIsh=1,jshell
+         do JJsh=IIsh,jshell
+            do isite=1,nsites
+               do idir=1,3
+                  if (abs(site_mu_au(idir,isite)) > 0.0d0) then
+                     qscale = site_mu_au(idir,isite)/(2.0d0*DIPOLE_FD_STEP)
+                     xyz_disp(:) = site_xyz_bohr(:,isite)
+                     xyz_disp(idir) = xyz_disp(idir) + DIPOLE_FD_STEP
+                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,qscale)
+                     xyz_disp(:) = site_xyz_bohr(:,isite)
+                     xyz_disp(idir) = xyz_disp(idir) - DIPOLE_FD_STEP
+                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,-qscale)
+                  endif
+               enddo
+            enddo
+         enddo
+      enddo
+#ifdef MPIV
+   endif
+#endif
+
+end subroutine add_point_dipole_field_operator
+
+subroutine point_charge_operator_shell_pair(IIsh,JJsh,charge_xyz_bohr,charge)
+
+   !------------------------------------------------
+   ! Add the one-electron operator from one classical
+   ! point charge to the lower triangle of O.
+   !------------------------------------------------
+   use quick_overlap_module, only: opf
+   use quick_molspec_module, only: xyz
+   use quick_basis_module, only: quick_basis, attraxiao
+   use quick_method_module, only: quick_method
+   use quick_constants_module, only: Pi
+
+   implicit none
+
+   integer, intent(in) :: IIsh, JJsh
+   double precision, intent(in) :: charge_xyz_bohr(3), charge
+
+   integer :: ips, jps, L, Maxm, NII2, NIJ1, NJJ2
+   double precision :: a, b, Ax, Ay, Az, Bx, By, Bz, Cx, Cy, Cz, g, U
+   double precision :: constant, PCsquare, Px, Py, Pz
+   double precision :: inv_g, rABsquare, valopf, Z
+   double precision, dimension(0:20) :: aux
+
+   double precision :: attra, AA(3), BB(3), CC(3), PP(3)
+   common /xiaoattra/attra,aux,AA,BB,CC,PP,g
+
+   if (charge == 0.0d0) return
+
+   Ax=xyz(1,quick_basis%katom(IIsh))
+   Ay=xyz(2,quick_basis%katom(IIsh))
+   Az=xyz(3,quick_basis%katom(IIsh))
+
+   Bx=xyz(1,quick_basis%katom(JJsh))
+   By=xyz(2,quick_basis%katom(JJsh))
+   Bz=xyz(3,quick_basis%katom(JJsh))
+
+   Cx=charge_xyz_bohr(1)
+   Cy=charge_xyz_bohr(2)
+   Cz=charge_xyz_bohr(3)
+   Z=-charge
+
+   NII2=quick_basis%Qfinal(IIsh)
+   NJJ2=quick_basis%Qfinal(JJsh)
+   Maxm=NII2+NJJ2+1+1
+   NIJ1=10*NII2+NJJ2
+   rABsquare=(Ax-Bx)**2.d0 + (Ay-By)**2.d0 + (Az-Bz)**2.d0
+
+   do ips=1,quick_basis%kprim(IIsh)
+      a=quick_basis%gcexpo(ips,quick_basis%ksumtype(IIsh))
+      do jps=1,quick_basis%kprim(JJsh)
+         b=quick_basis%gcexpo(jps,quick_basis%ksumtype(JJsh))
+         valopf = opf(a, b, quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)),&
+            quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)), Ax, Ay, Az, Bx, By, Bz)
+
+         if(abs(valopf) .gt. quick_method%coreIntegralCutoff) then
+            g = a+b
+            inv_g = 1.0d0/g
+            Px = (a*Ax + b*Bx)*inv_g
+            Py = (a*Ay + b*By)*inv_g
+            Pz = (a*Az + b*Bz)*inv_g
+
+            constant = dexp(-a*b*rABsquare*inv_g) * 2.d0 * Pi * inv_g
+            PCsquare = (Px-Cx)**2 + (Py-Cy)**2 + (Pz-Cz)**2
+            U = g*PCsquare
+
+            call FmT(Maxm,U,aux)
+            do L = 0,Maxm
+               aux(L) = aux(L)*constant*Z
+               attraxiao(1,1,L)=aux(L)
+            enddo
+
+            call nuclearattra(ips,jps,IIsh,JJsh,NIJ1,Ax,Ay,Az,Bx,By,Bz, &
+               Cx,Cy,Cz,Px,Py,Pz)
+         endif
+      enddo
+   enddo
+
+end subroutine point_charge_operator_shell_pair
 
 double precision function ekinetic(a,b,i,j,k,ii,jj,kk,Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g_table)
    use quick_overlap_module, only: overlap_core

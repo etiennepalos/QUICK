@@ -75,6 +75,7 @@ module quick_method_module
                                        ! External electric field vector in a.u.
         double precision :: external_efield_origin(3) = (/0.0d0,0.0d0,0.0d0/)
                                        ! Origin for the finite-field dipole operator
+        logical :: mbx_qmmm = .false. ! Optional QUICK-MBX QM/MB-pol coupling
         logical :: diisOpt =  .false.  ! DIIS Optimization
         logical :: core =  .false.     ! Add core
         logical :: annil =  .false.    ! Annil Spin Contamination
@@ -263,6 +264,7 @@ module quick_method_module
             call MPI_BCAST(self%external_efield,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%external_efield_vector,3,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%external_efield_origin,3,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+            call MPI_BCAST(self%mbx_qmmm,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%diisOpt,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%core,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
             call MPI_BCAST(self%annil,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
@@ -544,6 +546,7 @@ module quick_method_module
                self%external_efield_origin(1), self%external_efield_origin(2), &
                self%external_efield_origin(3)
            endif
+           if (self%mbx_qmmm) write(io,'(" QUICK-MBX QM/MB-POL COUPLING = EXPERIMENTAL")')
 
             if (self%DIVCON) then
                 write(io,'(" DIV & CON METHOD")',advance="no")
@@ -978,6 +981,9 @@ module quick_method_module
                if (index(keyWD,'FINITE_FIELD_ORIGIN_Z=').ne.0) &
                  call read(keywd,'FINITE_FIELD_ORIGIN_Z', self%external_efield_origin(3))
            endif
+           if (index(keyWD,'MBX_QMMM').ne.0 .or. index(keyWD,'QMMM_MBX').ne.0) then
+               self%mbx_qmmm=.true.
+           endif
            if (index(keyWD,'LSHIFT_CYCLE').ne.0) then
                call read(keywd,'LSHIFT_CYCLE', self%LShift_cycle)
            endif
@@ -1043,6 +1049,7 @@ module quick_method_module
             self%external_efield = .false. ! Uniform external electric field
             self%external_efield_vector(:) = 0.0d0
             self%external_efield_origin(:) = 0.0d0
+            self%mbx_qmmm = .false. ! Optional QUICK-MBX QM/MB-pol coupling
 
             self%LShift_cycle = 3     ! After what cycle allow Level shifting
             self%LShift_err = 0.1d0   ! Minimum error for allowing Level shifting
@@ -1180,6 +1187,12 @@ module quick_method_module
             if (self%external_efield .and. self%grad) then
                 call PrtErr(io,"EXTERNAL_EFIELD currently supports SCF energies and properties only.")
                 call PrtErr(io,"Analytic finite-field gradients are not implemented.")
+                call quick_exit(io,1)
+            endif
+
+            if (self%mbx_qmmm .and. self%grad) then
+                call PrtErr(io,"MBX_QMMM currently supports SCF energies only.")
+                call PrtErr(io,"QM/MB-pol gradients require the planned EFIELD/EFG derivative path.")
                 call quick_exit(io,1)
             endif
 

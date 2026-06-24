@@ -153,6 +153,14 @@ contains
       msg='Number of launched processes is greater than the available number of GPUs. Please &
               &relaunch with lower number of processes.'
 
+    case(43)
+      msg='MBX_QMMM requested but no MBX embedding sites were initialized.'
+
+   case(44)
+      msg='MBX_QMMM requested but QUICK was not built with MBX support.'
+   case(45)
+      msg='Invalid QUICK-MBX system data. Check MBX atom/site counts and JSON path length.'
+
    case(46)
       msg='Invalid QUICK OEPROP API request. Number of probe points must be positive.'
 

@@ -37,6 +37,7 @@ contains
      use quick_cutoff_module, only: cshell_density_cutoff
      use quick_eri_cshell_module, only: getCshellEri, getCshellEriEnergy 
      use quick_oei_module, only:get1eEnergy,get1e
+     use quick_mbx_module, only: quick_mbx_active, quick_mbx_update_scf_operator
 #ifdef MPIV
      use mpi
 #endif
@@ -47,6 +48,8 @@ contains
      integer II,JJ,KK,LL,NBI1,NBI2,NBJ1,NBJ2,NBK1,NBK2,NBL1,NBL2, I, J
      common /hrrstore/II,JJ,KK,LL,NBI1,NBI2,NBJ1,NBJ2,NBK1,NBK2,NBL1,NBL2
      double precision tst, te, tred
+     logical :: mbx_enabled
+     integer :: mbx_ierr
 #ifdef MPIV
      integer ierror
      double precision :: Eelsum, Excsum, aelec, belec
@@ -60,6 +63,14 @@ contains
   
      quick_qm_struct%o = 0.0d0
      quick_qm_struct%Eel=0.0d0
+
+     mbx_enabled = quick_method%mbx_qmmm .or. quick_mbx_active()
+     if (mbx_enabled .and. deltaO) deltaO = .false.
+
+     if (quick_method%mbx_qmmm .and. .not. quick_mbx_active()) then
+        call PrtErr(OUTFILEHANDLE,"MBX_QMMM requested, but no MBX embedding sites have been initialized.")
+        call quick_exit(OUTFILEHANDLE,1)
+     endif
   
   !-----------------------------------------------------------------
   !  Step 1. evaluate 1e integrals
@@ -96,8 +107,21 @@ contains
   
      endif
 #endif
- 
+
      call get1e(deltaO)
+
+     if (mbx_enabled) then
+        mbx_ierr = 0
+        call quick_mbx_update_scf_operator(mbx_ierr)
+        if (mbx_ierr /= 0) then
+           call PrtErr(OUTFILEHANDLE,"QUICK-MBX SCF operator update failed.")
+           call quick_exit(OUTFILEHANDLE,1)
+        endif
+        ! MBX adds AO point-site operators after get1e has restored the
+        ! cached symmetric one-electron matrix.  Re-symmetrize here so
+        ! get1eEnergy and the Fock build see the same operator.
+        call copySym(quick_qm_struct%o,nbasis)
+     endif
 
      if(quick_method%printEnergy) call get1eEnergy(deltaO)
 
