@@ -1,0 +1,493 @@
+\documentclass[aip,jcp,reprint,superscriptaddress]{revtex4-2}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{siunitx}
+
+\sisetup{
+  scientific-notation = true,
+  round-mode = figures,
+  round-precision = 3
+}
+
+\newcommand{\quick}{\textsc{quick}}
+\newcommand{\pyscf}{\textsc{PySCF}}
+\newcommand{\keyword}[1]{\texttt{#1}}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\Eh}{E_{\mathrm{h}}}
+\newcommand{\EHF}{E_{\mathrm{HF}}}
+\newcommand{\Ec}{E_{\mathrm{c}}}
+\newcommand{\EMPtwo}{E_{\mathrm{c}}^{\mathrm{MP2}}}
+\newcommand{\ExHF}{E_{\mathrm{x}}^{\mathrm{HF}}}
+\newcommand{\Wcinf}{W_{\mathrm{c},\infty}}
+\newcommand{\Whalf}{W_{1/2}}
+\newcommand{\Wthreeq}{W_{3/4}}
+
+\begin{document}
+
+\title{Closed-Shell, Regularized, and Adiabatic-Connection M\o{}ller--Plesset Correlation Energies in QUICK}
+
+\author{Etienne Palos}
+\affiliation{Department of Chemistry, Michigan State University, East Lansing, Michigan, United States}
+\email{TODO: email}
+
+\author{TODO: Coauthors}
+\affiliation{TODO: Affiliations}
+
+\date{\today}
+
+\begin{abstract}
+We report a CPU reference implementation of closed-shell M\o{}ller--Plesset perturbation, regularized MP2, and M\o{}ller--Plesset adiabatic-connection correlation energies in the \quick{} quantum chemistry package.  The implementation uses converged restricted Hartree--Fock orbitals, generates the full atomic-orbital electron-repulsion integral tensor with the existing Head-Gordon--Pople/Obara--Saika machinery, transforms only the occupied--virtual molecular-orbital block required by canonical second-order perturbation theory, and evaluates spin-resolved opposite-spin and same-spin MP2 components.  The same ingredients feed spin-scaled, \(\kappa\)-regularized, SPL2, MPAC25, and HFAC24 post-SCF correlation models through exact exchange, MP2 amplitudes, and density-grid strong-coupling terms evaluated on the existing \quick{} molecular quadrature grid.  The present implementation is deliberately conservative: it is closed-shell, unfrozen-core, non-density-fitted, and CPU-only, with MPI parallelism over atomic-orbital integral and grid construction followed by deterministic master-rank post-SCF contractions.  For water/STO-3G, canonical MP2, \(\kappa\)-MP2, and scaled opposite-spin \(\kappa\)-MP2 agree with conventional \pyscf{} AO-to-MO references to \(2.1\times10^{-9}\) \(\Eh\) or better in the correlation energy.  For the S22 hydrogen-bonded complexes 1--4 at RHF/STO-3G, maximum absolute deviations from conventional \pyscf{} references are \(5.6\times10^{-8}\) \(\Eh\) for MP2 correlation, \(7.8\times10^{-6}\) \(\Eh\) for OS-SPL2 total energies, \(1.3\times10^{-6}\) \(\Eh\) for MPAC25 and OS-MPAC25 total energies, and \(1.5\times10^{-7}\) \(\Eh\) for HFAC24 total energies.  Two-rank MPI calculations reproduce the new serial scalar quantities to within \(1.1\times10^{-12}\) \(\Eh\).  These results establish a mathematically transparent baseline for correlated and adiabatic-connection energies in \quick{} and provide a reference path for future density-fitted, Laplace-transform, local-correlation, and accelerator implementations.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+
+Second-order M\o{}ller--Plesset perturbation theory (MP2) remains one of the most useful wave-function corrections to a Hartree--Fock (HF) reference because it is size extensive, orbital invariant within occupied and virtual subspaces, and captures leading dynamical correlation at moderate cost.\cite{Moller1934,Helgaker2000}  Its failures are equally familiar: canonical MP2 can overbind dispersion-dominated complexes, diverges as the orbital gap closes, and becomes costly when the four-index transformation is performed without additional approximations.  These limitations have motivated spin-component scaling, Laplace-transform factorization, density fitting, local correlation, denominator regularization, and adiabatic-connection approaches.\cite{Jung2004,Lee2018}
+
+The M\o{}ller--Plesset adiabatic connection (MPAC) is a particularly direct route from MP2 ingredients to improved noncovalent interaction energetics.  It constructs a coupling-strength integrand that recovers the weak-coupling MP2 slope while imposing information from the strong-interaction limit of the HF density.\cite{MPACF1,HFAC24,MPAC25}  Recent MPAC functionals, including SPL2, MPAC25, and HFAC24, have shown that this compact set of scalar ingredients can substantially improve over bare MP2 for neutral, charged, and charge-transfer noncovalent interactions.\cite{MPACF1,HFAC24,MPAC25}
+
+Here we describe the first CPU implementation of these ingredients in \quick{}.\cite{QUICK26}  The present contribution has two goals.  The first is practical: add a conventional, closed-shell MP2 energy path that is consistent with \quick{}'s existing integral infrastructure and works in both serial and MPI builds.  The second is methodological: expose regularized MP2, SPL2, MPAC25, and HFAC24 as post-SCF correlation energies built from the same canonical MP2 tensor, exact exchange, and density-grid strong-coupling quantities.  We intentionally keep the implementation conservative.  It stores the full atomic-orbital (AO) electron-repulsion tensor, performs an explicit occupied--virtual molecular-orbital (MO) transformation, and uses no frozen-core approximation.  This makes the code straightforward to validate and interpret, while setting the stage for density fitting, distributed MO transformations, and GPU kernels.
+
+\section{Theory}
+
+\subsection{Closed-shell MP2 energy}
+
+For a converged restricted Hartree--Fock reference, occupied orbitals are indexed by \(i,j\), virtual orbitals by \(a,b\), and orbital energies by \(\epsilon_p\).  In chemists' notation,
+\begin{equation}
+  (pq|rs)
+  =
+  \iint
+  \psi_p(\mathbf{r}_1)\psi_q(\mathbf{r}_1)
+  \frac{1}{r_{12}}
+  \psi_r(\mathbf{r}_2)\psi_s(\mathbf{r}_2)
+  \,\dd\mathbf{r}_1\dd\mathbf{r}_2 .
+\end{equation}
+The closed-shell MP2 correlation energy is evaluated as
+\begin{equation}
+  \EMPtwo
+  =
+  \sum_{ijab}
+  \frac{(ia|jb)\left[2(ia|jb)-(ib|ja)\right]}
+       {\epsilon_i+\epsilon_j-\epsilon_a-\epsilon_b}.
+  \label{eq:canonical_mp2}
+\end{equation}
+It is useful to keep the opposite-spin and same-spin contributions separately:
+\begin{align}
+  E_{\mathrm{OS}}^{\mathrm{MP2}}
+  &=
+  \sum_{ijab}
+  \frac{(ia|jb)^2}
+       {\epsilon_i+\epsilon_j-\epsilon_a-\epsilon_b},
+  \label{eq:os_mp2}\\
+  E_{\mathrm{SS}}^{\mathrm{MP2}}
+  &=
+  \sum_{ijab}
+  \frac{(ia|jb)\left[(ia|jb)-(ib|ja)\right]}
+       {\epsilon_i+\epsilon_j-\epsilon_a-\epsilon_b}.
+  \label{eq:ss_mp2}
+\end{align}
+Equations~\eqref{eq:canonical_mp2}--\eqref{eq:ss_mp2} are the working equations in the \quick{} CPU implementation.  The selected canonical energy is
+\begin{equation}
+  \EMPtwo=E_{\mathrm{OS}}^{\mathrm{MP2}}+E_{\mathrm{SS}}^{\mathrm{MP2}},
+\end{equation}
+and the implemented scaled opposite-spin variant is
+\begin{equation}
+  E_{\mathrm{SOS-MP2}} = c_{\mathrm{OS}}E_{\mathrm{OS}}^{\mathrm{MP2}},
+  \qquad c_{\mathrm{OS}}=1.30
+\end{equation}
+by default.
+
+The code also exposes Laplace-transform MP2 keywords.  Mathematically, defining
+\begin{equation}
+  \Delta_{ij}^{ab}=\epsilon_a+\epsilon_b-\epsilon_i-\epsilon_j>0,
+\end{equation}
+one may write
+\begin{equation}
+  \frac{1}{\epsilon_i+\epsilon_j-\epsilon_a-\epsilon_b}
+  =
+  -\int_0^\infty
+  \exp(-\Delta_{ij}^{ab}t)\,\dd t .
+  \label{eq:laplace_identity}
+\end{equation}
+The present CPU reference evaluates the right-hand side analytically as the exact reciprocal, so the LT-MP2 and LT-SOS-MP2 regression paths are algebraically identical to the canonical denominators.  Equation~\eqref{eq:laplace_identity} is nevertheless the intended interface for future quadrature-based and factorized implementations.
+
+\subsection{\(\kappa\)-regularized MP2}
+
+The implemented regularized MP2 variants use the orbital-energy-gap damping introduced in the context of regularized orbital-optimized MP2.\cite{Lee2018}  For the positive gap \(\Delta_{ij}^{ab}\), define
+\begin{equation}
+  f_\kappa(\Delta_{ij}^{ab})
+  =
+  \left[1-\exp\left(-\kappa\Delta_{ij}^{ab}\right)\right]^2 .
+  \label{eq:kappa_damping}
+\end{equation}
+The \(\kappa\)-regularized opposite-spin and same-spin components are
+\begin{align}
+  E_{\mathrm{OS}}^{\kappa\mathrm{-MP2}}
+  &=
+  -\sum_{ijab}
+  \frac{(ia|jb)^2}{\Delta_{ij}^{ab}}
+  f_\kappa(\Delta_{ij}^{ab}),\\
+  E_{\mathrm{SS}}^{\kappa\mathrm{-MP2}}
+  &=
+  -\sum_{ijab}
+  \frac{(ia|jb)\left[(ia|jb)-(ib|ja)\right]}{\Delta_{ij}^{ab}}
+  f_\kappa(\Delta_{ij}^{ab}).
+\end{align}
+The default \keyword{K-MP2} energy is
+\begin{equation}
+  E_{\mathrm{c}}^{\kappa\mathrm{-MP2}}
+  =
+  E_{\mathrm{OS}}^{\kappa\mathrm{-MP2}}
+  +
+  E_{\mathrm{SS}}^{\kappa\mathrm{-MP2}},
+  \qquad
+  \kappa=1.10\ \Eh^{-1}.
+\end{equation}
+The scaled opposite-spin regularized variant is
+\begin{align}
+  E_{\mathrm{c}}^{\mathrm{KOS-MP2}}
+  &=
+  c_{\mathrm{OS}}^\kappa
+  E_{\mathrm{OS}}^{\kappa\mathrm{-MP2}}(\kappa_{\mathrm{OS}}),
+  \label{eq:kos_mp2}\\
+  \kappa_{\mathrm{OS}}
+  &=
+  0.90\ \Eh^{-1},
+  \qquad
+  c_{\mathrm{OS}}^\kappa=2.10 .
+\end{align}
+The damping factor suppresses contributions from small denominators and smoothly recovers canonical MP2 in the limit \(\kappa\rightarrow\infty\).
+
+\subsection{AO-to-MO transformation}
+
+The AO tensor is generated as
+\begin{equation}
+  (\mu\nu|\lambda\sigma),
+\end{equation}
+using the existing \quick{} two-electron integral machinery based on Head-Gordon--Pople/Obara--Saika recurrence relations.\cite{Obara1986,HeadGordon1988}  The required MO block is then obtained by four quarter transformations,
+\begin{align}
+  B_{\mu\nu\lambda}^{b}
+  &= \sum_\sigma (\mu\nu|\lambda\sigma)C_{\sigma b},\\
+  B_{\mu\nu}^{jb}
+  &= \sum_\lambda B_{\mu\nu\lambda}^{b}C_{\lambda j},\\
+  B_{\mu}^{ajb}
+  &= \sum_\nu B_{\mu\nu}^{jb}C_{\nu a},\\
+  (ia|jb)
+  &= \sum_\mu B_{\mu}^{ajb}C_{\mu i}.
+\end{align}
+Only the \(ia,jb\) block is formed, avoiding storage of the full MO ERI tensor.  The formal storage of the current reference implementation is still \(O(N_{\mathrm{AO}}^4)\), and the transformation is \(O(N_{\mathrm{AO}}^4N_{\mathrm{MO}})\) with the smaller occupied--virtual target tensor.  This choice is intentional for the present short implementation paper: it gives a simple reference path against which density-fitted and accelerator kernels can be tested.
+
+\subsection{Exact exchange ingredient}
+
+MPAC25 and HFAC24 both require the exact exchange energy of the HF density.  With the total closed-shell AO density matrix \(P_{\mu\nu}\), \quick{} evaluates
+\begin{equation}
+  \ExHF
+  =
+  -\frac{1}{4}
+  \sum_{\mu\nu\lambda\sigma}
+  P_{\mu\nu}P_{\lambda\sigma}
+  (\mu\lambda|\nu\sigma).
+  \label{eq:exact_exchange}
+\end{equation}
+This expression is consistent with the total density convention used by \pyscf{} for an RHF reference and is evaluated on the master rank after MPI reduction of the AO ERI tensor.
+
+\subsection{SPL2}
+
+SPL2 is evaluated as a scalar MPAC interpolation with the same \(W_0\), \(W_0'\), and \(W_\infty\) ingredients used by the MPAC family.\cite{MPACF1}  The density model is
+\begin{equation}
+  W_{\mathrm{PC}}[\rho]
+  =
+  A_{\mathrm{PC}}\int \rho(\mathbf{r})^{4/3}\,\dd\mathbf{r}
+  +
+  B_{\mathrm{PC}}\int
+  \frac{|\nabla\rho(\mathbf{r})|^2}{\rho(\mathbf{r})^{4/3}}
+  \,\dd\mathbf{r},
+  \label{eq:pc_model}
+\end{equation}
+with \(A_{\mathrm{PC}}=-1.451\) and \(B_{\mathrm{PC}}=5.317\times10^{-3}\).  For SPL2,
+\begin{equation}
+  W_\infty^{\mathrm{SPL2}}
+  =
+  \alpha W_{\mathrm{PC}}[\rho]+\beta\ExHF,
+\end{equation}
+and
+\begin{equation}
+  W_0=\ExHF,\qquad W_0'=2E_{\mathrm{c}}^{(2)}.
+\end{equation}
+Here \(E_{\mathrm{c}}^{(2)}\) is the MP2 ingredient used by the selected SPL2 variant.  Define
+\begin{equation}
+  R=
+  \frac{
+    m_2+b_2m_2+W_0-2W_0'-W_\infty
+  }
+  {m_2+W_0-W_\infty}.
+\end{equation}
+The implemented SPL2 correlation energy is
+\begin{equation}
+  \begin{aligned}
+  E_{\mathrm{c}}^{\mathrm{SPL2}}
+  &=
+  W_\infty
+  -
+  \frac{2(\sqrt{1+b_2}-1)m_2}{b_2}
+  \\
+  &\quad+
+  \frac{
+    2(\sqrt{R}-1)(m_2+W_0-W_\infty)^2
+  }
+  {b_2m_2-2W_0'}
+  -W_0 .
+  \end{aligned}
+  \label{eq:spl2_energy}
+\end{equation}
+The default SPL2 parameters are \(b_2=0.117\), \(m_2=10.68\), \(\alpha=1.1472\), and \(\beta=-0.7397\).  The \keyword{OS-SPL2} keyword replaces \(E_{\mathrm{c}}^{(2)}\) by \(1.80E_{\mathrm{OS}}^{\mathrm{MP2}}\) and uses \(b_2=0.527\), \(m_2=58.850\), \(\alpha=1.278\), and \(\beta=-1.059\).  The SPL2 and OS-SPL2 parameters are exposed through user-facing keyword values.
+
+\subsection{MPAC25}
+
+The MPAC25 energy is evaluated as an MPACF1-type interpolation using four scalar ingredients: \(\ExHF\), \(\EMPtwo\), the point-charge-plus-continuum strong-coupling model in Eq.~\eqref{eq:pc_model}, and the MPAC25 parameters.\cite{MPACF1,MPAC25}  The strong-coupling endpoint entering MPAC25 is
+\begin{equation}
+  W_\infty^{\mathrm{MPAC25}}
+  =
+  \alpha W_{\mathrm{PC}}[\rho]+\beta\ExHF,
+  \label{eq:mpac25_winf}
+\end{equation}
+where the default implementation uses \(\alpha=\beta=1\).  The weak-coupling endpoint and derivative are
+\begin{equation}
+  W_0=\ExHF,\qquad W_0'=2\EMPtwo.
+\end{equation}
+With \(d_1=1.1\), \(d_2=0.6\), \(W_\infty=W_\infty^{\mathrm{MPAC25}}\), and \(W_0'=2\EMPtwo\), define
+\begin{align}
+  D &= -2W_0' + W_\infty d_2^4,\\
+  N &= 1+\frac{2(W_0'-W_\infty d_1^2)}{D},\\
+  Q &= \sqrt{1+d_1^2}
+  +2(1+d_2^4)^{1/4}
+  \frac{W_0'-W_\infty d_1^2}{D}.
+\end{align}
+The implemented MPAC25 correlation energy is
+\begin{equation}
+  E_{\mathrm{c}}^{\mathrm{MPAC25}}
+  =
+  W_\infty-\frac{W_\infty N}{Q}.
+  \label{eq:mpac25_energy}
+\end{equation}
+The \keyword{OS-MPAC25} keyword uses the same interpolation form and MPAC25 parameters, but replaces the canonical MP2 ingredient by \(1.70E_{\mathrm{OS}}^{\mathrm{MP2}}\).  The user-facing keywords \keyword{MPAC25\_D1}, \keyword{MPAC25\_D2}, \keyword{MPAC25\_ALPHA}, and \keyword{MPAC25\_BETA} expose the MPAC25 parameters, and \keyword{OS\_MPAC25\_SCALE} exposes the opposite-spin ingredient scale.
+
+\subsection{HFAC24}
+
+HFAC24 uses a different adiabatic-connection interpolation designed to recover the MP2 weak-coupling behavior and additional strong-interaction constraints from the HF density.\cite{HFAC24}  In the closed-shell implementation, the reduced density gradient is
+\begin{equation}
+  s(\mathbf{r})
+  =
+  \frac{|\nabla\rho(\mathbf{r})|}
+       {2(3\pi^2)^{1/3}\rho(\mathbf{r})^{4/3}}.
+\end{equation}
+For parameters \(\mu\) and \(c\), the enhancement factor is
+\begin{equation}
+  F(s;\mu,c)
+  =
+  1+\kappa_s-\frac{\kappa_s}{1+\mu s^2/\kappa_s},
+  \qquad
+  \kappa_s=\frac{c}{1+s^2}.
+  \label{eq:hfac_enhancement}
+\end{equation}
+The leading strong-interaction term is
+\begin{equation}
+  E_{\mathrm{el}}^{\mathrm{GGA}}
+  =
+  A_{\mathrm{HF}}
+  \int
+  \rho(\mathbf{r})^{4/3}
+  F(s;\mu_{\mathrm{el}},c_{\mathrm{el}})
+  \,\dd\mathbf{r},
+\end{equation}
+where \(A_{\mathrm{HF}}=-1.44423075\), \(\mu_{\mathrm{el}}=0.399\), and \(c_{\mathrm{el}}=20.0\).  The half-order ingredient is
+\begin{equation}
+  \Whalf
+  =
+  C_{\mathrm{HF}}
+  \int
+  \rho(\mathbf{r})^{3/2}
+  F(s;\mu_{1/2},c_{1/2})
+  \,\dd\mathbf{r},
+\end{equation}
+where \(C_{\mathrm{HF}}=2.8687\), \(\mu_{1/2}=1.601\), and \(c_{1/2}=14.0\).  The closed-shell spin interpolation factor is unity.  The correlation strong-coupling limit is
+\begin{equation}
+  \Wcinf = E_{\mathrm{el}}^{\mathrm{GGA}}+\ExHF .
+\end{equation}
+The nuclear cusp contribution is
+\begin{equation}
+  \Wthreeq
+  =
+  \sum_A
+  \frac{(4\pi)^{1/4}}{4}
+  Z_A\rho(\mathbf{R}_A)^{1/4}
+  \epsilon_{3/4}(0),
+\end{equation}
+with
+\begin{equation}
+  \epsilon_{3/4}(\zeta)
+  =
+  -2.002-1.588\sigma+0.394\sigma^2,
+  \qquad
+  \sigma=\frac{1+\zeta^2}{2}.
+\end{equation}
+For the current RHF implementation, \(\zeta=0\).
+
+Let
+\begin{equation}
+  q=-\frac{\Wcinf}{\Whalf},\qquad
+  z=-\frac{\Wthreeq}{\Whalf}.
+\end{equation}
+With default \(d_1=1457.2\) and \(d_2=132.15\), define
+\begin{equation}
+  g=
+  \frac{\left[2\sqrt{2q(1+d_1)}+qz\right](1+d_2)z}
+       {-qz^2+8d_1+8},
+\end{equation}
+with \(g=0\) when \(z=0\).  The uegIHF integrand is
+\begin{equation}
+  \begin{aligned}
+  W_{\mathrm{ueg}}(\lambda)
+  &=
+  \Wcinf+
+  \frac{b\left[2+c\lambda+2d_1\sqrt{1+c\lambda}\right]}
+       {D_{\mathrm{ueg}}(\lambda)},\\
+  D_{\mathrm{ueg}}(\lambda)
+  &=
+  2\sqrt{1+c\lambda}
+  \left[d_2+g(1+c\lambda)^{1/4}+\sqrt{1+c\lambda}\right]^2 .
+  \end{aligned}
+  \label{eq:ueg_integrand}
+\end{equation}
+where
+\begin{align}
+  b &= -\frac{\Wcinf(1+d_2+g)^2}{1+d_1},\\
+  c &= \frac{q^2(1+d_2+g)^4}{4(1+d_1)^2}.
+\end{align}
+The uegIHF correlation energy is
+\begin{equation}
+  E_{\mathrm{c}}^{\mathrm{uegIHF}}
+  =
+  \int_0^1 W_{\mathrm{ueg}}(\lambda)\,\dd\lambda .
+\end{equation}
+HFAC24 mixes the MP2 weak-coupling line,
+\begin{equation}
+  W_{\mathrm{MP2}}(\lambda)=2\lambda\EMPtwo,
+\end{equation}
+with Eq.~\eqref{eq:ueg_integrand}.  The implemented switch is
+\begin{equation}
+  \begin{aligned}
+  S(\lambda)
+  &=
+  \frac{
+    \operatorname{erfc}
+    \left(\kappa\lambda\EMPtwo/E_{\mathrm{c}}^{\mathrm{uegIHF}}\right)
+  }
+  {D_S(\lambda)},\\
+  D_S(\lambda)
+  &=
+  1-2\lambda\EMPtwo\exp[X(\lambda)],\\
+  X(\lambda)
+  &=
+  \operatorname{clip}_{[-700,700]}
+  \left(1000[W_{\mathrm{ueg}}(\lambda)-W_{\mathrm{MP2}}(\lambda)]\right).
+  \end{aligned}
+  \label{eq:hfac_switch}
+\end{equation}
+where \(\kappa=0.3\).  The HFAC24 correlation energy is
+\begin{equation}
+  E_{\mathrm{c}}^{\mathrm{HFAC24}}
+  =
+  \int_0^1
+  \left[
+    W_{\mathrm{MP2}}(\lambda)S(\lambda)
+    +
+    W_{\mathrm{ueg}}(\lambda)(1-S(\lambda))
+  \right]\dd\lambda .
+  \label{eq:hfac_energy}
+\end{equation}
+Both \(E_{\mathrm{c}}^{\mathrm{uegIHF}}\) and Eq.~\eqref{eq:hfac_energy} are evaluated by 160-point Gauss--Legendre quadrature by default.  The user-facing HFAC24 parameters are \keyword{HFAC24\_D1}, \keyword{HFAC24\_D2}, \keyword{HFAC24\_KAPPA}, and \keyword{HFAC24\_NQUAD}.
+
+\section{Implementation}
+
+The implementation adds two Fortran modules to \quick{}.  The first, \keyword{quick\_mbpt\_module}, contains the closed-shell MP2 driver, the occupied--virtual AO-to-MO transformation, spin-resolved MP2 contractions, the exact LT-denominator reference path, and \(\kappa\)-regularized MP2 variants.  The second, \keyword{quick\_mpac\_module}, reuses the MP2 helper routines and adds exact exchange, SPL2, MPAC25, OS-MPAC25, and HFAC24 density-grid ingredients.  The main program invokes these drivers after SCF convergence and after one-electron property evaluation.
+
+MPI parallelism follows existing \quick{} patterns.  AO electron-repulsion integrals are distributed over shell work and reduced to the master rank as a full AO tensor.  MPAC/HFAC grid terms are evaluated over the distributed molecular quadrature bins and reduced as scalar sums.  The nuclear cusp contribution to \(\Wthreeq\) and the final post-SCF contractions are performed on the master rank.  This design is not the final scalable algorithm, but it makes the serial and MPI code paths mathematically identical and straightforward to test.
+
+The current restrictions are:
+\begin{itemize}
+  \item restricted closed-shell references only;
+  \item no frozen-core approximation;
+  \item no density fitting or Cholesky factorization;
+  \item no analytic gradients for MP2, regularized MP2, SPL2, MPAC25, or HFAC24;
+  \item CPU serial and CPU MPI only.
+\end{itemize}
+The \(O(N_{\mathrm{AO}}^4)\) AO tensor is the dominant memory object.  Thus the present code is a reference implementation intended for small and medium validation systems, not a production large-system correlated engine.
+
+\section{Validation}
+
+All validation calculations used conventional RHF references and no frozen-core approximation.  The \pyscf{} references were generated with conventional RHF plus explicit AO-to-MO MP2 contractions, not density fitting.\cite{Sun2018,Sun2020}  For water/STO-3G, the maximum absolute \quick{}--\pyscf{} correlation-energy deviations were \(1.70\times10^{-9}\ \Eh\) for canonical MP2, \(2.00\times10^{-9}\ \Eh\) for SOS-MP2, \(1.30\times10^{-9}\ \Eh\) for \(\kappa\)-MP2, and \(2.11\times10^{-9}\ \Eh\) for KOS-MP2.  The S22 validation set used STO-3G basis functions for the hydrogen-bonded subset 1--4.\cite{Jurecka2006}  The full complexes were used, so no ghost atoms or counterpoise fragments enter the present comparison.  Table~\ref{tab:validation} summarizes the maximum absolute deviations between \quick{} and \pyscf{} scalar quantities for these S22 systems.
+
+\begin{table*}[t]
+\caption{Maximum absolute deviations between \quick{} and conventional \pyscf{} RHF/canonical-MP2 references for S22 entries 1--4 at STO-3G.}
+\label{tab:validation}
+\begin{ruledtabular}
+\begin{tabular}{lclc}
+Quantity & Max. abs. deviation / \(\Eh\) & Quantity & Max. abs. deviation / \(\Eh\) \\
+\hline
+\(\EHF\) & \(1.57\times10^{-7}\) &
+\(E_{\mathrm{tot}}^{\mathrm{SPL2}}\) & \(6.18\times10^{-7}\) \\
+\(E_{\mathrm{OS}}^{\mathrm{MP2}}\) & \(3.72\times10^{-8}\) &
+\(E_{\mathrm{c}}^{\mathrm{OS-SPL2}}\) & \(7.96\times10^{-6}\) \\
+\(E_{\mathrm{SS}}^{\mathrm{MP2}}\) & \(1.87\times10^{-8}\) &
+\(E_{\mathrm{tot}}^{\mathrm{OS-SPL2}}\) & \(7.81\times10^{-6}\) \\
+\(\EMPtwo\) & \(5.60\times10^{-8}\) &
+\(E_{\mathrm{c}}^{\mathrm{MPAC25}}\) & \(1.44\times10^{-6}\) \\
+\(\ExHF\) & \(9.31\times10^{-7}\) &
+\(E_{\mathrm{tot}}^{\mathrm{MPAC25}}\) & \(1.29\times10^{-6}\) \\
+\(W_{\mathrm{PC}}\) & \(2.91\times10^{-4}\) &
+\(E_{\mathrm{c}}^{\mathrm{OS-MPAC25}}\) & \(1.44\times10^{-6}\) \\
+\(\Wcinf\) & \(2.72\times10^{-4}\) &
+\(E_{\mathrm{tot}}^{\mathrm{OS-MPAC25}}\) & \(1.28\times10^{-6}\) \\
+\(\Whalf\) & \(1.22\times10^{-3}\) &
+\(E_{\mathrm{c}}^{\mathrm{HFAC24}}\) & \(1.19\times10^{-8}\) \\
+\(\Wthreeq\) & \(5.50\times10^{-6}\) &
+\(E_{\mathrm{tot}}^{\mathrm{HFAC24}}\) & \(1.47\times10^{-7}\) \\
+\(E_{\mathrm{c}}^{\mathrm{SPL2}}\) & \(7.74\times10^{-7}\) &
+ & \\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+The MP2 components agree at the expected numerical precision for independent integral and SCF implementations.  The larger deviations in \(W_{\mathrm{PC}}\), \(\Wcinf\), and \(\Whalf\) arise from independent molecular quadrature grids and density-screening conventions in \quick{} and \pyscf{}.  These differences have little impact on the final HFAC24 correlation energies in this small test set and produce SPL2 and MPAC25 family total-energy deviations from \(10^{-7}\) to \(10^{-6}\ \Eh\), except for OS-SPL2 where the stronger dependence on the scaled opposite-spin ingredient gives a maximum total-energy deviation of \(7.8\times10^{-6}\ \Eh\).
+
+Serial and MPI consistency was checked by rerunning the two H2O regularized-MP2 inputs and the four S22 AC inputs with two MPI ranks.  Across the checked SCF, MP2, \(\kappa\)-MP2, SPL2, MPAC25, OS-MPAC25, HFAC24, and density-grid scalar quantities, the maximum absolute serial--MPI difference was
+\begin{equation}
+  1.02\times10^{-12}\ \Eh,
+\end{equation}
+consistent with reduction-order roundoff.
+
+\section{Discussion and Outlook}
+
+This implementation establishes the first closed-shell correlated-energy path in the modern \quick{} source tree that is consistent with the code's current integral and MPI infrastructure.  The immediate scientific value is that regularized MP2, SPL2, MPAC25, and HFAC24 can now be evaluated directly from \quick{} RHF references without external post-processing.  The more important engineering value is that the implementation defines reference answers for future optimized kernels.
+
+The highest-priority next steps are clear.  First, density fitting or Cholesky-decomposed ERIs should replace the full AO tensor for practical basis sets.  Second, the Laplace-transform interface should be converted from its present exact-denominator reference into a true quadrature implementation with separable occupied and virtual factors.  Third, the occupied--virtual transformation and MP2 contractions should be distributed beyond the master rank.  Fourth, GPU kernels should target both the AO integral tensor or its factorized representation and the MP2 contraction.  Finally, analytic gradients and open-shell references are needed before these methods can be used as general-purpose production tools.
+
+The present results show that the mathematical path from RHF to MP2 to MPAC is already internally consistent in \quick{}.  With the CPU reference in place, the remaining work is primarily algorithmic acceleration and extension of the reference space rather than correction of the underlying working equations.
+
+\begin{acknowledgments}
+TODO: Add funding, computing, and contributor acknowledgments.  We thank the \quick{} development team and the \pyscf{} developers for the software infrastructure used in validation.
+\end{acknowledgments}
+
+\section*{Data Availability}
+
+The validation inputs, \quick{} outputs, and \pyscf{} comparison scripts are included in the working \quick{} branch.  The current implementation is in \keyword{quick\_mbpt\_module.f90} and \keyword{quick\_mpac\_module.f90}.
+
+\bibliography{quick_mbpt_mpac_short_communication}
+
+\end{document}
