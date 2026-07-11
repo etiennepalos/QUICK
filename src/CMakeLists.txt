@@ -343,9 +343,21 @@ endif()
 config_module_dirs(test-api-oeprop quick/serial libxc/serial)
 target_link_libraries(test-api-oeprop libquick)
 
+add_executable(test-api-oeprop-bomd ../validation/oeprop_bomd/quick_oeprop_bomd_driver.f90)
+set_target_properties(test-api-oeprop-bomd PROPERTIES LINKER_LANGUAGE Fortran)
+target_compile_options(test-api-oeprop-bomd PRIVATE
+	"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+if(HDF5)
+	target_compile_definitions(test-api-oeprop-bomd PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+endif()
+config_module_dirs(test-api-oeprop-bomd quick/serial libxc/serial)
+target_link_libraries(test-api-oeprop-bomd libquick)
+
 install(TARGETS quick DESTINATION ${BINDIR} EXPORT QUICK)
 install(TARGETS test-api DESTINATION ${BINDIR} EXPORT QUICK)
 install(TARGETS test-api-oeprop DESTINATION ${BINDIR} EXPORT QUICK)
+install(TARGETS test-api-oeprop-bomd DESTINATION ${BINDIR} EXPORT QUICK)
 
 if(MPI)
 	make_mpi_version(quick quick.MPI LANGUAGES Fortran)
@@ -355,6 +367,8 @@ if(MPI)
 	target_compile_definitions(test-api.MPI PRIVATE MPIV)
 	make_mpi_version(test-api-oeprop test-api-oeprop.MPI LANGUAGES Fortran)
 	target_compile_definitions(test-api-oeprop.MPI PRIVATE MPIV)
+	make_mpi_version(test-api-oeprop-bomd test-api-oeprop-bomd.MPI LANGUAGES Fortran)
+	target_compile_definitions(test-api-oeprop-bomd.MPI PRIVATE MPIV)
 
 	# change link libraries and mod dirs for MPI
 	remove_link_libraries(quick.MPI libquick)
@@ -367,10 +381,14 @@ if(MPI)
 	remove_link_libraries(test-api-oeprop.MPI libquick)
 	target_link_libraries(test-api-oeprop.MPI libquick_mpi)
 	config_module_dirs(test-api-oeprop.MPI quick/mpi libxc/serial)
+	remove_link_libraries(test-api-oeprop-bomd.MPI libquick)
+	target_link_libraries(test-api-oeprop-bomd.MPI libquick_mpi)
+	config_module_dirs(test-api-oeprop-bomd.MPI quick/mpi libxc/serial)
 
 	install(TARGETS quick.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 	install(TARGETS test-api-oeprop.MPI DESTINATION ${BINDIR} EXPORT QUICK)
+	install(TARGETS test-api-oeprop-bomd.MPI DESTINATION ${BINDIR} EXPORT QUICK)
 endif()
 
 if(CUDA)
