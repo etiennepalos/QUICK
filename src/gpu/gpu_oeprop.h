@@ -401,6 +401,8 @@ __device__ static inline void addint_oeprop_derivatives(unsigned int I, unsigned
             }
 
             if (do_efg) {
+                // Fortran G(3,3,n) storage: xx,yx,zx,xy,yy,zy,xz,yz,zz.
+                // Both symmetric locations are accumulated explicitly.
                 QUICKDouble xx = prefactor * oeprop_deriv_recurse(lx1, ly1, lz1, lx2, ly2, lz2,
                         2, 0, 0, 0, YVerticalTemp, Ax, Ay, Az, Bx, By, Bz, Cx, Cy, Cz, Px, Py, Pz, g);
                 QUICKDouble xy = prefactor * oeprop_deriv_recurse(lx1, ly1, lz1, lx2, ly2, lz2,

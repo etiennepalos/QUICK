@@ -41,6 +41,9 @@ extern "C" void gpu_upload_grad_(QUICKDouble *);
 extern "C" void gpu_cleanup_();
 
 extern "C" void gpu_upload_density_matrix_(QUICKDouble *);
+extern "C" void gpu_upload_oeprop_(int *, QUICKDouble *, QUICKDouble *, int *);
+extern "C" void gpu_upload_oeprop_efield_(int *, QUICKDouble *, QUICKDouble *, int *);
+extern "C" void gpu_upload_oeprop_efg_(int *, QUICKDouble *, QUICKDouble *, int *);
 extern "C" void gpu_delete_dft_grid_();
 // call subroutine
 // Fortran subroutine   --->  c interface    ->   kernel interface   ->    global       ->    kernel
