@@ -25,6 +25,7 @@ module quick_oei_module
 
   public :: get1eEnergy, get1e, attrashellopt, ekinetic, kineticO, attrashell
   public :: add_point_charge_operator, add_point_dipole_field_operator
+  public :: add_point_multipole_qm_gradient
   public :: bCalc1e
 
   logical :: bCalc1e = .false.
@@ -600,6 +601,209 @@ subroutine point_dipole_operator_shell_pair(IIsh,JJsh,dipole_xyz_bohr,mu)
       enddo
    enddo
 end subroutine point_dipole_operator_shell_pair
+
+subroutine add_point_multipole_qm_gradient(nsites,site_xyz_bohr,site_charge_e,site_mu_au)
+   use allmod
+#ifdef MPIV
+   use mpi
+#endif
+   implicit none
+
+   integer, intent(in) :: nsites
+   double precision, intent(in) :: site_xyz_bohr(3,nsites), site_charge_e(nsites)
+   double precision, intent(in) :: site_mu_au(3,nsites)
+
+   integer :: isite, ish, IIsh, JJsh
+
+   if (nsites <= 0) return
+#ifdef MPIV
+   if (bMPI) then
+      do ish=1,mpi_jshelln(mpirank)
+         IIsh=mpi_jshell(mpirank,ish)
+         do JJsh=IIsh,jshell
+            do isite=1,nsites
+               call point_multipole_gradient_shell_pair(IIsh,JJsh,site_xyz_bohr(:,isite), &
+                  site_charge_e(isite),site_mu_au(:,isite))
+            enddo
+         enddo
+      enddo
+      if (master) call add_point_multipole_nuclear_gradient(nsites,site_xyz_bohr,site_charge_e,site_mu_au)
+   else
+#endif
+      do IIsh=1,jshell
+         do JJsh=IIsh,jshell
+            do isite=1,nsites
+               call point_multipole_gradient_shell_pair(IIsh,JJsh,site_xyz_bohr(:,isite), &
+                  site_charge_e(isite),site_mu_au(:,isite))
+            enddo
+         enddo
+      enddo
+      call add_point_multipole_nuclear_gradient(nsites,site_xyz_bohr,site_charge_e,site_mu_au)
+#ifdef MPIV
+   endif
+#endif
+end subroutine add_point_multipole_qm_gradient
+
+subroutine point_multipole_gradient_shell_pair(IIsh,JJsh,site_xyz_bohr,charge,mu)
+   use quick_overlap_module, only: opf
+   use quick_molspec_module, only: xyz
+   use quick_basis_module, only: quick_basis
+   use quick_method_module, only: quick_method
+   use quick_os_attraction_module, only: os_attraction_derivatives
+   use quick_calculated_module, only: quick_qm_struct
+   use quick_constants_module, only: Pi
+   implicit none
+
+   integer, intent(in) :: IIsh, JJsh
+   double precision, intent(in) :: site_xyz_bohr(3), charge, mu(3)
+
+   integer :: ips, jps, L, Maxm, NII2, NJJ2
+   integer :: Iang, Jang, III, III1, III2, JJJ, JJJ1, JJJ2
+   integer :: NBI1, NBI2, NBJ1, NBJ2, l1(3), l2(3), lwork(3)
+   integer :: iatom_a, iatom_b, idir
+   double precision :: a, b, Axyz(3), Bxyz(3), Cxyz(3), Pxyz(3), g, U
+   double precision :: constant, PCsquare, inv_g, rABsquare, valopf
+   double precision :: contract_i, contract_ij, denseji, weight
+   double precision :: aux(0:20), deriv(10), dA(3), dB(3)
+
+   if (charge == 0.0d0 .and. .not. any(mu /= 0.0d0)) return
+
+   iatom_a=quick_basis%katom(IIsh)
+   iatom_b=quick_basis%katom(JJsh)
+   Axyz(:)=xyz(:,iatom_a)
+   Bxyz(:)=xyz(:,iatom_b)
+   Cxyz(:)=site_xyz_bohr(:)
+   NII2=quick_basis%Qfinal(IIsh)
+   NJJ2=quick_basis%Qfinal(JJsh)
+   Maxm=NII2+NJJ2+3
+   rABsquare=sum((Axyz-Bxyz)**2)
+
+   do ips=1,quick_basis%kprim(IIsh)
+      a=quick_basis%gcexpo(ips,quick_basis%ksumtype(IIsh))
+      do jps=1,quick_basis%kprim(JJsh)
+         b=quick_basis%gcexpo(jps,quick_basis%ksumtype(JJsh))
+         valopf=opf(a,b,quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)), &
+            quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)),Axyz(1),Axyz(2),Axyz(3), &
+            Bxyz(1),Bxyz(2),Bxyz(3))
+         if (abs(valopf) <= quick_method%coreIntegralCutoff) cycle
+
+         g=a+b
+         inv_g=1.0d0/g
+         Pxyz(:)=(a*Axyz(:)+b*Bxyz(:))*inv_g
+         constant=dexp(-a*b*rABsquare*inv_g)*2.0d0*Pi*inv_g
+         PCsquare=sum((Pxyz-Cxyz)**2)
+         U=g*PCsquare
+         call FmT(Maxm,U,aux)
+         aux(0:Maxm)=constant*aux(0:Maxm)
+
+         do Iang=quick_basis%Qstart(IIsh),quick_basis%Qfinal(IIsh)
+            contract_i=quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)+Iang)
+            NBI1=quick_basis%Qsbasis(IIsh,Iang)
+            NBI2=quick_basis%Qfbasis(IIsh,Iang)
+            III1=quick_basis%ksumtype(IIsh)+NBI1
+            III2=quick_basis%ksumtype(IIsh)+NBI2
+            do Jang=quick_basis%Qstart(JJsh),quick_basis%Qfinal(JJsh)
+               contract_ij=contract_i*quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)+Jang)
+               NBJ1=quick_basis%Qsbasis(JJsh,Jang)
+               NBJ2=quick_basis%Qfbasis(JJsh,Jang)
+               JJJ1=quick_basis%ksumtype(JJsh)+NBJ1
+               JJJ2=quick_basis%ksumtype(JJsh)+NBJ2
+               do III=III1,III2
+                  l1(:)=quick_basis%KLMN(:,III)
+                  do JJJ=max(III,JJJ1),JJJ2
+                     l2(:)=quick_basis%KLMN(:,JJJ)
+                     if (quick_method%UNRST) then
+                        denseji=quick_qm_struct%dense(JJJ,III)+quick_qm_struct%denseb(JJJ,III)
+                     else
+                        denseji=quick_qm_struct%dense(JJJ,III)
+                     endif
+                     if (III /= JJJ) denseji=2.0d0*denseji
+                     weight=contract_ij*quick_basis%cons(III)*quick_basis%cons(JJJ)*denseji
+
+                     do idir=1,3
+                        lwork(:)=l1(:)
+                        lwork(idir)=lwork(idir)+1
+                        deriv=os_attraction_derivatives(lwork(1),lwork(2),lwork(3), &
+                           l2(1),l2(2),l2(3),0,aux,Axyz(1),Axyz(2),Axyz(3), &
+                           Bxyz(1),Bxyz(2),Bxyz(3),Cxyz(1),Cxyz(2),Cxyz(3), &
+                           Pxyz(1),Pxyz(2),Pxyz(3),g)
+                        dA(idir)=2.0d0*a*multipole_integral(deriv,charge,mu)
+                        if (l1(idir) > 0) then
+                           lwork(:)=l1(:)
+                           lwork(idir)=lwork(idir)-1
+                           deriv=os_attraction_derivatives(lwork(1),lwork(2),lwork(3), &
+                              l2(1),l2(2),l2(3),0,aux,Axyz(1),Axyz(2),Axyz(3), &
+                              Bxyz(1),Bxyz(2),Bxyz(3),Cxyz(1),Cxyz(2),Cxyz(3), &
+                              Pxyz(1),Pxyz(2),Pxyz(3),g)
+                           dA(idir)=dA(idir)-dble(l1(idir))*multipole_integral(deriv,charge,mu)
+                        endif
+
+                        lwork(:)=l2(:)
+                        lwork(idir)=lwork(idir)+1
+                        deriv=os_attraction_derivatives(l1(1),l1(2),l1(3), &
+                           lwork(1),lwork(2),lwork(3),0,aux,Axyz(1),Axyz(2),Axyz(3), &
+                           Bxyz(1),Bxyz(2),Bxyz(3),Cxyz(1),Cxyz(2),Cxyz(3), &
+                           Pxyz(1),Pxyz(2),Pxyz(3),g)
+                        dB(idir)=2.0d0*b*multipole_integral(deriv,charge,mu)
+                        if (l2(idir) > 0) then
+                           lwork(:)=l2(:)
+                           lwork(idir)=lwork(idir)-1
+                           deriv=os_attraction_derivatives(l1(1),l1(2),l1(3), &
+                              lwork(1),lwork(2),lwork(3),0,aux,Axyz(1),Axyz(2),Axyz(3), &
+                              Bxyz(1),Bxyz(2),Bxyz(3),Cxyz(1),Cxyz(2),Cxyz(3), &
+                              Pxyz(1),Pxyz(2),Pxyz(3),g)
+                           dB(idir)=dB(idir)-dble(l2(idir))*multipole_integral(deriv,charge,mu)
+                        endif
+                     enddo
+
+                     quick_qm_struct%gradient(3*(iatom_a-1)+1:3*iatom_a)= &
+                        quick_qm_struct%gradient(3*(iatom_a-1)+1:3*iatom_a)+weight*dA(:)
+                     quick_qm_struct%gradient(3*(iatom_b-1)+1:3*iatom_b)= &
+                        quick_qm_struct%gradient(3*(iatom_b-1)+1:3*iatom_b)+weight*dB(:)
+                  enddo
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+end subroutine point_multipole_gradient_shell_pair
+
+double precision function multipole_integral(deriv,charge,mu)
+   implicit none
+   double precision, intent(in) :: deriv(10), charge, mu(3)
+
+   multipole_integral=-charge*deriv(1)-dot_product(mu,deriv(2:4))
+end function multipole_integral
+
+subroutine add_point_multipole_nuclear_gradient(nsites,site_xyz_bohr,site_charge_e,site_mu_au)
+   use quick_molspec_module, only: natom, xyz, quick_molspec
+   use quick_calculated_module, only: quick_qm_struct
+   implicit none
+
+   integer, intent(in) :: nsites
+   double precision, intent(in) :: site_xyz_bohr(3,nsites), site_charge_e(nsites)
+   double precision, intent(in) :: site_mu_au(3,nsites)
+
+   integer :: iatom, isite, offset
+   double precision :: r(3), r2, rinv, rinv3, rinv5, mudotr, z
+
+   do iatom=1,natom
+      z=quick_molspec%chg(iatom)
+      offset=3*(iatom-1)
+      do isite=1,nsites
+         r(:)=xyz(:,iatom)-site_xyz_bohr(:,isite)
+         r2=dot_product(r,r)
+         if (r2 <= 1.0d-24) cycle
+         rinv=1.0d0/dsqrt(r2)
+         rinv3=rinv*rinv*rinv
+         rinv5=rinv3*rinv*rinv
+         mudotr=dot_product(site_mu_au(:,isite),r)
+         quick_qm_struct%gradient(offset+1:offset+3)=quick_qm_struct%gradient(offset+1:offset+3) &
+            -z*site_charge_e(isite)*r(:)*rinv3 &
+            +z*(site_mu_au(:,isite)*rinv3-3.0d0*mudotr*r(:)*rinv5)
+      enddo
+   enddo
+end subroutine add_point_multipole_nuclear_gradient
 
 subroutine point_charge_operator_shell_pair(IIsh,JJsh,charge_xyz_bohr,charge)
 

@@ -58,6 +58,10 @@ set(QUICK_SUBS_FORTRAN_SOURCES Angles.f90 copyDMat.f90 copySym.f90
 set(QUICK_SUBS_CXX_SOURCES
 	time.cpp)
 
+if(MBX)
+	list(APPEND QUICK_SUBS_CXX_SOURCES quick_mbx_cross_residual.cpp)
+endif()
+
 set(DLFIND_MODULES_SOURCES
 	dlf_allocate.f90 dlf_checkpoint.f90
 	dlf_conint.f90 dlf_convergence.f90
@@ -152,6 +156,7 @@ if(INSIDE_AMBER)
 endif()
 if(MBX)
 	target_compile_definitions(libquick PRIVATE MBX)
+	target_include_directories(libquick PRIVATE ${MBX_INCLUDE_DIR} ${MBX_EXTRA_INCLUDE_DIRS})
 	target_link_libraries(libquick PRIVATE ${MBX_LIBRARY} ${MBX_EXTRA_LIBRARIES})
 endif()
 install_libraries(libquick EXPORT QUICK)
@@ -448,6 +453,17 @@ if(MBX)
 	config_module_dirs(test-api-mbx-fd-md-smoke quick/serial libxc/serial)
 	target_link_libraries(test-api-mbx-fd-md-smoke libquick)
 
+	add_executable(test-api-mbx-analytic-md-smoke ../validation/quick_mbx/quick_mbx_analytic_md_smoke.f90)
+	set_target_properties(test-api-mbx-analytic-md-smoke PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-analytic-md-smoke PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-analytic-md-smoke PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-analytic-md-smoke quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-analytic-md-smoke libquick)
+
 	add_executable(test-api-mbx-gradient-decomp ../validation/quick_mbx/quick_mbx_gradient_decomp_probe.f90)
 	set_target_properties(test-api-mbx-gradient-decomp PROPERTIES LINKER_LANGUAGE Fortran)
 	target_compile_options(test-api-mbx-gradient-decomp PRIVATE
@@ -458,6 +474,17 @@ if(MBX)
 	endif()
 	config_module_dirs(test-api-mbx-gradient-decomp quick/serial libxc/serial)
 	target_link_libraries(test-api-mbx-gradient-decomp libquick)
+
+	add_executable(test-api-mbx-analytic-gradient ../validation/quick_mbx/quick_mbx_analytic_gradient_probe.f90)
+	set_target_properties(test-api-mbx-analytic-gradient PROPERTIES LINKER_LANGUAGE Fortran)
+	target_compile_options(test-api-mbx-analytic-gradient PRIVATE
+		"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>")
+	if(HDF5)
+		target_compile_definitions(test-api-mbx-analytic-gradient PRIVATE
+			"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")
+	endif()
+	config_module_dirs(test-api-mbx-analytic-gradient quick/serial libxc/serial)
+	target_link_libraries(test-api-mbx-analytic-gradient libquick)
 endif()
 
 install(TARGETS quick DESTINATION ${BINDIR} EXPORT QUICK)
@@ -481,6 +508,8 @@ if(MPI)
 	if(MBX)
 		make_mpi_version(test-api-mbx test-api-mbx.MPI LANGUAGES Fortran)
 		target_compile_definitions(test-api-mbx.MPI PRIVATE MPIV)
+		make_mpi_version(test-api-mbx-analytic-gradient test-api-mbx-analytic-gradient.MPI LANGUAGES Fortran)
+		target_compile_definitions(test-api-mbx-analytic-gradient.MPI PRIVATE MPIV)
 	endif()
 
 	# change link libraries and mod dirs for MPI
@@ -501,6 +530,9 @@ if(MPI)
 		remove_link_libraries(test-api-mbx.MPI libquick)
 		target_link_libraries(test-api-mbx.MPI libquick_mpi)
 		config_module_dirs(test-api-mbx.MPI quick/mpi libxc/serial)
+		remove_link_libraries(test-api-mbx-analytic-gradient.MPI libquick)
+		target_link_libraries(test-api-mbx-analytic-gradient.MPI libquick_mpi)
+		config_module_dirs(test-api-mbx-analytic-gradient.MPI quick/mpi libxc/serial)
 	endif()
 
 	install(TARGETS quick.MPI DESTINATION ${BINDIR} EXPORT QUICK)

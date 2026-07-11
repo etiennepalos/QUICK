@@ -1190,12 +1190,6 @@ module quick_method_module
                 call quick_exit(io,1)
             endif
 
-            if (self%mbx_qmmm .and. self%grad) then
-                call PrtErr(io,"MBX_QMMM currently supports SCF energies only.")
-                call PrtErr(io,"QM/MB-pol gradients require the planned EFIELD/EFG derivative path.")
-                call quick_exit(io,1)
-            endif
-
             if (self%density_surface .and. &
                 .not.(self%esp_grid .or. self%efield_grid .or. self%efg_grid)) then
                 call PrtErr(io,"DENSITY_SURFACE requires ESP_SURFACE, EFIELD_SURFACE, or EFG_SURFACE.")

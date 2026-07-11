@@ -182,6 +182,15 @@ contains
    case(52)
       msg='Unsupported element symbol in QUICK OEPROP trajectory file.'
 
+   case(53)
+      msg='MBX virtual-site gradient redistribution failed translational force conservation.'
+
+   case(54)
+      msg='MBX cross short-range/dispersion residual initialization or evaluation failed.'
+
+   case(55)
+      msg='QUICK-MBX JSON configuration file was not found.'
+
     case default
       msg='Unknown error.'
 

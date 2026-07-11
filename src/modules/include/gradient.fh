@@ -181,6 +181,7 @@ contains
   subroutine scf_gradient
 #endif
     use allmod
+    use quick_mbx_module, only: quick_mbx_active, quick_mbx_add_qm_gradient
 #ifdef CEW
     use quick_cew_module
 #endif
@@ -266,6 +267,14 @@ contains
 !    call gpu_get_oei_grad(quick_qm_struct%gradient, quick_qm_struct%ptchg_gradient)
 #endif
 !#endif
+
+    if (quick_mbx_active()) then
+       call quick_mbx_add_qm_gradient(ierr)
+       if (ierr /= 0) then
+          call PrtErr(OUTFILEHANDLE,"QUICK-MBX analytic QM gradient evaluation failed.")
+          call quick_exit(OUTFILEHANDLE,1)
+       endif
+    endif
 
   !---------------------------------------------------------------------
   !  2.1) CEW gradients

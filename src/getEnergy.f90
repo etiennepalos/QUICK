@@ -17,7 +17,8 @@ subroutine getEnergy(isGuess, ierr)
    use quick_overlap_module, only: fullx
    use quick_dftd3_module, only: calculateDFTD3 
    use quick_exception_module
-   use quick_mbx_module, only: quick_mbx_active, quick_mbx_refresh_energy, quick_mbx_get_energy_terms
+   use quick_mbx_module, only: quick_mbx_active, quick_mbx_cross_residual_active, &
+      quick_mbx_refresh_energy, quick_mbx_get_energy_terms
 #ifdef CEW
    use quick_cew_module, only : quick_cew
 #endif
@@ -38,6 +39,7 @@ subroutine getEnergy(isGuess, ierr)
    double precision :: mbx_perm_total_au, mbx_perm_classical_au, mbx_perm_electronic_au
    double precision :: mbx_ind_total_au, mbx_ind_classical_au, mbx_ind_electronic_au
    double precision :: mbx_external_half_residual_au
+   double precision :: mbx_cross_2b_au, mbx_cross_3b_au, mbx_cross_disp_au
 
    verbose = .true.
    if ( isGuess .and. (.not. quick_method%writeSAD) ) verbose = .false.
@@ -203,10 +205,14 @@ subroutine getEnergy(isGuess, ierr)
       mbx_ind_classical_au = 0.0d0
       mbx_ind_electronic_au = 0.0d0
       mbx_external_half_residual_au = 0.0d0
+      mbx_cross_2b_au = 0.0d0
+      mbx_cross_3b_au = 0.0d0
+      mbx_cross_disp_au = 0.0d0
       if (quick_mbx_active()) then
          call quick_mbx_get_energy_terms(mbx_energy_au,mbx_external_energy_au,mbx_additive_energy_au, &
             mbx_perm_total_au,mbx_perm_classical_au,mbx_perm_electronic_au,mbx_ind_total_au, &
-            mbx_ind_classical_au,mbx_ind_electronic_au,mbx_external_half_residual_au)
+            mbx_ind_classical_au,mbx_ind_electronic_au,mbx_external_half_residual_au, &
+            mbx_cross_2b_au,mbx_cross_3b_au,mbx_cross_disp_au)
          quick_qm_struct%Etot = quick_qm_struct%Etot + mbx_additive_energy_au
       endif
 
@@ -228,6 +234,13 @@ subroutine getEnergy(isGuess, ierr)
             write (ioutfile,'(" QUICK-MBX IND TOTAL       = ",F16.9)') mbx_ind_total_au
             write (ioutfile,'(" QUICK-MBX IND CLASSICAL   = ",F16.9)') mbx_ind_classical_au
             write (ioutfile,'(" QUICK-MBX IND ELECTRONIC  = ",F16.9)') mbx_ind_electronic_au
+            if (quick_mbx_cross_residual_active()) then
+               write (ioutfile,'(" QUICK-MBX CROSS 2B         = ",F16.9)') mbx_cross_2b_au
+               write (ioutfile,'(" QUICK-MBX CROSS 3B         = ",F16.9)') mbx_cross_3b_au
+               write (ioutfile,'(" QUICK-MBX CROSS DISPERSION = ",F16.9)') mbx_cross_disp_au
+               write (ioutfile,'(" QUICK-MBX CROSS RESIDUAL   = ",F16.9)') &
+                  mbx_cross_2b_au+mbx_cross_3b_au+mbx_cross_disp_au
+            endif
             write (ioutfile,'(" QUICK-MBX MBX EXT PERM/2  = ",F16.9)') mbx_external_energy_au
             write (ioutfile,'(" QUICK-MBX EXT PERM CHECK  = ",ES16.6)') mbx_external_half_residual_au
             write (ioutfile,'(" QUICK-MBX UNITS hartree; QUICK EFG convention dE_i/dC_j")')

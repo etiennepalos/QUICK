@@ -20,8 +20,10 @@ module quick_api_module
   public :: quick_api
   public :: setQuickJob, getQuickEnergy, getQuickEnergyGradients, deleteQuickJob
   public :: getQuickOEPROP
-  public :: setQuickMBXSystem, setQuickMBXWaterSystem, clearQuickMBXSystem
-  public :: getQuickMBXEnergyGradientsFD
+  public :: setQuickMBXSystem, setQuickMBXWaterSystem, setQuickMBXWaterCrossResidual
+  public :: clearQuickMBXSystem
+  public :: getQuickMBXEnergyGradients, getQuickMBXEnergyGradientsFD
+  public :: getQuickMBXEnergyTerms
 
 #ifdef MPIV
   public :: setQuickMPI
@@ -131,6 +133,14 @@ module quick_api_module
     module procedure get_quick_mbx_energy_gradients_fd_water
   end interface
 
+  interface getQuickMBXEnergyGradients
+    module procedure get_quick_mbx_energy_gradients
+  end interface
+
+  interface getQuickMBXEnergyTerms
+    module procedure get_quick_mbx_energy_terms_api
+  end interface
+
   interface deleteQuickJob
     module procedure delete_quick_job
   end interface
@@ -141,6 +151,10 @@ module quick_api_module
 
   interface setQuickMBXWaterSystem
     module procedure set_quick_mbx_water_system
+  end interface
+
+  interface setQuickMBXWaterCrossResidual
+    module procedure set_quick_mbx_water_cross_residual
   end interface
 
   interface clearQuickMBXSystem
@@ -347,7 +361,7 @@ end subroutine set_quick_mbx_system
 
 
 ! initialize an MB-pol water environment; MBX uses four electrostatic sites per water
-subroutine set_quick_mbx_water_system(nwaters, coords_ang, json_file, ierr)
+subroutine set_quick_mbx_water_system(nwaters, coords_ang, json_file, ierr, water_model)
 
   use quick_mbx_module, only: quick_mbx_initialize_system
 
@@ -357,12 +371,14 @@ subroutine set_quick_mbx_water_system(nwaters, coords_ang, json_file, ierr)
   double precision, intent(in) :: coords_ang(:,:)
   character(len=*), intent(in) :: json_file
   integer, intent(inout) :: ierr
+  character(len=*), intent(in), optional :: water_model
 
   integer :: iwater, iatom, natoms, nsites
   integer, allocatable :: nat_monomers(:)
   double precision, allocatable :: coords_local(:,:)
   character(len=1), allocatable :: atom_names(:)
-  character(len=3), allocatable :: monomer_names(:)
+  character(len=16), allocatable :: monomer_names(:)
+  character(len=16) :: model_name
 
   if (ierr /= 0) return
   if (nwaters <= 0) then
@@ -387,7 +403,10 @@ subroutine set_quick_mbx_water_system(nwaters, coords_ang, json_file, ierr)
   if (ierr /= 0) return
 
   nat_monomers(:) = 3
-  monomer_names(:) = 'h2o'
+  model_name='h2o'
+  if (present(water_model)) model_name=trim(water_model)
+  if (trim(model_name) == 'mbpbe') model_name='h2o-pbe'
+  monomer_names(:)=model_name
   coords_local(:,:) = coords_ang(1:3,1:natoms)
   do iwater=1,nwaters
      iatom = 3*(iwater-1)
@@ -405,6 +424,68 @@ subroutine set_quick_mbx_water_system(nwaters, coords_ang, json_file, ierr)
   if (allocated(monomer_names)) deallocate(monomer_names)
 
 end subroutine set_quick_mbx_water_system
+
+
+! Add the non-electrostatic MB-pol/MB-PBE cross residual. The shadow
+! systems contain the same water geometries, but never enter the SCF.
+subroutine set_quick_mbx_water_cross_residual(nqmwaters,qm_coords,nmbwaters,mbx_coords, &
+           json_file,ierr,water_model)
+
+  use quick_mbx_module, only: quick_mbx_initialize_cross_residual
+
+  implicit none
+
+  integer, intent(in) :: nqmwaters, nmbwaters
+  double precision, intent(in) :: qm_coords(:,:), mbx_coords(:,:)
+  character(len=*), intent(in) :: json_file
+  integer, intent(inout) :: ierr
+  character(len=*), intent(in), optional :: water_model
+
+  integer :: iwater, iatom, natoms, nmon
+  integer, allocatable :: nat_monomers(:), regions(:)
+  double precision, allocatable :: coords(:,:)
+  character(len=1), allocatable :: atom_names(:)
+  character(len=16), allocatable :: monomer_names(:)
+  character(len=16) :: model_name
+
+  if (ierr /= 0) return
+  if (nqmwaters <= 0 .or. nmbwaters <= 0 .or. quick_api%natoms /= 3*nqmwaters) then
+     ierr=45
+     return
+  endif
+  if (size(qm_coords,1) < 3 .or. size(qm_coords,2) < 3*nqmwaters .or. &
+      size(mbx_coords,1) < 3 .or. size(mbx_coords,2) < 3*nmbwaters) then
+     ierr=45
+     return
+  endif
+
+  nmon=nqmwaters+nmbwaters
+  natoms=3*nmon
+  allocate(nat_monomers(nmon),regions(nmon),coords(3,natoms),atom_names(natoms), &
+           monomer_names(nmon),stat=ierr)
+  if (ierr /= 0) return
+  nat_monomers(:)=3
+  regions(1:nqmwaters)=0
+  regions(nqmwaters+1:nmon)=1
+  coords(:,1:3*nqmwaters)=qm_coords(:,1:3*nqmwaters)
+  coords(:,3*nqmwaters+1:natoms)=mbx_coords(:,1:3*nmbwaters)
+
+  model_name='h2o'
+  if (present(water_model)) model_name=trim(water_model)
+  if (trim(model_name) == 'mbpbe') model_name='h2o-pbe'
+  monomer_names(:)=model_name
+  do iwater=1,nmon
+     iatom=3*(iwater-1)
+     atom_names(iatom+1)='O'
+     atom_names(iatom+2)='H'
+     atom_names(iatom+3)='H'
+  enddo
+
+  call quick_mbx_initialize_cross_residual(natoms,nmon,nat_monomers,coords,atom_names, &
+       monomer_names,regions,json_file,ierr)
+
+  deallocate(nat_monomers,regions,coords,atom_names,monomer_names)
+end subroutine set_quick_mbx_water_cross_residual
 
 
 ! finalize and clear the optional MBX environment
@@ -632,12 +713,92 @@ subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
 end subroutine get_quick_oeprop
 
 
+! Analytic stationary QUICK-MBX gradients. Coordinates are Angstrom;
+! returned gradients are hartree/bohr. The MBX system must be initialized.
+subroutine get_quick_mbx_energy_gradients(qm_coords,mbx_coords,energy,qm_grad,mbx_grad,ierr, &
+           mbx_base_grad,induced_efg_grad,cross_residual_grad,qm_cross_residual_grad)
+  use quick_mbx_module, only: quick_mbx_set_real_coordinates, &
+    quick_mbx_get_coupled_real_atom_gradient, quick_mbx_get_cross_qm_gradient
+  implicit none
+
+  double precision, intent(in) :: qm_coords(3,quick_api%natoms)
+  double precision, intent(in) :: mbx_coords(:,:)
+  double precision, intent(out) :: energy
+  double precision, intent(out) :: qm_grad(3,quick_api%natoms)
+  double precision, intent(out) :: mbx_grad(:,:)
+  integer, intent(out) :: ierr
+  double precision, intent(out), optional :: mbx_base_grad(:,:), induced_efg_grad(:,:)
+  double precision, intent(out), optional :: cross_residual_grad(:,:)
+  double precision, intent(out), optional :: qm_cross_residual_grad(:,:)
+
+  integer :: nmbx
+  double precision, allocatable :: no_point_charges(:,:), no_point_charge_grad(:,:)
+
+  ierr=0
+  energy=0.0d0
+  qm_grad(:,:)=0.0d0
+  mbx_grad(:,:)=0.0d0
+  nmbx=size(mbx_coords,2)
+  if (size(mbx_coords,1) < 3 .or. size(mbx_grad,1) < 3 .or. size(mbx_grad,2) < nmbx) then
+    ierr=45
+    return
+  endif
+
+  call quick_mbx_set_real_coordinates(nmbx,mbx_coords(1:3,1:nmbx),ierr)
+  if (ierr /= 0) return
+
+  allocate(no_point_charges(4,0),no_point_charge_grad(3,0),stat=ierr)
+  if (ierr /= 0) return
+  call get_quick_energy_gradients(qm_coords,0,no_point_charges,energy,qm_grad,no_point_charge_grad,ierr)
+  deallocate(no_point_charges,no_point_charge_grad)
+  if (ierr /= 0) return
+
+  call quick_mbx_get_coupled_real_atom_gradient(mbx_grad,ierr,mbx_base_grad=mbx_base_grad, &
+     induced_efg_grad=induced_efg_grad,cross_residual_grad=cross_residual_grad)
+  if (ierr == 0 .and. present(qm_cross_residual_grad)) &
+     call quick_mbx_get_cross_qm_gradient(qm_cross_residual_grad,ierr)
+end subroutine get_quick_mbx_energy_gradients
+
+
+! No-I/O QUICK-MBX energy decomposition, all in hartree. Permanent and
+! induced arrays are ordered total, classical, electronic; cross terms are
+! ordered 2B polynomial, 3B polynomial, dispersion.
+subroutine get_quick_mbx_energy_terms_api(mbx_energy,external_energy,additive_energy, &
+           permanent_terms,induced_terms,cross_terms,external_half_residual,ierr)
+  use quick_mbx_module, only: quick_mbx_active, quick_mbx_get_energy_terms
+  implicit none
+
+  double precision, intent(out) :: mbx_energy, external_energy, additive_energy
+  double precision, intent(out) :: permanent_terms(3), induced_terms(3), cross_terms(3)
+  double precision, intent(out) :: external_half_residual
+  integer, intent(out) :: ierr
+
+  ierr=0
+  mbx_energy=0.0d0
+  external_energy=0.0d0
+  additive_energy=0.0d0
+  permanent_terms(:)=0.0d0
+  induced_terms(:)=0.0d0
+  cross_terms(:)=0.0d0
+  external_half_residual=0.0d0
+  if (.not. quick_mbx_active()) then
+     ierr=43
+     return
+  endif
+
+  call quick_mbx_get_energy_terms(mbx_energy,external_energy,additive_energy, &
+     permanent_terms(1),permanent_terms(2),permanent_terms(3),induced_terms(1), &
+     induced_terms(2),induced_terms(3),external_half_residual,cross_terms(1), &
+     cross_terms(2),cross_terms(3))
+end subroutine get_quick_mbx_energy_terms_api
+
+
 ! Reference finite-difference total QUICK-MBX gradients for tiny water
 ! environments.  Coordinates are Angstrom, displacements are bohr, and
 ! gradients are dE/dR in hartree/bohr.  This routine is intentionally for
 ! validation and CPU smoke dynamics, not production analytic MD.
 subroutine get_quick_mbx_energy_gradients_fd_water(qm_coords, nwaters, mbx_coords, &
-           json_file, fd_step_bohr, energy, qm_grad, mbx_grad, ierr)
+           json_file, fd_step_bohr, energy, qm_grad, mbx_grad, ierr, water_model,include_cross_residual)
 
   use quick_constants_module, only: BOHRS_TO_A
 
@@ -652,16 +813,21 @@ subroutine get_quick_mbx_energy_gradients_fd_water(qm_coords, nwaters, mbx_coord
   double precision, intent(out) :: qm_grad(3,quick_api%natoms)
   double precision, intent(out) :: mbx_grad(3,3*nwaters)
   integer, intent(out) :: ierr
+  character(len=*), intent(in), optional :: water_model
+  logical, intent(in), optional :: include_cross_residual
 
   integer :: iatom, ixyz, nmbx_atoms
   double precision :: disp_ang, eplus, eminus
   double precision :: qm_p(3,quick_api%natoms), qm_m(3,quick_api%natoms)
   double precision :: mbx_p(3,3*nwaters), mbx_m(3,3*nwaters)
+  logical :: use_cross
 
   ierr = 0
   energy = 0.0d0
   qm_grad(:,:) = 0.0d0
   mbx_grad(:,:) = 0.0d0
+  use_cross=.false.
+  if (present(include_cross_residual)) use_cross=include_cross_residual
 
   if (nwaters <= 0 .or. fd_step_bohr <= 0.0d0) then
     ierr = 45
@@ -671,7 +837,7 @@ subroutine get_quick_mbx_energy_gradients_fd_water(qm_coords, nwaters, mbx_coord
   nmbx_atoms = 3*nwaters
   disp_ang = fd_step_bohr*BOHRS_TO_A
 
-  call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_coords,json_file,energy,ierr)
+  call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_coords,json_file,energy,ierr,water_model,use_cross)
   if (ierr /= 0) return
 
   do iatom=1,quick_api%natoms
@@ -680,9 +846,9 @@ subroutine get_quick_mbx_energy_gradients_fd_water(qm_coords, nwaters, mbx_coord
       qm_m(:,:) = qm_coords(:,:)
       qm_p(ixyz,iatom) = qm_p(ixyz,iatom) + disp_ang
       qm_m(ixyz,iatom) = qm_m(ixyz,iatom) - disp_ang
-      call evaluate_quick_mbx_water_energy(qm_p,nwaters,mbx_coords,json_file,eplus,ierr)
+      call evaluate_quick_mbx_water_energy(qm_p,nwaters,mbx_coords,json_file,eplus,ierr,water_model,use_cross)
       if (ierr /= 0) return
-      call evaluate_quick_mbx_water_energy(qm_m,nwaters,mbx_coords,json_file,eminus,ierr)
+      call evaluate_quick_mbx_water_energy(qm_m,nwaters,mbx_coords,json_file,eminus,ierr,water_model,use_cross)
       if (ierr /= 0) return
       qm_grad(ixyz,iatom) = (eplus - eminus)/(2.0d0*fd_step_bohr)
     enddo
@@ -694,21 +860,24 @@ subroutine get_quick_mbx_energy_gradients_fd_water(qm_coords, nwaters, mbx_coord
       mbx_m(:,:) = mbx_coords(:,:)
       mbx_p(ixyz,iatom) = mbx_p(ixyz,iatom) + disp_ang
       mbx_m(ixyz,iatom) = mbx_m(ixyz,iatom) - disp_ang
-      call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_p,json_file,eplus,ierr)
+      call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_p,json_file,eplus,ierr,water_model,use_cross)
       if (ierr /= 0) return
-      call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_m,json_file,eminus,ierr)
+      call evaluate_quick_mbx_water_energy(qm_coords,nwaters,mbx_m,json_file,eminus,ierr,water_model,use_cross)
       if (ierr /= 0) return
       mbx_grad(ixyz,iatom) = (eplus - eminus)/(2.0d0*fd_step_bohr)
     enddo
   enddo
 
   ! Leave MBX in the undisplaced geometry for callers that reuse the job.
-  call set_quick_mbx_water_system(nwaters,mbx_coords,json_file,ierr)
+  call set_quick_mbx_water_system(nwaters,mbx_coords,json_file,ierr,water_model)
+  if (ierr == 0 .and. use_cross) call set_quick_mbx_water_cross_residual(1,qm_coords,nwaters, &
+     mbx_coords,json_file,ierr,water_model)
 
 end subroutine get_quick_mbx_energy_gradients_fd_water
 
 
-subroutine evaluate_quick_mbx_water_energy(qm_coords, nwaters, mbx_coords, json_file, energy, ierr)
+subroutine evaluate_quick_mbx_water_energy(qm_coords, nwaters, mbx_coords, json_file, energy, ierr, &
+           water_model,include_cross_residual)
 
   implicit none
 
@@ -718,6 +887,8 @@ subroutine evaluate_quick_mbx_water_energy(qm_coords, nwaters, mbx_coords, json_
   character(len=*), intent(in) :: json_file
   double precision, intent(out) :: energy
   integer, intent(out) :: ierr
+  character(len=*), intent(in), optional :: water_model
+  logical, intent(in) :: include_cross_residual
 
   double precision, allocatable :: no_point_charges(:,:)
 
@@ -726,8 +897,12 @@ subroutine evaluate_quick_mbx_water_energy(qm_coords, nwaters, mbx_coords, json_
 
   call clear_quick_mbx_system(ierr)
   if (ierr /= 0) return
-  call set_quick_mbx_water_system(nwaters,mbx_coords,json_file,ierr)
+  call set_quick_mbx_water_system(nwaters,mbx_coords,json_file,ierr,water_model)
   if (ierr /= 0) return
+  if (include_cross_residual) then
+    call set_quick_mbx_water_cross_residual(1,qm_coords,nwaters,mbx_coords,json_file,ierr,water_model)
+    if (ierr /= 0) return
+  endif
 
   allocate(no_point_charges(4,0), stat=ierr)
   if (ierr /= 0) return
@@ -1152,6 +1327,17 @@ subroutine delete_quick_api_type(self,ierr)
   if ( allocated(self%atomic_numbers)) deallocate(self%atomic_numbers, stat=ierr)
   if ( allocated(self%coords))         deallocate(self%coords, stat=ierr)
   if ( allocated(self%gradient))          deallocate(self%gradient, stat=ierr)
+
+  ! A subsequent setQuickJob call starts a new calculation, not an MD step.
+  self%apiMode = .false.
+  self%firstStep = .true.
+  self%mdstep = 1
+  self%step = 1
+  self%natoms = 0
+  self%natm_type = 0
+  self%nxt_ptchg = 0
+  self%hasKeywd = .false.
+  self%density_ready = .false.
 
 end subroutine delete_quick_api_type
 
