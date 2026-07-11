@@ -1,4 +1,4 @@
-\documentclass[journal=jctcce,manuscript=article]{achemso}
+\documentclass[journal=jctcce,manuscript=article,email=false]{achemso}
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -14,15 +14,11 @@
 
 \SectionNumbersOn
 
-\title{Application Note: On-the-Fly Electrostatic Potentials, Electric Fields, and Field Gradients for Microdroplet Chemistry in QUICK}
+\title{Trajectory-Resolved Local Electrostatics in Reactive Aqueous and Microdroplet Environments with QUICK}
 
 \author{Etienne Palos}
 \affiliation{Department of Chemistry, Michigan State University, East Lansing, Michigan, United States}
-\alsoaffiliation{TODO: Add complete affiliation list}
-\email{TODO: email}
-
-\author{TODO: Coauthors}
-\affiliation{TODO: Affiliations}
+% Add complete affiliations, correspondence email (and restore email=true), and coauthors before submission.
 
 \keywords{electrostatic potential, electric field, electric field gradient, microdroplet chemistry, air-water interface, ab initio molecular dynamics, trajectory analysis, Gaussian basis sets, QUICK}
 
@@ -42,10 +38,10 @@ molecular trajectories.  The target application is trajectory-resolved
 microdroplet chemistry, where interfacial charge separation, partial
 solvation, photochemical channels, and heterogeneous local fields have
 been proposed to control reactivity.  The same post-SCF property engine is
-exposed through a no-I/O library API, allowing external molecular dynamics
-drivers or trajectory-analysis tools to request ESP/EFIELD/EFG immediately
-after each converged single-point, geometry-optimization, or
-Born-Oppenheimer molecular dynamics step.  The tensor convention is
+exposed through a no-I/O library API.  A deterministic CPU
+Born--Oppenheimer molecular-dynamics driver now requests ESP/EFIELD/EFG
+immediately after each accepted analytic-gradient step, before the density
+is replaced by the next SCF calculation.  The tensor convention is
 explicitly defined as
 \(E_i(\mathbf{C})=-\partial V(\mathbf{C})/\partial C_i\) and
 \(G_{ij}(\mathbf{C})=\partial E_i(\mathbf{C})/\partial C_j\), the negative
@@ -57,10 +53,12 @@ accelerator-host validation.  File-based and no-I/O API
 evaluations agree to better than \(5\times10^{-9}\) a.u. for a water
 RHF/STO-3G validation grid, and analytic EFG agrees with a central
 finite-difference EFIELD reference to approximately \(10^{-9}\) a.u. in
-the current regression case.  We outline an on-the-fly AIMD workflow for
-converting electronic trajectories into time series of local potentials,
-fields, field magnitudes, tensor traces, Frobenius norms, and
-anisotropies at chemically selected probes.
+the current regression case.  In the new dynamics validation, on-the-fly
+and independently post-processed properties agree within
+\(1.6\times10^{-13}\) a.u.; a split restart reproduces final properties
+within \(9.8\times10^{-15}\) a.u.  The resulting time series include local
+potentials, fields, field magnitudes, tensor invariants, EFG eigenvalues,
+and chemically selected coordinates.
 \end{abstract}
 
 \section{Introduction}
@@ -174,6 +172,8 @@ as a reference path.
     surface keywords for ESP, EFIELD, and EFG.
   \item A no-I/O API routine, \keyword{getQuickOEPROP}, that evaluates
     ESP, EFIELD, and/or EFG after a converged API energy or gradient call.
+  \item A no-I/O \keyword{getQuickDensitySurface} routine that returns
+    density-isosurface coordinates to a caller without property-file I/O.
 \end{enumerate}
 
 The no-I/O API has the form
@@ -204,32 +204,54 @@ on the master rank after the electronic reduction.
 
 \section{Trajectory and AIMD Workflow}
 
-The intended AIMD use pattern is post-SCF and frame local:
-\begin{enumerate}
-  \item Converge the electronic structure for the current geometry.
-  \item Define probe points in a fixed laboratory frame, in a
-    molecule-attached local frame, or on a generated density isosurface.
-  \item Evaluate ESP/EFIELD/EFG at those points using the file path or
-    \keyword{getQuickOEPROP}.
-  \item Append compact descriptors to a trajectory CSV or binary analysis
-    file.
-  \item Continue to the next geometry or dynamics step.
-\end{enumerate}
-For externally generated trajectories, this workflow is trajectory
-post-processing.  For an external MD or QM/MM driver linked against the
-\quick{} API, the same call is on-the-fly because properties are requested
-immediately after each SCF or gradient evaluation.  A native \quick{} BOMD
-driver can use the same hook once the integration, restart, and energy
-conservation infrastructure is in place.
+The CPU dynamics driver uses velocity Verlet in atomic units.  Given
+positions \(\mathbf{R}^{n}\), velocities \(\mathbf{v}^{n}\), masses
+\(M_A\), and analytic gradients
+\(\mathbf{g}^{n}=\partial E/\partial\mathbf{R}^{n}\), one accepted step is
+\begin{align}
+ \mathbf{v}^{n+1/2}_A
+ &=\mathbf{v}^{n}_A-\frac{\Delta t}{2M_A}\mathbf{g}^{n}_A,\\
+ \mathbf{R}^{n+1}_A
+ &=\mathbf{R}^{n}_A+\Delta t\,\mathbf{v}^{n+1/2}_A,\\
+ \mathbf{v}^{n+1}_A
+ &=\mathbf{v}^{n+1/2}_A-\frac{\Delta t}{2M_A}\mathbf{g}^{n+1}_A.
+ \label{eq:velocity_verlet}
+\end{align}
+Immediately after the energy-and-gradient API call at
+\(\mathbf{R}^{n+1}\), the converged density is still resident in memory.
+The driver constructs the requested probes and calls
+\keyword{getQuickOEPROP} before advancing to the next geometry.  Thus each
+accepted step contains one SCF calculation, one analytic gradient, and one
+post-SCF OEPROP contraction; no SCF calculation is repeated for the
+properties.
 
-The validation trajectory driver writes one row per frame and probe point.
-The current CSV columns are:
+Four probe maps are implemented.  Fixed probes satisfy
+\(\mathbf{C}_p(t)=\mathbf{C}_p^0\).  Atom-offset probes satisfy
+\begin{equation}
+ \mathbf{C}_p(t)=\mathbf{R}_{A_p}(t)+\mathbf{d}_p.
+\end{equation}
+For a molecule-attached frame, three anchor atoms define an orthonormal
+matrix \(\mathbf{Q}(t)\in\mathbb{R}^{3\times3}\), and
+\begin{equation}
+ \mathbf{C}_p(t)=\mathbf{R}_{A_1}(t)+\mathbf{Q}(t)\mathbf{u}_p,
+ \qquad \mathbf{u}_p\in\mathbb{R}^{3}.
+ \label{eq:body_probe}
+\end{equation}
+Finally, density-surface probes are regenerated from
+\(\rho(\mathbf{C}_p;t)=\rho_0\) after each accepted SCF.  The number of
+surface probes may therefore vary with time.
+
+The driver supports deterministic initial velocities, physical atomic
+masses, optional frozen atoms, NVE energy accounting, XYZ output, and a
+text checkpoint after every accepted step.  A restart preserves the
+absolute step, time step, coordinates, velocities, frozen-atom mask, and
+reference NVE energy.  The property CSV stores one row per step and probe:
 \begin{verbatim}
-frame,probe,energy_hartree,x_ang,y_ang,z_ang,esp,
-efield_x,efield_y,efield_z,efield_mag,
-efg_xx,efg_xy,efg_xz,efg_yx,efg_yy,efg_yz,
-efg_zx,efg_zy,efg_zz,efg_trace,
-efg_frobenius,efg_anisotropy
+step,time_fs,probe,probe_mode,reaction_coordinate_ang,
+x_ang,y_ang,z_ang,esp,efield_x,efield_y,efield_z,
+efield_mag,efg_xx,...,efg_zz,efg_trace,efg_frobenius,
+efg_eigenvalue_1,efg_eigenvalue_2,efg_eigenvalue_3,
+efg_anisotropy
 \end{verbatim}
 The tensor anisotropy is reported as the rotationally invariant deviatoric
 norm,
@@ -282,6 +304,37 @@ and density-surface points gives maximum absolute differences of
 \(4.2\times10^{-6}\) a.u. or smaller across ESP, EFIELD, and EFG test
 sets, with stricter \(10^{-8}\) a.u. agreement for the
 water RHF/STO-3G surface cases.
+
+The deterministic BOMD/OEPROP validation is summarized in
+Table~\ref{tab:bomd_validation}.  The fixed-probe test uses four accepted
+water RHF/STO-3G steps at \(\Delta t=0.05\)~fs.  Independent
+post-processing reads the written XYZ trajectory, reconverges each frame,
+and evaluates the same fixed probes.  Restart validation compares an
+uninterrupted four-step run with two two-step segments.  Additional smoke
+tests exercise all probe maps, a nine-atom water trimer, and
+PBE0-D3/def2-SVPD.
+
+\begin{table}[htbp]
+\centering
+\caption{CPU BOMD and on-the-fly OEPROP validation on the Apple M4 Pro development host.}
+\begin{tabular}{lc}
+\toprule
+Metric & Result \\
+\midrule
+Water NVE maximum drift & \(1.09\times10^{-7}\ E_h\) \\
+On-the-fly vs post-processed OEPROP & \(1.59\times10^{-13}\) a.u. \\
+Restart coordinate difference & \(4.52\times10^{-14}\) \AA{} \\
+Restart velocity difference & \(2.06\times10^{-14}\) a.u. \\
+Restart OEPROP difference & \(9.77\times10^{-15}\) a.u. \\
+Serial vs two-rank MPI OEPROP & \(4.00\times10^{-15}\) a.u. \\
+Water-trimer NVE maximum drift & \(7.80\times10^{-9}\ E_h\) \\
+PBE0-D3/def2-SVPD NVE drift (one step) & \(1.10\times10^{-9}\ E_h\) \\
+EFG off-diagonal asymmetry & \(1.11\times10^{-16}\) a.u. \\
+EFG eigenvalue-sum error & \(1.39\times10^{-17}\) a.u. \\
+\bottomrule
+\end{tabular}
+\label{tab:bomd_validation}
+\end{table}
 
 \section{GPU and Performance Considerations}
 
@@ -344,12 +397,13 @@ charge-model representations of reactive interfaces.
 \section{Limitations and Outlook}
 
 The present workflow should be described carefully.  \quick{} can evaluate
-ESP, EFIELD, and EFG after each converged energy or gradient call and
-exposes that capability through a no-I/O API.  This is sufficient for
-trajectory post-processing and for on-the-fly property emission by an
-external driver.  It is not yet a complete native AIMD package with
-thermostats, restartable dynamics, and automated OEPROP output at every
-step.
+ESP, EFIELD, and EFG after each converged energy or gradient call, and the
+new external API driver provides restartable NVE BOMD with automated
+OEPROP output at every accepted step.  It is not a general dynamics suite:
+there is no thermostat, barostat, constraint integrator, path-integral
+propagation, or distributed trajectory scheduler.  Those features are
+better supplied by a mature external dynamics framework unless a
+compelling native use case emerges.
 
 The next development steps are:
 \begin{enumerate}
@@ -359,9 +413,9 @@ The next development steps are:
   \item benchmark OEPROP overhead on realistic AIMD probe sets, for
     example reactive water clusters, nanodroplet models, and interfacial
     slabs;
-  \item add native BOMD hooks that call \keyword{getQuickOEPROP} after
-    each accepted step;
-  \item extend validation from small fixed water trajectories to
+  \item connect the same callback contract to established external
+    dynamics engines where thermostats and constraints are required;
+  \item extend validation from small deterministic water trajectories to
     finite-temperature AIMD trajectories of surface and interior water
     environments;
   \item add small reactive microdroplet benchmarks, such as peroxide,
@@ -369,22 +423,20 @@ The next development steps are:
   \item document sign, origin, and unit conventions in every trajectory
     output file.
 \end{enumerate}
-These steps would turn the present validated property and API machinery
-into a publishable AIMD electrostatics workflow for local fields and field
-gradients in chemically heterogeneous environments, with microdroplet
-chemistry as the first application domain.
+These steps would extend the present validated CPU machinery into the
+large-scale application data needed for an AIMD electrostatics paper, with
+microdroplet chemistry as the first application domain.
 
 \section{Data and Software Availability}
 
 The implementation is under development in \quick{}.  Validation inputs,
-API drivers, and trajectory-analysis scripts are included in the OEPROP API
-and GPU OEPROP validation directories of the development tree.  TODO: add
-repository URL, commit hash, archived release DOI, and exact build
-instructions for the submitted version.
+API drivers, restart tests, scheduler templates, and trajectory-analysis
+scripts are included under \path{validation/oeprop_api} and
+\path{validation/oeprop_bomd}.  The repository URL, archived release DOI,
+commit hash, and exact build instructions will be supplied for the
+submitted version.
 
-\begin{acknowledgement}
-TODO: Add funding, computing, and contributor acknowledgments.
-\end{acknowledgement}
+% Add funding, computing, and contributor acknowledgments before submission.
 
 \bibliography{quick_oeprop_aimd_application_note_refs}
 
