@@ -20,7 +20,7 @@
 \affiliation{Department of Chemistry, Michigan State University, East Lansing, Michigan, United States}
 % Add complete affiliations, correspondence email (and restore email=true), and coauthors before submission.
 
-\keywords{electrostatic potential, electric field, electric field gradient, microdroplet chemistry, air-water interface, ab initio molecular dynamics, trajectory analysis, Gaussian basis sets, QUICK}
+\keywords{electrostatic potential, electric field, electric field gradient, microdroplet chemistry, proton-coupled electron transfer, air-water interface, ab initio molecular dynamics, trajectory analysis, Gaussian basis sets, QUICK}
 
 \begin{document}
 
@@ -87,6 +87,16 @@ This creates a practical need for quantum-mechanical tools that can report
 not only energies and structures, but also the instantaneous scalar,
 vector, and tensor electrostatic environment experienced by reactive
 sites.
+
+Proton-coupled electron transfer (PCET) is a particularly demanding target
+for this analysis.  Solvent and interfacial fluctuations change the
+proton donor--acceptor geometry, the local field projected along the
+proton-transfer axis, and the energy gap between reactant and product
+electronic states.  These electrostatic descriptors are mechanistically
+useful, but they are not by themselves a PCET rate theory.  A
+vibronically nonadiabatic rate additionally requires diabatic proton
+potential-energy profiles, electronic coupling, reaction free energy,
+reorganization energy, and a donor--acceptor distance distribution.\cite{HutchisonCuiPCET2025}
 
 Trajectory-resolved electrostatics are especially useful because many
 chemical environments are intrinsically dynamic.  Recent molecular
@@ -394,6 +404,81 @@ and tensor descriptors for testing field-driven mechanistic hypotheses in
 microdroplet chemistry and for constructing machine-learning or
 charge-model representations of reactive interfaces.
 
+\subsection{PCET and electrochemical extension}
+
+For a proton donor D, acceptor A, and transferring proton H, two natural
+trajectory coordinates are
+\begin{equation}
+  R_{\mathrm{DA}}
+  =|\mathbf R_{\mathrm A}-\mathbf R_{\mathrm D}|,
+  \qquad
+  \xi_{\mathrm H}
+  =|\mathbf R_{\mathrm H}-\mathbf R_{\mathrm D}|
+  -|\mathbf R_{\mathrm H}-\mathbf R_{\mathrm A}|.
+\end{equation}
+Writing
+\(\widehat{\mathbf R}_{\mathrm{DA}}
+=(\mathbf R_{\mathrm A}-\mathbf R_{\mathrm D})/R_{\mathrm{DA}}\),
+the present OEPROP tensors also define the projected descriptors
+\begin{equation}
+  E_{\parallel}(\mathbf C)
+  =\widehat{\mathbf R}_{\mathrm{DA}}\!\cdot\!\mathbf E(\mathbf C),
+  \qquad
+  G_{\parallel\parallel}(\mathbf C)
+  =\widehat{\mathbf R}_{\mathrm{DA}}^{\mathsf T}
+   \mathbf G(\mathbf C)
+   \widehat{\mathbf R}_{\mathrm{DA}}.
+\end{equation}
+An off-nuclear potential difference
+\(\Delta V_{\mathrm{DA}}=V(\mathbf C_{\mathrm A})
+-V(\mathbf C_{\mathrm D})\) completes a compact electrostatic descriptor
+set. Probe points exactly on nuclei require an explicit self-source
+exclusion convention; a singular nuclear term must not be defined only by
+an implementation cutoff.
+
+These quantities can be correlated with a vertical state-energy gap
+\begin{equation}
+  \Delta U(\mathbf Q)
+  =U_{\mathrm P}(\mathbf Q)-U_{\mathrm R}(\mathbf Q),
+\end{equation}
+where \(U_{\mathrm R}\) and \(U_{\mathrm P}\) are separately converged
+reactant and product electronic states in environment \(\mathbf Q\).
+External packages such as \texttt{pyPCET} can then solve the proton
+vibrational problem and evaluate nonadiabatic rates and kinetic isotope
+effects, but only after \(U_{\mathrm R}\), \(U_{\mathrm P}\), the
+electronic coupling \(V_{\mathrm{el}}\), \(\Delta G^0\), \(\lambda\),
+and \(P(R_{\mathrm{DA}})\) have been supplied and validated.\cite{HutchisonCuiPCET2025}
+
+The \texttt{aseMECP} prototype illustrates a useful orchestration model:
+two ASE calculators provide state-specific energies and forces to a
+penalty-function crossing optimization.  For \quick{}, however, the
+essential prerequisite is not the outer optimizer.  It is an ASE
+calculator plus stable diabatic-state definitions.  Simple redox states
+that differ by total electron number can be used for an initial
+electrochemical benchmark; general same-electron-number PCET requires
+constrained DFT or another validated localization and state-tracking
+method, together with an electronic-coupling prescription.
+
+Applied-potential modeling introduces a further distinction.  The current
+uniform external field is a controlled molecular perturbation, not a
+constant-potential electrode.  A heterogeneous electrochemical workflow
+may additionally require an electric-double-layer potential, electrode
+density of states and Fermi weighting, and integration over electrode
+energies, as demonstrated in the electrochemical examples distributed
+with \texttt{pyPCET}.  A general spatial external potential and its
+analytic gradient are therefore useful intermediate targets, whereas
+periodic or grand-canonical electrode electronic structure remains an
+external or longer-term capability.  The pH-dependent kinetic model of
+Cui and co-workers belongs downstream of this microscopic calculation,
+after acid/association constants, redox potentials, and channel rate
+constants are independently established.\cite{CuiPHTKinetics2023}
+
+The related \texttt{pyPCEnT} package requires ground-, reactant-, and
+product-state proton potentials together with donor-emission and
+acceptor-absorption line shapes.\cite{CuiPCEnT2024}  It is therefore a
+later excited-state and photochemical extension, rather than a near-term
+ground-state OEPROP deliverable.
+
 \section{Limitations and Outlook}
 
 The present workflow should be described carefully.  \quick{} can evaluate
@@ -415,12 +500,25 @@ The next development steps are:
     slabs;
   \item connect the same callback contract to established external
     dynamics engines where thermostats and constraints are required;
+  \item add PCET-aware donor/acceptor/proton selections and report
+    \(R_{\mathrm{DA}}\), \(\xi_{\mathrm H}\),
+    \(E_{\parallel}\), \(G_{\parallel\parallel}\), and off-nuclear
+    \(\Delta V_{\mathrm{DA}}\), with an explicit self-source exclusion
+    contract;
+  \item implement and validate a QUICK ASE calculator for separate
+    reactant and product energy/force workers and pyPCET-compatible proton
+    surface exports;
+  \item complete analytic gradients under the existing finite external
+    field, then define a general external-potential API without conflating
+    it with a constant-potential electrode;
+  \item develop constrained-state/state-tracking and electronic-coupling
+    methods before attempting general MECP optimization or PCET rates;
   \item extend validation from small deterministic water trajectories to
     finite-temperature AIMD trajectories of surface and interior water
     environments;
-  \item add small reactive microdroplet benchmarks, such as peroxide,
-    thiol, halide, or proton-transfer motifs at finite water interfaces;
-  \item document sign, origin, and unit conventions in every trajectory
+  \item add a small interfacial proton-transfer benchmark, without
+    claiming a rate until all rate-theory inputs are available;
+  \item document sign, origin, source-exclusion, and unit conventions in every trajectory
     output file.
 \end{enumerate}
 These steps would extend the present validated CPU machinery into the
