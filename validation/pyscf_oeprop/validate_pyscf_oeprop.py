@@ -13,6 +13,7 @@ the generated property files to PySCF values on the same points.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import math
@@ -328,7 +329,7 @@ def write_csv(path: Path, rows: Iterable[dict]) -> None:
     if not rows:
         return
     with path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -430,15 +431,25 @@ def replace_external_field(text: str, value: float) -> str:
 
 def main() -> int:
     here = Path(__file__).resolve().parent
-    repo = here.parents[1]
-    results_dir = here / "results"
-    work_dir = here / "work"
-    figures_dir = here / "figures"
-    results_dir.mkdir(exist_ok=True)
-    work_dir.mkdir(exist_ok=True)
-    figures_dir.mkdir(exist_ok=True)
+    default_repo = here.parents[1]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo-root", type=Path, default=default_repo)
+    parser.add_argument("--quick", type=Path)
+    parser.add_argument("--workdir", type=Path, default=here / "work")
+    parser.add_argument("--results-dir", type=Path, default=here / "results")
+    parser.add_argument("--figures-dir", type=Path, default=here / "figures")
+    parser.add_argument("--no-copy-paper-figure", action="store_true")
+    args = parser.parse_args()
 
-    quick_exe = repo / "build-serial" / "src" / "quick"
+    repo = args.repo_root.resolve()
+    results_dir = args.results_dir.resolve()
+    work_dir = args.workdir.resolve()
+    figures_dir = args.figures_dir.resolve()
+    results_dir.mkdir(parents=True, exist_ok=True)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    quick_exe = args.quick.resolve() if args.quick else repo / "build-serial" / "src" / "quick"
     if not quick_exe.exists():
         raise FileNotFoundError(f"Serial QUICK executable not found: {quick_exe}")
 
@@ -585,7 +596,7 @@ def main() -> int:
     write_markdown(results_dir / "pyscf_validation_summary.md", summary, metric_rows)
     figure_path = figures_dir / "pyscf_validation_scatter.pdf"
     make_scatter_figure(figure_path, scatter)
-    if figure_path.exists():
+    if figure_path.exists() and not args.no_copy_paper_figure:
         paper_figures = repo / "paper" / "figures"
         paper_figures.mkdir(exist_ok=True)
         shutil.copy2(figure_path, paper_figures / figure_path.name)

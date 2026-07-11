@@ -15,10 +15,10 @@ Finite-difference step for PySCF EFIELD/EFG: `5.0e-04` bohr
 
 | Comparison | Values | Max abs. | RMS | Tolerance | Pass |
 |---|---:|---:|---:|---:|:---:|
-| external ESP_GRID acetone PBE0-D3BJ/cc-pVDZ | 663 | 4.110e-06 | 8.528e-07 | 1.0e-05 | yes |
+| external ESP_GRID acetone PBE0-D3BJ/cc-pVDZ | 663 | 4.086e-06 | 8.640e-07 | 1.0e-05 | yes |
 | external EFIELD_GRID acetone PBE0-D3BJ/cc-pVDZ | 1989 | 2.400e-06 | 2.974e-07 | 5.0e-06 | yes |
 | external EFG_GRID acetone PBE0-D3BJ/cc-pVDZ | 5967 | 1.510e-06 | 1.689e-07 | 1.0e-05 | yes |
-| surface ESP_SURFACE H2O RHF/STO-3G | 62 | 2.582e-07 | 1.438e-07 | 5.0e-06 | yes |
+| surface ESP_SURFACE H2O RHF/STO-3G | 62 | 3.523e-08 | 1.782e-08 | 5.0e-06 | yes |
 | surface EFIELD_SURFACE H2O RHF/STO-3G | 186 | 3.123e-08 | 1.108e-08 | 5.0e-06 | yes |
 | surface EFG_SURFACE H2O RHF/STO-3G | 558 | 4.114e-08 | 1.136e-08 | 1.0e-05 | yes |
 | finite field H2O RHF/STO-3G +Fx energy | 1 | 2.158e-08 | 2.158e-08 | 1.0e-06 | yes |

@@ -10,7 +10,7 @@ import math
 import os
 from pathlib import Path
 import re
-import shutil
+import shlex
 import subprocess
 import sys
 
@@ -93,7 +93,14 @@ def extract_api_components(rows: list[dict[str, float]]) -> dict[str, list[float
     return {"esp": esp, "efield": efield, "efg": efg}
 
 
-def validate(quick: Path, api_driver: Path, workdir: Path, repo_root: Path, tolerance: float) -> dict[str, object]:
+def validate(
+    quick: Path,
+    api_driver: Path,
+    workdir: Path,
+    repo_root: Path,
+    tolerance: float,
+    launcher: list[str],
+) -> dict[str, object]:
     workdir.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
     if "QUICK_BASIS" not in env:
@@ -103,10 +110,10 @@ def validate(quick: Path, api_driver: Path, workdir: Path, repo_root: Path, tole
 
     input_name = "oeprop_file_reference.in"
     write_file_based_input(workdir / input_name)
-    run([str(quick), input_name], workdir, env, workdir / "quick_file_reference.log")
+    run(launcher + [str(quick), input_name], workdir, env, workdir / "quick_file_reference.log")
 
     api_csv = workdir / "oeprop_api_validation.csv"
-    run([str(api_driver), "validate", str(api_csv)], workdir, env, workdir / "api_validation.log")
+    run(launcher + [str(api_driver), "validate", str(api_csv)], workdir, env, workdir / "api_validation.log")
 
     file_esp = flat(parse_property_file(workdir / "oeprop_file_reference.esp", 1))
     file_efield = flat(parse_property_file(workdir / "oeprop_file_reference.efield", 3))
@@ -121,7 +128,7 @@ def validate(quick: Path, api_driver: Path, workdir: Path, repo_root: Path, tole
 
     trajectory_csv = workdir / "oeprop_trajectory.csv"
     run(
-        [
+        launcher + [
             str(api_driver),
             "trajectory",
             str(repo_root / "validation/oeprop_api/water_trajectory_3frames.xyz"),
@@ -147,6 +154,7 @@ def validate(quick: Path, api_driver: Path, workdir: Path, repo_root: Path, tole
         "tolerance": tolerance,
         "quick": str(quick),
         "api_driver": str(api_driver),
+        "launcher": launcher,
         "workdir": str(workdir),
         "comparisons": comparisons,
         "outputs": {
@@ -166,9 +174,21 @@ def main() -> int:
     parser.add_argument("--workdir", type=Path, default=Path("/private/tmp/quick_oeprop_api_validation"))
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--tolerance", type=float, default=2.0e-7)
+    parser.add_argument(
+        "--launcher",
+        default="",
+        help='Optional command prefix, for example "mpirun -np 2".',
+    )
     args = parser.parse_args()
 
-    summary = validate(args.quick.resolve(), args.api_driver.resolve(), args.workdir.resolve(), args.repo_root.resolve(), args.tolerance)
+    summary = validate(
+        args.quick.resolve(),
+        args.api_driver.resolve(),
+        args.workdir.resolve(),
+        args.repo_root.resolve(),
+        args.tolerance,
+        shlex.split(args.launcher),
+    )
     print(json.dumps(summary, indent=2))
     return 0 if summary["passed"] else 1
 
