@@ -19,7 +19,7 @@ endif()
 # --------------------------------------------------------------------
 
 set(QUICK_MODULES_SOURCES
-	quick_mpi_module.f90 quick_constants_module.f90 quick_method_module.f90
+	quick_mpi_module.f90 quick_constants_module.f90 quick_os_attraction_module.f90 quick_method_module.f90
 	quick_molspec_module.f90 quick_gaussian_class_module.f90 quick_size_module.f90
 	quick_basis_module.f90 quick_calculated_module.f90 quick_magma_module.f90 quick_overlap_module.f90
 	quick_divcon_module.f90 quick_ecp_module.f90 quick_electrondensity_module.f90

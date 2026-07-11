@@ -431,7 +431,7 @@ subroutine add_point_charge_operator(nsites,site_xyz_bohr,site_charge_e)
    double precision, intent(in) :: site_xyz_bohr(3,nsites)
    double precision, intent(in) :: site_charge_e(nsites)
 
-   integer :: isite, ish
+   integer :: isite, ish, IIsh, JJsh
 
    if (nsites <= 0) return
 
@@ -469,23 +469,19 @@ subroutine add_point_dipole_field_operator(nsites,site_xyz_bohr,site_mu_au)
    !------------------------------------------------
    ! Add h_mu = -mu . E_mu_nu(C) for classical point
    ! dipoles to the lower triangle of the AO operator.
-   ! The current CPU path obtains the field operator as
-   ! a centered derivative of QUICK's point-charge OEI.
    !------------------------------------------------
    use allmod
 #ifdef MPIV
    use mpi
 #endif
 
-   implicit double precision(a-h,o-z)
+   implicit none
 
    integer, intent(in) :: nsites
    double precision, intent(in) :: site_xyz_bohr(3,nsites)
    double precision, intent(in) :: site_mu_au(3,nsites)
 
-   double precision, parameter :: DIPOLE_FD_STEP = 1.0d-4
-   integer :: isite, idir, ish
-   double precision :: xyz_disp(3), qscale
+   integer :: isite, ish, IIsh, JJsh
 
    if (nsites <= 0) return
 
@@ -495,17 +491,8 @@ subroutine add_point_dipole_field_operator(nsites,site_xyz_bohr,site_mu_au)
          IIsh=mpi_jshell(mpirank,ish)
          do JJsh=IIsh,jshell
             do isite=1,nsites
-               do idir=1,3
-                  if (abs(site_mu_au(idir,isite)) > 0.0d0) then
-                     qscale = site_mu_au(idir,isite)/(2.0d0*DIPOLE_FD_STEP)
-                     xyz_disp(:) = site_xyz_bohr(:,isite)
-                     xyz_disp(idir) = xyz_disp(idir) + DIPOLE_FD_STEP
-                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,qscale)
-                     xyz_disp(:) = site_xyz_bohr(:,isite)
-                     xyz_disp(idir) = xyz_disp(idir) - DIPOLE_FD_STEP
-                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,-qscale)
-                  endif
-               enddo
+               if (any(site_mu_au(:,isite) /= 0.0d0)) &
+                  call point_dipole_operator_shell_pair(IIsh,JJsh,site_xyz_bohr(:,isite),site_mu_au(:,isite))
             enddo
          enddo
       enddo
@@ -514,17 +501,8 @@ subroutine add_point_dipole_field_operator(nsites,site_xyz_bohr,site_mu_au)
       do IIsh=1,jshell
          do JJsh=IIsh,jshell
             do isite=1,nsites
-               do idir=1,3
-                  if (abs(site_mu_au(idir,isite)) > 0.0d0) then
-                     qscale = site_mu_au(idir,isite)/(2.0d0*DIPOLE_FD_STEP)
-                     xyz_disp(:) = site_xyz_bohr(:,isite)
-                     xyz_disp(idir) = xyz_disp(idir) + DIPOLE_FD_STEP
-                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,qscale)
-                     xyz_disp(:) = site_xyz_bohr(:,isite)
-                     xyz_disp(idir) = xyz_disp(idir) - DIPOLE_FD_STEP
-                     call point_charge_operator_shell_pair(IIsh,JJsh,xyz_disp,-qscale)
-                  endif
-               enddo
+               if (any(site_mu_au(:,isite) /= 0.0d0)) &
+                  call point_dipole_operator_shell_pair(IIsh,JJsh,site_xyz_bohr(:,isite),site_mu_au(:,isite))
             enddo
          enddo
       enddo
@@ -533,6 +511,95 @@ subroutine add_point_dipole_field_operator(nsites,site_xyz_bohr,site_mu_au)
 #endif
 
 end subroutine add_point_dipole_field_operator
+
+subroutine point_dipole_operator_shell_pair(IIsh,JJsh,dipole_xyz_bohr,mu)
+   use quick_overlap_module, only: opf
+   use quick_molspec_module, only: xyz
+   use quick_basis_module, only: quick_basis
+   use quick_method_module, only: quick_method
+   use quick_os_attraction_module, only: os_attraction_derivatives
+   use quick_calculated_module, only: quick_qm_struct
+   use quick_constants_module, only: Pi
+
+   implicit none
+
+   integer, intent(in) :: IIsh, JJsh
+   double precision, intent(in) :: dipole_xyz_bohr(3), mu(3)
+
+   integer :: ips, jps, L, Maxm, NII2, NJJ2
+   integer :: Iang, Jang, III, III1, III2, JJJ, JJJ1, JJJ2
+   integer :: NBI1, NBI2, NBJ1, NBJ2, lx1, ly1, lz1, lx2, ly2, lz2
+   double precision :: a, b, Ax, Ay, Az, Bx, By, Bz, Cx, Cy, Cz, g, U
+   double precision :: constant, PCsquare, Px, Py, Pz, inv_g, rABsquare, valopf
+   double precision :: contract_i, contract_ij, operator_value
+   double precision :: aux(0:20), deriv(10)
+
+   Ax=xyz(1,quick_basis%katom(IIsh))
+   Ay=xyz(2,quick_basis%katom(IIsh))
+   Az=xyz(3,quick_basis%katom(IIsh))
+   Bx=xyz(1,quick_basis%katom(JJsh))
+   By=xyz(2,quick_basis%katom(JJsh))
+   Bz=xyz(3,quick_basis%katom(JJsh))
+   Cx=dipole_xyz_bohr(1)
+   Cy=dipole_xyz_bohr(2)
+   Cz=dipole_xyz_bohr(3)
+
+   NII2=quick_basis%Qfinal(IIsh)
+   NJJ2=quick_basis%Qfinal(JJsh)
+   Maxm=NII2+NJJ2+2
+   rABsquare=(Ax-Bx)**2 + (Ay-By)**2 + (Az-Bz)**2
+
+   do ips=1,quick_basis%kprim(IIsh)
+      a=quick_basis%gcexpo(ips,quick_basis%ksumtype(IIsh))
+      do jps=1,quick_basis%kprim(JJsh)
+         b=quick_basis%gcexpo(jps,quick_basis%ksumtype(JJsh))
+         valopf=opf(a,b,quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)), &
+            quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)),Ax,Ay,Az,Bx,By,Bz)
+         if (abs(valopf) <= quick_method%coreIntegralCutoff) cycle
+
+         g=a+b
+         inv_g=1.0d0/g
+         Px=(a*Ax+b*Bx)*inv_g
+         Py=(a*Ay+b*By)*inv_g
+         Pz=(a*Az+b*Bz)*inv_g
+         constant=dexp(-a*b*rABsquare*inv_g)*2.0d0*Pi*inv_g
+         PCsquare=(Px-Cx)**2+(Py-Cy)**2+(Pz-Cz)**2
+         U=g*PCsquare
+         call FmT(Maxm,U,aux)
+         aux(0:Maxm)=constant*aux(0:Maxm)
+
+         do Iang=quick_basis%Qstart(IIsh),quick_basis%Qfinal(IIsh)
+            contract_i=quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)+Iang)
+            NBI1=quick_basis%Qsbasis(IIsh,Iang)
+            NBI2=quick_basis%Qfbasis(IIsh,Iang)
+            III1=quick_basis%ksumtype(IIsh)+NBI1
+            III2=quick_basis%ksumtype(IIsh)+NBI2
+            do Jang=quick_basis%Qstart(JJsh),quick_basis%Qfinal(JJsh)
+               contract_ij=contract_i*quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)+Jang)
+               NBJ1=quick_basis%Qsbasis(JJsh,Jang)
+               NBJ2=quick_basis%Qfbasis(JJsh,Jang)
+               JJJ1=quick_basis%ksumtype(JJsh)+NBJ1
+               JJJ2=quick_basis%ksumtype(JJsh)+NBJ2
+               do III=III1,III2
+                  lx1=quick_basis%KLMN(1,III)
+                  ly1=quick_basis%KLMN(2,III)
+                  lz1=quick_basis%KLMN(3,III)
+                  do JJJ=max(III,JJJ1),JJJ2
+                     lx2=quick_basis%KLMN(1,JJJ)
+                     ly2=quick_basis%KLMN(2,JJJ)
+                     lz2=quick_basis%KLMN(3,JJJ)
+                     deriv=os_attraction_derivatives(lx1,ly1,lz1,lx2,ly2,lz2,0,aux, &
+                        Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+                     operator_value=-dot_product(mu,deriv(2:4))
+                     quick_qm_struct%o(JJJ,III)=quick_qm_struct%o(JJJ,III)+contract_ij* &
+                        quick_basis%cons(III)*quick_basis%cons(JJJ)*operator_value
+                  enddo
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+end subroutine point_dipole_operator_shell_pair
 
 subroutine point_charge_operator_shell_pair(IIsh,JJsh,charge_xyz_bohr,charge)
 
