@@ -1026,7 +1026,39 @@ energy/force CSV and XYZ trajectory.
 The CPU water implementation now has matching analytic energies and
 forces and can run short deterministic trajectories. The next work is to
 turn this validated method-development path into a production and
-publication workflow:
+publication workflow.
+
+Proton-coupled electron transfer is a natural application of the
+polarizable force machinery, but it introduces a state-specific contract.
+For reactant and product electronic states
+\(s\in\{\mathrm R,\mathrm P\}\), the hybrid calculation must independently
+converge both the QUICK density \(D_s\) and the MBX induced dipoles
+\(\boldsymbol\mu_s\):
+\begin{equation}
+  E_s
+  =E_{\mathrm{QM/MBX}}[D_s,\boldsymbol\mu_s;
+    \mathbf R_{\mathrm Q},\mathbf R_{\mathrm M}],
+  \qquad
+  \Delta U=E_{\mathrm P}-E_{\mathrm R}.
+\end{equation}
+Induced dipoles from one state must never be reused as the converged
+polarization of the other. Sampling \(\Delta U\) in reactant and product
+ensembles can provide reorganization information, while QUICK ESP,
+EFIELD, and EFG supply local environment descriptors along the proton
+donor--acceptor axis. This is a strong use of the present energy and force
+implementation.
+
+It is not, by itself, a complete nonadiabatic PCET method. The
+\texttt{pyPCET} rate implementation requires diabatic proton potentials,
+electronic coupling, reaction free energy, reorganization energy, and a
+donor--acceptor distance distribution. The \texttt{aseMECP} prototype can
+orchestrate two ASE energy/force calculators, but it cannot define or
+stabilize the underlying electronic states. General same-electron-number
+PCET therefore requires constrained DFT or another state-localization and
+tracking method, plus a validated coupling prescription, before crossing
+optimization or rate calculations are meaningful.
+
+The next implementation steps are:
 \begin{itemize}
   \item Replace water-specific convenience initialization with a validated
     general input/API schema for arbitrary MBX monomers and partitions.
@@ -1043,6 +1075,15 @@ publication workflow:
     initially.
   \item Extend cross-component initialization beyond water only where MBX
     exposes compatible 2B/3B/dispersion models and unambiguous monomer IDs.
+  \item Add a QUICK ASE calculator with separate persistent reactant and
+    product workers, then validate state-specific QUICK-MBX energies and
+    forces against direct API calls.
+  \item Add proton donor--acceptor and proton-coordinate scans with a
+    pyPCET-compatible Angstrom/eV export format and complete charge,
+    multiplicity, field, and environment metadata.
+  \item Use a first electrochemical benchmark whose molecular states differ
+    by total electron number; defer general MECP optimization until
+    constrained-state gradients and electronic couplings are available.
 \end{itemize}
 
 An MBX external ABI that accepts EFG could eventually absorb the explicit
@@ -1061,6 +1102,14 @@ the present stationary formulation end to end.
   \item The OpenMMPol Library for Polarizable QM/MM Calculations of
     Properties and Dynamics. 2024. \url{https://arxiv.org/abs/2401.14691}.
   \item MBX source and documentation. \url{https://github.com/paesanilab/MBX}.
+  \item Hutchison, P.; Cui, K.; Zhong, J.; Hammes-Schiffer, S.
+    Tutorial on computing nonadiabatic proton-coupled electron transfer
+    rate constants. J. Chem. Phys. 2025, 163, 091501.
+    DOI: 10.1063/5.0284337.
+  \item pyPCET source and documentation.
+    \url{https://github.com/kcui1995/pyPCET}.
+  \item aseMECP source and documentation.
+    \url{https://github.com/kcui1995/aseMECP}.
 \end{itemize}
 
 \end{document}
