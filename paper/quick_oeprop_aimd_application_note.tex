@@ -51,8 +51,9 @@ explicitly defined as
 \(G_{ij}(\mathbf{C})=\partial E_i(\mathbf{C})/\partial C_j\), the negative
 of the electrostatic-potential Hessian convention sometimes also denoted
 EFG.  CPU serial and MPI implementations are available for ESP, EFIELD,
-and analytic EFG; the existing GPU ESP path defines the accelerator
-template for EFIELD and EFG kernels.  File-based and no-I/O API
+and analytic EFG; development CUDA/HIP reference kernels extend the
+existing GPU ESP path to EFIELD and analytic EFG but still require
+accelerator-host validation.  File-based and no-I/O API
 evaluations agree to better than \(5\times10^{-9}\) a.u. for a water
 RHF/STO-3G validation grid, and analytic EFG agrees with a central
 finite-difference EFIELD reference to approximately \(10^{-9}\) a.u. in
@@ -105,8 +106,8 @@ electrostatic analysis along trajectories, with microdroplet and
 air-water-interface chemistry as the target use case.  The implementation
 is staged: external-grid and electron-density-surface ESP/EFIELD/EFG are
 available in the standard input/output path; the same kernels are exposed
-through a no-I/O API for trajectory and driver use; and GPU ESP already
-exists as the accelerator template for future GPU EFIELD and EFG kernels.
+through a no-I/O API for trajectory and driver use; and development GPU
+EFIELD and EFG kernels follow the established accelerator ESP design.
 We focus on the application interface, sign conventions, validation
 protocol, and data products needed to use these observables in AIMD-style
 studies of reactive interfacial environments.
@@ -189,14 +190,17 @@ efg(3,3,npoints)
 The API delegates all property evaluation to the same OEPROP kernels used
 by the file-based routes.  It returns a clean error when called before a
 converged density exists, when no output property is requested, or when the
-probe set is invalid.
+probe set is invalid.  In MPI builds the call is collective, and requested
+property arrays are broadcast after reduction so all ranks return the same
+values.
 
 The implementation uses the existing shell-pair decomposition in serial
 and MPI builds.  For MPI, each rank accumulates its owned electronic
 shell-pair contribution and the electronic property arrays are reduced over
 \(N_{\mathrm{grid}}\), \(3N_{\mathrm{grid}}\), or \(9N_{\mathrm{grid}}\)
 double-precision values for ESP, EFIELD, or EFG, respectively.  The direct
-nuclear terms are inexpensive and are evaluated on the host.
+nuclear and external point-charge terms are inexpensive and are added once
+on the master rank after the electronic reduction.
 
 \section{Trajectory and AIMD Workflow}
 
@@ -276,7 +280,7 @@ grid regression case, analytic and numerical EFG agree to approximately
 \(10^{-9}\) a.u.  Independent PySCF cross-code validation on external-grid
 and density-surface points gives maximum absolute differences of
 \(4.2\times10^{-6}\) a.u. or smaller across ESP, EFIELD, and EFG test
-sets, with stricter \(10^{-7}\)--\(10^{-8}\) a.u. agreement for the
+sets, with stricter \(10^{-8}\) a.u. agreement for the
 water RHF/STO-3G surface cases.
 
 \section{GPU and Performance Considerations}
@@ -292,11 +296,13 @@ a natural accelerator target.
 OEPROP calculations.  That path uploads grid coordinates and the converged
 density, evaluates the electronic attraction contribution on the
 accelerator, downloads the electronic property buffer, and adds the direct
-nuclear contribution on the host.  The planned GPU EFIELD and EFG kernels
-preserve the same host/device division, buffer ordering, and MPI reduction
-lengths as the CPU reference.  The acceptance target for the accelerator
-extension is CPU/GPU agreement for ESP, EFIELD, analytic EFG, and the
-numerical EFG reference on the existing OEPROP regression suite.
+nuclear contribution on the host.  Development EFIELD and analytic-EFG
+kernels now preserve the same host/device division, buffer ordering, and
+MPI reduction lengths as the CPU reference.  They use a validation-first
+recursive derivative implementation and have not been compiled or run on
+the Apple Silicon development host.  The acceptance target is CPU/GPU
+agreement for ESP, EFIELD, analytic EFG, and the numerical EFG reference on
+the existing OEPROP regression suite before performance claims are made.
 
 \section{Microdroplet-Chemistry Target}
 
@@ -347,8 +353,9 @@ step.
 
 The next development steps are:
 \begin{enumerate}
-  \item add production GPU EFIELD and EFG kernels using the existing GPU
-    ESP implementation as the template;
+  \item compile and validate the development GPU EFIELD and EFG kernels on
+    CUDA and HIP hosts, then replace the reference recurrence where
+    profiling justifies generated derivative tables;
   \item benchmark OEPROP overhead on realistic AIMD probe sets, for
     example reactive water clusters, nanodroplet models, and interfacial
     slabs;

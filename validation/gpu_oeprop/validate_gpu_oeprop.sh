@@ -6,7 +6,8 @@ set -euo pipefail
 #
 # Required environment:
 #   CPU_QUICK=/path/to/cpu/install/bin/quick
-#   GPU_QUICK=/path/to/gpu/install/bin/quick
+#   GPU_QUICK=/path/to/cuda/install/bin/quick.cuda
+#     (or /path/to/hip/install/bin/quick.hip)
 #   QUICK_BASIS=/path/to/install/basis
 #
 # Optional:
