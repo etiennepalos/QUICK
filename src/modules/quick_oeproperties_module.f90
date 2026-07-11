@@ -42,8 +42,7 @@ module quick_oeproperties_module
 #endif
    implicit none
 
-   logical fail
-   integer ierr, nbasis, alloc_status
+   integer :: alloc_status
 
    if (quick_method%ext_grid) then
       call compute_oeprop_grid(quick_molspec%nextpoint,quick_molspec%extpointxyz)
@@ -133,9 +132,12 @@ module quick_oeproperties_module
       
    ierr = 0
 
+   if (quick_method%esp_grid .or. quick_method%esp_charge) then
+     call compute_esp(npoints,xyz_points,esp_on_points)
+   endif
+
    ! Electrostatic Potential
    if (quick_method%esp_grid) then
-     call compute_esp(npoints,xyz_points,esp_on_points)
      ! Print ESP at external points
 #ifdef MPIV
      if (master) then
@@ -150,7 +152,6 @@ module quick_oeproperties_module
 
    ! Compute ESP charge using the MKS grid
    if (quick_method%esp_charge) then
-     call compute_esp(npoints,xyz_points,esp_on_points)
 #ifdef MPIV
      if (master) then
 #endif
@@ -223,9 +224,8 @@ module quick_oeproperties_module
  end subroutine compute_esp_values
 
 !--------------------------------------------------------------------!
-!   The subroutines esp_shell_pair, efield_shell_pair and            !
-!   esp_1pdm, efield_1pdm are present in ./include/attrashell.fh     !
-!   and ./include/nuclearattra.fh header files respectively.         !
+!   Shell-pair and density-contraction kernels are included from     !
+!   ./include/attrashell.fh and ./include/nuclearattra.fh.            !
 !                                                                    !
 !   The header files are called with OEPROP being defined.           !
 !--------------------------------------------------------------------!
@@ -239,10 +239,8 @@ module quick_oeproperties_module
  ! This is the subroutine that "computes" the Electrostatic Potential (ESP)   !
  ! at a given point , V(r) = V_nuc(r) + V_elec(r), and prints it to file.prop !
  !                                                                            !
- ! This subroutine is called from the main program.                           !
- ! It calls the following subroutines:                                        !
- !     1. esp_nuc: Computes the nuclear contribution to the ESP               !
- !     2. esp_shell_pair: Computes the electronic contribution to the ESP     !
+ ! This subroutine combines shell-pair electronic terms with direct           !
+ ! classical contributions from nuclei and external point charges.            !
  !----------------------------------------------------------------------------!
  subroutine compute_esp(npoints,xyz_points,esp)
    use quick_timer_module, only : timer_begin, timer_end, timer_cumer
@@ -261,60 +259,38 @@ module quick_oeproperties_module
    implicit none
    integer :: ierr, alloc_status
    integer :: IIsh, JJsh
-   integer :: igridpoint, npoints
+   integer :: npoints
 
-   double precision, allocatable :: esp_electronic(:),esp_nuclear(:)
    double precision, intent(in)  :: xyz_points(:,:)
    double precision, intent(out) :: esp(:)
 #ifdef MPIV
-   double precision, allocatable :: esp_electronic_aggregate(:)
+   double precision, allocatable :: esp_aggregate(:)
 #endif
    integer :: Ish
 
    ierr = 0
    
-   ! Allocates ESP_NUC and ESP_ELEC arrays
-   allocate(esp_nuclear(npoints), stat=alloc_status)
-
-   if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! esp_nuclear array reallocation failed in compute_esp!!')
-     call quick_exit(OUTFILEHANDLE,1)
-   endif
-      
-   allocate(esp_electronic(npoints), stat=alloc_status)
-
-   if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! esp_electronic array reallocation failed in compute_esp!!')
-     call quick_exit(OUTFILEHANDLE,1)
-   endif
-      
 #ifdef MPIV
-   allocate(esp_electronic_aggregate(npoints))
-
+   allocate(esp_aggregate(npoints), stat=alloc_status)
    if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! esp_electronic_aggregate array reallocation failed in compute_esp!!')
+     call PrtErr(OUTFILEHANDLE, '!! esp_aggregate array allocation failed in compute_esp!!')
      call quick_exit(OUTFILEHANDLE,1)
    endif
-      
 #endif
 
-   ! ESP_ELEC array need initialization as we will be iterating
-   ! over shells and updating ESP_ELEC.
-   esp_electronic(:) = 0.0d0
+   ! The caller-owned output is also the electronic accumulation workspace.
+   esp(:) = 0.0d0
 
    RECORD_TIME(timer_begin%TESPGrid)
 
-   ! Computes ESP_NUC 
-   call esp_nuc(npoints, xyz_points, esp_nuclear)
-
    ! Computes ESP_ELEC
 #if defined(GPU) || defined(MPIV_GPU)
-   call gpu_upload_oeprop(npoints, xyz_points, esp_electronic, ierr)
+   call gpu_upload_oeprop(npoints, xyz_points, esp, ierr)
    call gpu_upload_density_matrix(quick_qm_struct%dense)
    if (quick_method%UNRST) call gpu_upload_beta_density_matrix(quick_qm_struct%denseb)
-   call gpu_get_oeprop(esp_electronic)
+   call gpu_get_oeprop(esp)
 #if defined MPIV
-   call MPI_REDUCE(esp_electronic, esp_electronic_aggregate, npoints, &
+   call MPI_REDUCE(esp, esp_aggregate, npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
 #endif
    ! Sum over contributions from different shell pairs
@@ -324,44 +300,36 @@ module quick_oeproperties_module
    do Ish=1,mpi_jshelln(mpirank)
       IIsh=mpi_jshell(mpirank,Ish)
       do JJsh=IIsh,jshell
-         call esp_shell_pair(IIsh, JJsh, npoints, xyz_points, esp_electronic)
+         call esp_shell_pair(IIsh, JJsh, npoints, xyz_points, esp)
       enddo
    enddo
-   ! MPI_REDUCE is called to sum over esp_electronic obtained from all the processes
-   call MPI_REDUCE(esp_electronic, esp_electronic_aggregate, npoints, &
+   call MPI_REDUCE(esp, esp_aggregate, npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
 #else
    do IIsh = 1, jshell
       do JJsh = IIsh, jshell
-        call esp_shell_pair(IIsh, JJsh, npoints, xyz_points, esp_electronic)
+        call esp_shell_pair(IIsh, JJsh, npoints, xyz_points, esp)
       end do
    end do
 #endif
 
-   ! Sum the nuclear and electronic part of ESP
+   ! Add nuclei and external point charges once, after the MPI reduction.
 #ifdef MPIV
    if (master) then
-#endif
-   do igridpoint=1,npoints
-#ifdef MPIV
-     esp(igridpoint) = esp_nuclear(igridpoint)+esp_electronic_aggregate(igridpoint)
-#else
-     esp(igridpoint) = esp_nuclear(igridpoint)+esp_electronic(igridpoint)
-#endif
-   end do
-#ifdef MPIV
+     esp(:) = esp_aggregate(:)
+     call add_classical_esp(npoints,xyz_points,esp)
    else
      esp(:) = 0.0d0
    endif
+#else
+   call add_classical_esp(npoints,xyz_points,esp)
 #endif
 
    RECORD_TIME(timer_end%TESPGrid)
    timer_cumer%TESPGrid=timer_cumer%TESPGrid+timer_end%TESPGrid-timer_begin%TESPGrid
 
-   deallocate(esp_electronic)
-   deallocate(esp_nuclear)
 #ifdef MPIV
-   deallocate(esp_electronic_aggregate)
+   deallocate(esp_aggregate)
 #endif
 
  end subroutine compute_esp
@@ -570,34 +538,38 @@ module quick_oeproperties_module
  end subroutine print_esp
 
  !-----------------------------------------------------------------------!
- ! This subroutine calculates V_nuc(r) = sum Z_k/|r-Rk|                  !
+ ! Add the classical point-source potential from nuclei and EXTCHARGES. !
  !-----------------------------------------------------------------------!
- subroutine esp_nuc(npoints, xyz_points, esp_nuclear)
+ subroutine add_classical_esp(npoints,xyz_points,esp)
    use quick_molspec_module, only: natom, quick_molspec, xyz
 
    implicit none
    integer, intent(in) :: npoints
    double precision, intent(in)  :: xyz_points(:,:)
-   double precision, intent(out) :: esp_nuclear(:)
+   double precision, intent(inout) :: esp(:)
 
-   double precision :: distance
-   double precision, external :: rootSquare
-   integer :: inucleus, igridpoint
+   double precision :: charge, classical, inv_distance
+   double precision :: rvec(3), source_xyz(3)
+   integer :: isource, igridpoint
 
    do igridpoint = 1, npoints
-     esp_nuclear(igridpoint) = 0.d0
-     do inucleus=1,natom+quick_molspec%nextatom
-       if(inucleus<=natom)then
-         distance = rootSquare(xyz(1:3,inucleus), xyz_points(1:3,igridpoint), 3)
-         esp_nuclear(igridpoint) = esp_nuclear(igridpoint) + quick_molspec%chg(inucleus) / distance
+     classical = 0.0d0
+     do isource=1,natom+quick_molspec%nextatom
+       if(isource<=natom)then
+         charge = quick_molspec%chg(isource)
+         source_xyz(:) = xyz(:,isource)
        else
-         distance = rootSquare(quick_molspec%extxyz(1:3,inucleus-natom), xyz_points(1:3,igridpoint), 3)
-         esp_nuclear(igridpoint) = esp_nuclear(igridpoint) + quick_molspec%extchg(inucleus-natom) / distance
+         charge = quick_molspec%extchg(isource-natom)
+         source_xyz(:) = quick_molspec%extxyz(:,isource-natom)
        endif
+       rvec(:) = xyz_points(:,igridpoint) - source_xyz(:)
+       inv_distance = 1.0d0/sqrt(dot_product(rvec,rvec))
+       classical = classical + charge*inv_distance
      enddo
+     esp(igridpoint) = esp(igridpoint) + classical
    enddo
 
- end subroutine esp_nuc
+ end subroutine add_classical_esp
 
 
  !----------------------------------------------------------------------------------!
@@ -666,88 +638,67 @@ module quick_oeproperties_module
 
    implicit none
    integer :: ierr, IIsh, JJsh
-   integer :: igridpoint, npoints, alloc_status
+   integer :: npoints, alloc_status
    double precision, intent(in) :: xyz_points(:,:)
    double precision, intent(out) :: efield(:,:)
-   double precision, allocatable :: efield_electronic(:,:)
-   double precision, allocatable :: efield_nuclear(:,:)
 #ifdef MPIV
-   double precision, allocatable :: efield_electronic_aggregate(:,:)
+   double precision, allocatable :: efield_aggregate(:,:)
 #endif
    integer :: Ish
 
-   allocate(efield_electronic(3,npoints), stat=alloc_status)
-   if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! efield_electronic array allocation failed in compute_efield_values!!')
-     call quick_exit(OUTFILEHANDLE,1)
-   endif
-
-   allocate(efield_nuclear(3,npoints), stat=alloc_status)
-   if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! efield_nuclear array allocation failed in compute_efield_values!!')
-     call quick_exit(OUTFILEHANDLE,1)
-   endif
-
 #ifdef MPIV
-   allocate(efield_electronic_aggregate(3,npoints), stat=alloc_status)
+   allocate(efield_aggregate(3,npoints), stat=alloc_status)
    if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! efield_electronic_aggregate array allocation failed in compute_efield_values!!')
+     call PrtErr(OUTFILEHANDLE, '!! efield_aggregate array allocation failed in compute_efield_values!!')
      call quick_exit(OUTFILEHANDLE,1)
    endif
 #endif
 
-   ! Initializes efield_electronic as it will be updated to account
-   ! for contributions from different shell-pairs.
-   efield_electronic(:,:) = 0.0d0
-
-   ! Computes efield_nuclear.
-   do igridpoint=1,npoints
-     call efield_nuc(igridpoint,xyz_points,efield_nuclear(1,igridpoint))
-   end do
+   ! EFIELD(3,npoints) is component-first: (Ex,Ey,Ez) for each point.
+   efield(:,:) = 0.0d0
 
    ! Computes EFIELD_ELEC by summing over contributions from shell-pairs.
 #if defined(GPU) || defined(MPIV_GPU)
    ierr = 0
-   call gpu_upload_oeprop_efield(npoints, xyz_points, efield_electronic, ierr)
+   call gpu_upload_oeprop_efield(npoints, xyz_points, efield, ierr)
    call gpu_upload_density_matrix(quick_qm_struct%dense)
    if (quick_method%UNRST) call gpu_upload_beta_density_matrix(quick_qm_struct%denseb)
-   call gpu_get_oeprop_efield(efield_electronic)
+   call gpu_get_oeprop_efield(efield)
 #if defined MPIV
-   call MPI_REDUCE(efield_electronic, efield_electronic_aggregate, 3*npoints, &
+   call MPI_REDUCE(efield, efield_aggregate, 3*npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
 #endif
 #elif defined MPIV
    do Ish=1,mpi_jshelln(mpirank)
       IIsh=mpi_jshell(mpirank,Ish)
       do JJsh=IIsh,jshell
-         call efield_shell_pair(IIsh,JJsh,npoints,xyz_points,efield_electronic)
+         call efield_shell_pair(IIsh,JJsh,npoints,xyz_points,efield)
       enddo
    enddo
-   call MPI_REDUCE(efield_electronic, efield_electronic_aggregate, 3*npoints, &
+   call MPI_REDUCE(efield, efield_aggregate, 3*npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
 #else
    do IIsh = 1, jshell
       do JJsh = IIsh, jshell
-        call efield_shell_pair(IIsh,JJsh,npoints,xyz_points,efield_electronic)
+        call efield_shell_pair(IIsh,JJsh,npoints,xyz_points,efield)
       end do
    end do
 #endif
 
-   ! Sum the nuclear and electronic parts of EFIELD.
+   ! Add nuclei and external point charges once, after the MPI reduction.
 #ifdef MPIV
    if (master) then
-     efield(:,:) = efield_nuclear(:,:) + efield_electronic_aggregate(:,:)
+     efield(:,:) = efield_aggregate(:,:)
+     call add_classical_efield(npoints,xyz_points,efield)
    else
      efield(:,:) = 0.0d0
    endif
 #else
-   efield(:,:) = efield_nuclear(:,:) + efield_electronic(:,:)
+   call add_classical_efield(npoints,xyz_points,efield)
 #endif
 
-   deallocate(efield_electronic)
-   deallocate(efield_nuclear)
 #ifdef MPIV
-   deallocate(efield_electronic_aggregate)
+   deallocate(efield_aggregate)
 #endif
 
  end subroutine compute_efield_values
@@ -822,88 +773,68 @@ module quick_oeproperties_module
 
    implicit none
    integer :: ierr, IIsh, JJsh
-   integer :: igridpoint, npoints, alloc_status
+   integer :: npoints, alloc_status
    double precision, intent(in) :: xyz_points(:,:)
    double precision, intent(out) :: efg(:,:,:)
-   double precision, allocatable :: efg_electronic(:,:,:)
-   double precision, allocatable :: efg_nuclear(:,:,:)
 #ifdef MPIV
-   double precision, allocatable :: efg_electronic_aggregate(:,:,:)
+   double precision, allocatable :: efg_aggregate(:,:,:)
 #endif
    integer :: Ish
 
-   allocate(efg_electronic(3,3,npoints), stat=alloc_status)
-   if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! efg_electronic array allocation failed in compute_efg_values_analytic!!')
-     call quick_exit(OUTFILEHANDLE,1)
-   endif
-
-   allocate(efg_nuclear(3,3,npoints), stat=alloc_status)
-   if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! efg_nuclear array allocation failed in compute_efg_values_analytic!!')
-     call quick_exit(OUTFILEHANDLE,1)
-   endif
-
 #ifdef MPIV
-   allocate(efg_electronic_aggregate(3,3,npoints), stat=alloc_status)
+   allocate(efg_aggregate(3,3,npoints), stat=alloc_status)
    if(alloc_status /= 0) then
-     call PrtErr(OUTFILEHANDLE, '!! efg_electronic_aggregate array allocation failed in compute_efg_values_analytic!!')
+     call PrtErr(OUTFILEHANDLE, '!! efg_aggregate array allocation failed in compute_efg_values_analytic!!')
      call quick_exit(OUTFILEHANDLE,1)
    endif
 #endif
 
-   ! Initializes efg_electronic as it will be updated to account
-   ! for contributions from different shell-pairs.
-   efg_electronic(:,:,:) = 0.0d0
-
-   ! Computes efg_nuclear.
-   do igridpoint=1,npoints
-     call efg_nuc(igridpoint,xyz_points,efg_nuclear(1,1,igridpoint))
-   end do
+   ! EFG(i,j,p)=dE_i/dC_j. Flattened Fortran storage is
+   ! (xx,yx,zx,xy,yy,zy,xz,yz,zz) for each point.
+   efg(:,:,:) = 0.0d0
 
    ! Computes EFG_ELEC by summing over contributions from shell-pairs.
 #if defined(GPU) || defined(MPIV_GPU)
    ierr = 0
-   call gpu_upload_oeprop_efg(npoints, xyz_points, efg_electronic, ierr)
+   call gpu_upload_oeprop_efg(npoints, xyz_points, efg, ierr)
    call gpu_upload_density_matrix(quick_qm_struct%dense)
    if (quick_method%UNRST) call gpu_upload_beta_density_matrix(quick_qm_struct%denseb)
-   call gpu_get_oeprop_efg(efg_electronic)
+   call gpu_get_oeprop_efg(efg)
 #if defined MPIV
-   call MPI_REDUCE(efg_electronic, efg_electronic_aggregate, 9*npoints, &
+   call MPI_REDUCE(efg, efg_aggregate, 9*npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
 #endif
 #elif defined MPIV
    do Ish=1,mpi_jshelln(mpirank)
       IIsh=mpi_jshell(mpirank,Ish)
       do JJsh=IIsh,jshell
-         call efg_shell_pair(IIsh,JJsh,npoints,xyz_points,efg_electronic)
+         call efg_shell_pair(IIsh,JJsh,npoints,xyz_points,efg)
       enddo
    enddo
-   call MPI_REDUCE(efg_electronic, efg_electronic_aggregate, 9*npoints, &
+   call MPI_REDUCE(efg, efg_aggregate, 9*npoints, &
      MPI_double_precision, MPI_SUM, 0, MPI_COMM_WORLD, mpierror)
 #else
    do IIsh = 1, jshell
       do JJsh = IIsh, jshell
-        call efg_shell_pair(IIsh,JJsh,npoints,xyz_points,efg_electronic)
+        call efg_shell_pair(IIsh,JJsh,npoints,xyz_points,efg)
       end do
    end do
 #endif
 
-   ! Sum the nuclear and electronic parts of EFG.
+   ! Add nuclei and external point charges once, after the MPI reduction.
 #ifdef MPIV
    if (master) then
-     efg(:,:,:) = efg_nuclear(:,:,:) + efg_electronic_aggregate(:,:,:)
+     efg(:,:,:) = efg_aggregate(:,:,:)
+     call add_classical_efg(npoints,xyz_points,efg)
    else
      efg(:,:,:) = 0.0d0
    endif
 #else
-   efg(:,:,:) = efg_nuclear(:,:,:) + efg_electronic(:,:,:)
+   call add_classical_efg(npoints,xyz_points,efg)
 #endif
 
-   deallocate(efg_electronic)
-   deallocate(efg_nuclear)
 #ifdef MPIV
-   deallocate(efg_electronic_aggregate)
+   deallocate(efg_aggregate)
 #endif
 
  end subroutine compute_efg_values_analytic
@@ -962,107 +893,82 @@ module quick_oeproperties_module
  end subroutine compute_efg_values_numerical
 
 !------------------------------------------------------------------------!
-! This subroutine calculates EFIELD_nuc(r) = sum Z_k*(r-Rk)/(|r-Rk|^3)   !
+! Add the classical field from nuclei and EXTCHARGES.                     !
 !------------------------------------------------------------------------!
- subroutine efield_nuc(igridpoint,xyz_points,efield_nuclear_term)
+ subroutine add_classical_efield(npoints,xyz_points,efield)
   use quick_molspec_module, only: natom, quick_molspec, xyz
   implicit none
 
-  integer, intent(in) :: igridpoint
+  integer, intent(in) :: npoints
   double precision, intent(in) :: xyz_points(:,:)
-  double precision, intent(out) :: efield_nuclear_term(3)
+  double precision, intent(inout) :: efield(:,:)
 
-  double precision :: dist_square, inv_dist, inv_dist_cube
-  double precision :: rx_nuc_gridpoint, ry_nuc_gridpoint, rz_nuc_gridpoint
-  integer :: inucleus
+  double precision :: charge, dist_square, inv_dist, inv_dist_cube
+  double precision :: classical(3), rvec(3), source_xyz(3)
+  integer :: igridpoint, isource
 
-  efield_nuclear_term = 0.0d0
-
-  do inucleus = 1, natom+quick_molspec%nextatom
-    if(inucleus<=natom)then
-      rx_nuc_gridpoint = xyz_points(1,igridpoint) - xyz(1,inucleus)
-      ry_nuc_gridpoint = xyz_points(2,igridpoint) - xyz(2,inucleus)
-      rz_nuc_gridpoint = xyz_points(3,igridpoint) - xyz(3,inucleus)
-      dist_square = rx_nuc_gridpoint*rx_nuc_gridpoint + &
-        ry_nuc_gridpoint*ry_nuc_gridpoint + rz_nuc_gridpoint*rz_nuc_gridpoint
-      inv_dist = 1.0d0/dsqrt(dist_square)
-      inv_dist_cube = inv_dist*inv_dist*inv_dist
-
-      ! Compute nuclear components to EFIELD_NUCLEAR.
-      efield_nuclear_term(1) = efield_nuclear_term(1) + quick_molspec%chg(inucleus)*(rx_nuc_gridpoint*inv_dist_cube)
-      efield_nuclear_term(2) = efield_nuclear_term(2) + quick_molspec%chg(inucleus)*(ry_nuc_gridpoint*inv_dist_cube)
-      efield_nuclear_term(3) = efield_nuclear_term(3) + quick_molspec%chg(inucleus)*(rz_nuc_gridpoint*inv_dist_cube)
-    else
-      rx_nuc_gridpoint = xyz_points(1,igridpoint) - quick_molspec%extxyz(1,inucleus-natom)
-      ry_nuc_gridpoint = xyz_points(2,igridpoint) - quick_molspec%extxyz(2,inucleus-natom)
-      rz_nuc_gridpoint = xyz_points(3,igridpoint) - quick_molspec%extxyz(3,inucleus-natom)
-      dist_square = rx_nuc_gridpoint*rx_nuc_gridpoint + &
-        ry_nuc_gridpoint*ry_nuc_gridpoint + rz_nuc_gridpoint*rz_nuc_gridpoint
-      inv_dist = 1.0d0/dsqrt(dist_square)
-      inv_dist_cube = inv_dist*inv_dist*inv_dist
-
-      ! Compute external-charge components to EFIELD_NUCLEAR.
-      efield_nuclear_term(1) = efield_nuclear_term(1) + quick_molspec%extchg(inucleus-natom)*(rx_nuc_gridpoint*inv_dist_cube)
-      efield_nuclear_term(2) = efield_nuclear_term(2) + quick_molspec%extchg(inucleus-natom)*(ry_nuc_gridpoint*inv_dist_cube)
-      efield_nuclear_term(3) = efield_nuclear_term(3) + quick_molspec%extchg(inucleus-natom)*(rz_nuc_gridpoint*inv_dist_cube)
-    endif
+  do igridpoint=1,npoints
+    classical(:) = 0.0d0
+    do isource=1,natom+quick_molspec%nextatom
+      if(isource<=natom)then
+        charge = quick_molspec%chg(isource)
+        source_xyz(:) = xyz(:,isource)
+      else
+        charge = quick_molspec%extchg(isource-natom)
+        source_xyz(:) = quick_molspec%extxyz(:,isource-natom)
+      endif
+      rvec(:) = xyz_points(:,igridpoint) - source_xyz(:)
+      dist_square = dot_product(rvec,rvec)
+      inv_dist = 1.0d0/sqrt(dist_square)
+      inv_dist_cube = inv_dist/dist_square
+      classical(:) = classical(:) + charge*rvec(:)*inv_dist_cube
+    enddo
+    efield(:,igridpoint) = efield(:,igridpoint) + classical(:)
   end do
 
- end subroutine efield_nuc
+ end subroutine add_classical_efield
 
 !--------------------------------------------------------------------------------!
-! This subroutine calculates EFG_nuc(r) = d EFIELD_nuc(r) / dr on each grid point.!
+! Add G_ij=dE_i/dC_j from nuclei and EXTCHARGES.                          !
 !--------------------------------------------------------------------------------!
- subroutine efg_nuc(igridpoint,xyz_points,efg_nuclear_term)
+ subroutine add_classical_efg(npoints,xyz_points,efg)
   use quick_molspec_module, only: natom, quick_molspec, xyz
   implicit none
 
-  integer, intent(in) :: igridpoint
+  integer, intent(in) :: npoints
   double precision, intent(in) :: xyz_points(:,:)
-  double precision, intent(out) :: efg_nuclear_term(3,3)
+  double precision, intent(inout) :: efg(:,:,:)
 
   double precision :: charge, dist_square, inv_dist, inv_dist_cube, inv_dist_fifth
-  double precision :: rx_nuc_gridpoint, ry_nuc_gridpoint, rz_nuc_gridpoint
-  double precision :: rvec(3)
-  integer :: inucleus, i, j
+  double precision :: classical(3,3), rvec(3), source_xyz(3)
+  integer :: igridpoint, isource, i, j
 
-  efg_nuclear_term(:,:) = 0.0d0
-
-  do inucleus = 1, natom+quick_molspec%nextatom
-    if(inucleus<=natom)then
-      charge = quick_molspec%chg(inucleus)
-
-      rx_nuc_gridpoint = xyz_points(1,igridpoint) - xyz(1,inucleus)
-      ry_nuc_gridpoint = xyz_points(2,igridpoint) - xyz(2,inucleus)
-      rz_nuc_gridpoint = xyz_points(3,igridpoint) - xyz(3,inucleus)
-    else
-      charge = quick_molspec%extchg(inucleus-natom)
-
-      rx_nuc_gridpoint = xyz_points(1,igridpoint) - quick_molspec%extxyz(1,inucleus-natom)
-      ry_nuc_gridpoint = xyz_points(2,igridpoint) - quick_molspec%extxyz(2,inucleus-natom)
-      rz_nuc_gridpoint = xyz_points(3,igridpoint) - quick_molspec%extxyz(3,inucleus-natom)
-    endif
-
-    dist_square = rx_nuc_gridpoint*rx_nuc_gridpoint + &
-      ry_nuc_gridpoint*ry_nuc_gridpoint + rz_nuc_gridpoint*rz_nuc_gridpoint
-    inv_dist = 1.0d0/dsqrt(dist_square)
-    inv_dist_cube = inv_dist*inv_dist*inv_dist
-    inv_dist_fifth = inv_dist_cube/dist_square
-    rvec(1) = rx_nuc_gridpoint
-    rvec(2) = ry_nuc_gridpoint
-    rvec(3) = rz_nuc_gridpoint
-
-    ! Compute nuclear and external-charge components to EFG_NUCLEAR.
-    do i=1,3
-      do j=1,3
-        efg_nuclear_term(i,j) = efg_nuclear_term(i,j) - &
-          3.0d0*charge*rvec(i)*rvec(j)*inv_dist_fifth
-      end do
-      efg_nuclear_term(i,i) = efg_nuclear_term(i,i) + charge*inv_dist_cube
-    end do
+  do igridpoint=1,npoints
+    classical(:,:) = 0.0d0
+    do isource=1,natom+quick_molspec%nextatom
+      if(isource<=natom)then
+        charge = quick_molspec%chg(isource)
+        source_xyz(:) = xyz(:,isource)
+      else
+        charge = quick_molspec%extchg(isource-natom)
+        source_xyz(:) = quick_molspec%extxyz(:,isource-natom)
+      endif
+      rvec(:) = xyz_points(:,igridpoint) - source_xyz(:)
+      dist_square = dot_product(rvec,rvec)
+      inv_dist = 1.0d0/sqrt(dist_square)
+      inv_dist_cube = inv_dist/dist_square
+      inv_dist_fifth = inv_dist_cube/dist_square
+      do i=1,3
+        do j=1,3
+          classical(i,j) = classical(i,j) - 3.0d0*charge*rvec(i)*rvec(j)*inv_dist_fifth
+        enddo
+        classical(i,i) = classical(i,i) + charge*inv_dist_cube
+      enddo
+    enddo
+    efg(:,:,igridpoint) = efg(:,:,igridpoint) + classical(:,:)
   end do
 
- end subroutine efg_nuc
+ end subroutine add_classical_efg
 
  !---------------------------------------------------------------------------------------------!
  ! This subroutine formats and prints the EFIELD data to file.efield                           !

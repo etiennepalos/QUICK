@@ -359,7 +359,7 @@ subroutine attrashell(IIsh, JJsh)
               enddo
             enddo
 
-            call efg_1pdm_grid_block(ips,jps,IIsh,JJsh,NIJ1,Ax,Ay,Az,Bx,By,Bz, &
+            call efg_1pdm_grid_block(ips,jps,IIsh,JJsh,Ax,Ay,Az,Bx,By,Bz, &
               Px,Py,Pz,g,nblock,igridstart,xyz_points,aux_block,efg_electronic)
           enddo
         endif

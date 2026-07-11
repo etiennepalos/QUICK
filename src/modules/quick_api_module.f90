@@ -468,9 +468,13 @@ end subroutine get_quick_energy_gradients
 ! evaluates no-I/O electrostatic properties at caller-supplied probe points.
 ! Probe coordinates are in bohr. Returned properties are in QUICK atomic units:
 ! ESP V(C), E_i(C)=-dV/dC_i, and G_ij(C)=dE_i/dC_j.
+! In an MPI build this is collective and returns identical arrays on all ranks.
 subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
 
   use quick_oeproperties_module, only: compute_oeprop_values
+#ifdef MPIV
+  use mpi
+#endif
 
   implicit none
 
@@ -480,6 +484,9 @@ subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
   double precision, intent(out), optional :: esp(npoints)
   double precision, intent(out), optional :: efield(3,npoints)
   double precision, intent(out), optional :: efg(3,3,npoints)
+#ifdef MPIV
+  integer :: mpierror
+#endif
 
   ierr = 0
 
@@ -499,6 +506,12 @@ subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
   endif
 
   call compute_oeprop_values(npoints, probe_xyz_bohr, esp, efield, efg)
+
+#ifdef MPIV
+  if (present(esp)) call MPI_BCAST(esp,npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+  if (present(efield)) call MPI_BCAST(efield,3*npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+  if (present(efg)) call MPI_BCAST(efg,9*npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+#endif
 
 end subroutine get_quick_oeprop
 

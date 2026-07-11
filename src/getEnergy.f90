@@ -70,7 +70,7 @@ subroutine getEnergy(isGuess, ierr)
       quick_qm_struct%ECharge=0d0     ! extcharge-extcharge interaction
 
 
-      if (natom > 1) then
+      if (natom+quick_molspec%nextatom > 1) then
          !                    qi*qj
          ! E=sigma(i,j=1,n)----------
          !                   |ri-rj|
