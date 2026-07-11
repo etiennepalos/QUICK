@@ -17,6 +17,7 @@ subroutine getEnergy(isGuess, ierr)
    use quick_overlap_module, only: fullx
    use quick_dftd3_module, only: calculateDFTD3 
    use quick_exception_module
+   use quick_mbx_module, only: quick_mbx_active, quick_mbx_refresh_energy, quick_mbx_get_energy_terms
 #ifdef CEW
    use quick_cew_module, only : quick_cew
 #endif
@@ -33,6 +34,10 @@ subroutine getEnergy(isGuess, ierr)
    logical, intent(in) :: isGuess
    integer, intent(inout) :: ierr
    logical :: verbose
+   double precision :: mbx_energy_au, mbx_external_energy_au, mbx_additive_energy_au
+   double precision :: mbx_perm_total_au, mbx_perm_classical_au, mbx_perm_electronic_au
+   double precision :: mbx_ind_total_au, mbx_ind_classical_au, mbx_ind_electronic_au
+   double precision :: mbx_external_half_residual_au
 
    verbose = .true.
    if ( isGuess .and. (.not. quick_method%writeSAD) ) verbose = .false.
@@ -148,6 +153,11 @@ subroutine getEnergy(isGuess, ierr)
       call scf(ierr)        ! restricted system
    endif
 
+   if (quick_mbx_active()) then
+      call quick_mbx_refresh_energy(ierr)
+      if (ierr /= 0) return
+   endif
+
    !--------------- MPI/MASTER --------------------------
    if (master) then
 
@@ -183,6 +193,23 @@ subroutine getEnergy(isGuess, ierr)
          quick_qm_struct%Etot=quick_qm_struct%Etot+quick_qm_struct%Edisp
       endif
 
+      mbx_energy_au = 0.0d0
+      mbx_external_energy_au = 0.0d0
+      mbx_additive_energy_au = 0.0d0
+      mbx_perm_total_au = 0.0d0
+      mbx_perm_classical_au = 0.0d0
+      mbx_perm_electronic_au = 0.0d0
+      mbx_ind_total_au = 0.0d0
+      mbx_ind_classical_au = 0.0d0
+      mbx_ind_electronic_au = 0.0d0
+      mbx_external_half_residual_au = 0.0d0
+      if (quick_mbx_active()) then
+         call quick_mbx_get_energy_terms(mbx_energy_au,mbx_external_energy_au,mbx_additive_energy_au, &
+            mbx_perm_total_au,mbx_perm_classical_au,mbx_perm_electronic_au,mbx_ind_total_au, &
+            mbx_ind_classical_au,mbx_ind_electronic_au,mbx_external_half_residual_au)
+         quick_qm_struct%Etot = quick_qm_struct%Etot + mbx_additive_energy_au
+      endif
+
       if (ioutfile.ne.0 .and. verbose) then
          write (ioutfile,'(" ELECTRONIC ENERGY    = ",F16.9)') quick_qm_struct%Eel
          write (ioutfile,'(" CORE_CORE REPULSION  = ",F16.9)') quick_qm_struct%Ecore
@@ -191,6 +218,19 @@ subroutine getEnergy(isGuess, ierr)
          endif
          if (quick_method%extcharges) then
             write (ioutfile,'(" EXT CHARGE REPULSION = ",F16.9)') quick_qm_struct%ECharge
+         endif
+         if (quick_mbx_active()) then
+            write (ioutfile,'(" QUICK-MBX MBX TOTAL       = ",F16.9)') mbx_energy_au
+            write (ioutfile,'(" QUICK-MBX ADDITIVE        = ",F16.9)') mbx_additive_energy_au
+            write (ioutfile,'(" QUICK-MBX PERM TOTAL      = ",F16.9)') mbx_perm_total_au
+            write (ioutfile,'(" QUICK-MBX PERM CLASSICAL  = ",F16.9)') mbx_perm_classical_au
+            write (ioutfile,'(" QUICK-MBX PERM ELECTRONIC = ",F16.9)') mbx_perm_electronic_au
+            write (ioutfile,'(" QUICK-MBX IND TOTAL       = ",F16.9)') mbx_ind_total_au
+            write (ioutfile,'(" QUICK-MBX IND CLASSICAL   = ",F16.9)') mbx_ind_classical_au
+            write (ioutfile,'(" QUICK-MBX IND ELECTRONIC  = ",F16.9)') mbx_ind_electronic_au
+            write (ioutfile,'(" QUICK-MBX MBX EXT PERM/2  = ",F16.9)') mbx_external_energy_au
+            write (ioutfile,'(" QUICK-MBX EXT PERM CHECK  = ",ES16.6)') mbx_external_half_residual_au
+            write (ioutfile,'(" QUICK-MBX UNITS hartree; QUICK EFG convention dE_i/dC_j")')
          endif
          write (ioutfile,'(" TOTAL ENERGY         = ",F16.9)') quick_qm_struct%Etot
          call prtact(ioutfile,"End Energy calculation")
