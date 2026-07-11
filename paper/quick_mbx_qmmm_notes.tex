@@ -1,14 +1,16 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 \setlength{\emergencystretch}{3em}
 \graphicspath{{../validation/quick_mbx/}}
 
-\title{Notes on a staged QUICK--MBX interface for self-consistent QM/MB-pol}
-\author{QUICK development notes}
+\title{Fully Polarizable QM/MB-MM Coupling in QUICK through MBX:\\
+CPU Energies, Analytic Forces, and Molecular Dynamics}
+\author{Etienne Palos}
 \date{\today}
 
 \begin{document}
@@ -16,12 +18,15 @@
 
 \section{Scientific target}
 
-The first target is a CPU-only, energy-only, fully self-consistent
-QM/MB-pol coupling between QUICK and MBX. QUICK owns the quantum density,
-AO operators, and ESP/EFIELD/EFG evaluation. MBX owns MB-pol/MB-nrg
-many-body terms, permanent electrostatics, polarizabilities, and induced
-dipoles. The immediate implementation order is serial CPU first and MPI
-CPU second. GPU, gradients, and MD are later stages.
+The current CPU target is a fully self-consistent QM/MB-pol or QM/MB-PBE
+coupling between QUICK and MBX with analytic energies, forces on all
+mobile atoms, and short molecular-dynamics trajectories. QUICK owns the
+quantum density, AO operators, analytic gradients, and ESP/EFIELD/EFG
+evaluation. MBX owns the MB-pol/MB-nrg permanent electrostatics,
+polarization, many-body polynomials, dispersion, and virtual-site
+redistribution. Serial and two-rank MPI paths are validated locally; GPU
+acceleration and chemically extensive production trajectories remain
+later stages.
 
 The main references for the design are Lambros et al.\ (2020), ``A
 many-body, fully polarizable approach to QM/MM simulations'', OpenMMPol
@@ -180,8 +185,29 @@ For an MB-pol water dimer, this is the cross two-body short-range
 polynomial plus the cross dispersion contribution. This term is the
 physical source of the short-range repulsive wall missing from a purely
 electrostatic/polarization QM/MB-pol coupling.
-For the current validation driver, the MB-pol estimate of this residual is
-computed as
+The production CPU adapter evaluates this residual with three independent
+``shadow'' MBX systems. For each component
+$X\in\{2\mathrm{B},3\mathrm{B},\mathrm{disp}\}$,
+\begin{equation}
+  E_X^{\rm cross}(Q,M)
+  = E_X(Q\cup M)-E_X(Q)-E_X(M),
+  \label{eq:shadow_cross_residual}
+\end{equation}
+and applies the same subtraction componentwise to the analytic MBX
+gradients. The shadow systems contain the real coordinates and MBX model
+identifiers but do not enter the SCF and do not evaluate electrostatics,
+polarization, or one-body terms. Thus every retained term contains
+monomers from both regions. The corrected production energy is
+\begin{equation}
+  E_{Q/M}^{\rm corr}
+  = E_{Q/M}^{\rm elec+pol}
+  + E_{2\rm B}^{\rm cross}+E_{3\rm B}^{\rm cross}
+  + E_{\rm disp}^{\rm cross}.
+  \label{eq:corrected_hybrid_production}
+\end{equation}
+
+For the earlier dimer-scan validation, the same MB-pol residual was also
+computed independently as
 \begin{equation}
   \Delta E_{\rm sr/disp}^{\rm MB-pol}(A,B)
   =
@@ -191,8 +217,8 @@ computed as
   \label{eq:mbpol_sr_disp_residual}
 \end{equation}
 where the second term is an MBX calculation on the same dimer geometry with
-the h2o/h2o two-body polynomial and dispersion disabled. The corrected
-validation energy is then
+the h2o/h2o two-body polynomial and dispersion disabled. The corresponding
+dimer validation energy is
 \begin{equation}
   E_{A_{\rm QM}/B_{\rm MB}}^{\rm corr}
   =
@@ -230,10 +256,10 @@ treated by MB-pol, the energy is
   \label{eq:qmmm_water_dimer}
 \end{align}
 Equations~\ref{eq:qmmm_perm}--\ref{eq:qmmm_ind_operator} define the
-energy-only self-consistent electrostatic/polarization target. The final
-two terms in Eq.~\ref{eq:qmmm_water_dimer} are the next correction needed
-to reproduce the short-range wall of the MB-pol dimer potential energy
-surface.
+self-consistent electrostatic/polarization problem. The final two terms in
+Eq.~\ref{eq:qmmm_water_dimer} are now supplied by the shadow-system
+component adapter; Eq.~\ref{eq:shadow_cross_residual} additionally includes
+cross 3B terms when three or more water monomers are present.
 
 \section{QUICK--MBX energy bookkeeping}
 
@@ -267,7 +293,7 @@ classical external charges, and ``el'' denotes the electronic-density
 contribution. Because $E_{\rm Q}^{\rm op}$ already includes
 $P_{\rm el}+I_{\rm el}$, while MBX includes one half of the external
 permanent term and the variational polarization energy, the accepted
-stage-1.5 additive correction is
+electrostatic/polarization additive correction is
 \begin{equation}
   \Delta E_{\rm MBX}
   =
@@ -277,9 +303,11 @@ stage-1.5 additive correction is
   + \frac{1}{2}P .
   \label{eq:quick_mbx_additive}
 \end{equation}
-The printed total energy is therefore
+The corrected production total energy is therefore
 \begin{equation}
-  E_{\rm tot}=E_{\rm Q}^{\rm op}+\Delta E_{\rm MBX}.
+  E_{\rm tot}=E_{\rm Q}^{\rm op}+\Delta E_{\rm MBX}
+  +E_{2\rm B}^{\rm cross}+E_{3\rm B}^{\rm cross}
+  +E_{\rm disp}^{\rm cross}.
   \label{eq:quick_mbx_total}
 \end{equation}
 Equivalently, after cancellation this corresponds to a vacuum-QM energy
@@ -297,7 +325,7 @@ Quantity & QUICK convention & MBX handoff convention \\
 Coordinates & bohr internally & Angstrom for MBX ABI \\
 ESP & atomic units, $E_h/e$ & converted by $1/a_0$ \\
 EFIELD & atomic units, $E_h/(e a_0)$ & converted by $1/a_0^2$ \\
-EFG & $G_{ij}=\partial E_i/\partial C_j$ & not required for stage-1 energy \\
+EFG & $G_{ij}=\partial E_i/\partial C_j$ & contracted with induced dipoles in forces \\
 Induced dipole & $e a_0$ in QUICK operator & MBX returns $e$ Angstrom \\
 Energy & hartree in QUICK & MBX reports kcal/mol \\
 Gradient & hartree/bohr, $\partial E/\partial R$ & MBX reports kcal/mol/Angstrom \\
@@ -307,9 +335,9 @@ Gradient & hartree/bohr, $\partial E/\partial R$ & MBX reports kcal/mol/Angstrom
 QUICK prints and returns EFG using the field-gradient convention
 $G_{ij}(\mathbf{C})=\partial E_i(\mathbf{C})/\partial C_j$. This is the
 negative of the electrostatic-potential Hessian convention sometimes also
-called EFG in quantum-chemistry texts. This convention must be preserved
-for the gradient/MD stage because derivatives of induced dipoles and
-fields will use these signs.
+called EFG in quantum-chemistry texts. QUICK uses this convention directly
+in the analytic MB-site gradient through
+Eq.~\ref{eq:induced_site_gradient}.
 
 The current adapter conversion constants are
 \begin{align}
@@ -330,27 +358,26 @@ Cartesian coordinates in hartree/bohr. Forces are the negative gradients:
 \begin{equation}
   \mathbf{F}_I=-\frac{\partial E}{\partial \mathbf{R}_I}.
 \end{equation}
-This sign convention is used for both QM nuclei and external classical
-sites. In the current energy-only interface the converged energy depends
-on QM nuclear coordinates $\mathbf{R}_A$, the stationary QM density
-$\mathbf{P}$, MBX real atoms and electrostatic sites $\mathbf{C}_s$, MBX
-permanent parameters, and MBX induced dipoles. The term-by-term
-coordinate dependencies are:
-\begin{itemize}
-  \item $E_{\rm QM}$ depends on $\mathbf{R}_A$ and on the variationally
-    optimized density $\mathbf{P}$.
-  \item $E_{\rm MBX}^{\rm internal}$ depends on MBX real-atom/site
-    coordinates, permanent parameters, polarizabilities, damping, and MBX
-    induced dipoles.
-  \item $E_{\rm QM/MB-MM}^{\rm perm}=\sum_s q_s\Phi_s^{\rm QM}$ depends
-    on QM nuclei, the QM density, and MB permanent-site coordinates.
-  \item The induced-dipole coupling depends on
-    $\mathbf{E}^{\rm QM}(\mathbf{C}_s)$, MBX induced dipoles, and the MBX
-    polarization model.
-  \item The short-range/dispersion residual depends on the cross
-    QM--MBX coordinates and is currently used as an energy-validation
-    correction, not as a production analytic-gradient term.
-\end{itemize}
+This sign convention is used for both QM and MB atoms. Let
+$\mathbf{R}_Q\in\mathbb{R}^{3N_Q}$ and
+$\mathbf{R}_M\in\mathbb{R}^{3N_M}$ denote their Cartesian coordinates,
+$\mathbf{P}\in\mathbb{R}^{K\times K}$ the AO density matrix, and
+$\boldsymbol{\mu}\in\mathbb{R}^{3S}$ the induced dipoles on $S$ MBX
+sites. At a converged coupled solution,
+\begin{equation}
+  \frac{\partial\mathcal{E}}{\partial\mathbf{P}}=0,
+  \qquad
+  \frac{\partial\mathcal{E}}{\partial\boldsymbol{\mu}}=0,
+  \label{eq:coupled_stationarity}
+\end{equation}
+subject to the usual orbital orthonormality constraints. Hence induced-
+dipole response terms proportional to
+$d\boldsymbol{\mu}/d\mathbf{R}$ cancel, while QUICK's ordinary analytic
+gradient supplies the finite-basis Pulay and energy-weighted-density
+terms associated with the SCF stationary point. The remaining explicit
+coupling derivatives are the coordinate derivatives of the permanent and
+induced one-electron operators, nuclear--multipole interactions, MBX
+internal terms, and Eq.~\ref{eq:shadow_cross_residual}.
 
 \subsection{Permanent electrostatic gradients}
 
@@ -368,12 +395,21 @@ Thus the corresponding force on the MB site is
 $q_s\mathbf{E}^{\rm QM}(\mathbf{C}_s)$. This is the first place where
 QUICK's EFIELD evaluator enters the QM/MB-MM force path.
 
-For QM nuclei, the same permanent electrostatic coupling is the derivative
-of the point-charge embedding operator and the QM nuclear--site Coulomb
-term. QUICK already has this analytic machinery in the external
-point-charge gradient path. At a converged SCF solution, the ordinary
-variational cancellation and existing Pulay terms make this the correct
-analytic permanent-electrostatic slice for QM atom gradients.
+For QM atoms, QUICK differentiates both the nuclear--site interaction and
+the AO embedding matrix. For a Cartesian primitive Gaussian
+$\chi_{\mathbf a}(\mathbf r;\alpha,\mathbf A)$,
+\begin{equation}
+  \frac{\partial\chi_{\mathbf a}}{\partial A_j}
+  =2\alpha\chi_{\mathbf a+\mathbf e_j}
+  -a_j\chi_{\mathbf a-\mathbf e_j}.
+  \label{eq:gaussian_center_derivative}
+\end{equation}
+The implementation contracts Eq.~\ref{eq:gaussian_center_derivative}
+with the same Obara--Saika attraction and field integrals used by the
+SCF operators. Raising an $f$ function requires a $g$-angular-momentum
+intermediate; the generic recurrence evaluator supplies that intermediate
+without enabling $g$ functions as orbital basis functions. The standard
+QUICK gradient then supplies all remaining SCF and Pulay terms.
 
 \subsection{Induced-dipole force terms}
 
@@ -392,12 +428,18 @@ respect to an MB site coordinate is
   \label{eq:induced_site_gradient}
 \end{equation}
 This is the direct reason EFG is needed for analytic gradients and MD.
-For a fully stationary polarization functional, explicit induced-dipole
-response terms cancel only if the QUICK operator, MBX energy, and MBX
-polarization solve are mutually consistent. Production QM/MB-pol
-gradients still need the MBX derivatives of induced-dipole
-self/interactions, damping/charge-penetration terms, and real-atom
-redistribution of site forces.
+MBX's \texttt{Energy(true)} derivative, evaluated with the sampled
+external $\Phi^{\rm QM}$ and $\mathbf E^{\rm QM}$ held fixed, supplies
+its internal many-body and polarization derivatives and the permanent
+$-q_s\mathbf E^{\rm QM}$ gradient. Because the current MBX external ABI
+does not receive $G_{ij}^{\rm QM}$, QUICK adds
+Eq.~\ref{eq:induced_site_gradient} explicitly and invokes MBX's virtual-
+site redistribution map. On QM atoms, the corresponding induced operator
+derivative follows Eq.~\ref{eq:gaussian_center_derivative}, including the
+QM nuclear--dipole term. Equation~\ref{eq:coupled_stationarity} removes
+explicit $d\boldsymbol\mu/d\mathbf R$ terms; numerical agreement with the
+derivative of the fully converged energy verifies this stationarity in the
+implemented bookkeeping.
 
 \subsection{MBX force API audit}
 
@@ -410,111 +452,85 @@ hartree/bohr by multiplying by \texttt{KCAL\_TO\_AU}$\,a_0$, with $a_0$
 in Angstrom. The sign is the QUICK gradient sign, $\partial E/\partial R$,
 as verified against a central finite difference.
 
-This is still not a complete production QM/MB-pol analytic-gradient ABI.
-The exposed MBX external-call wrapper
-\texttt{set\_potential\_and\_electric\_field\_on\_sites\_} sends only
-$\phi$ and $\mathbf{E}$ from QUICK to MBX. The underlying MBX system has
-slots for derivatives of the external field, but the current C/Fortran
-wrapper does not expose the required field-gradient arrays. Since the
-external induced-gradient machinery depends on those derivatives, full
-analytic induced-dipole QM/MB-pol gradients remain blocked until MBX
-exposes and validates that derivative handoff or provides an equivalent
-component-gradient API. The accepted local deliverable is therefore a
-finite-difference total-gradient harness, MBX real-atom gradient parity,
-and the validated permanent-electrostatic analytic slice.
+The public MBX C++ \texttt{System} API also exposes analytic
+\texttt{TwoBodyEnergy}, \texttt{ThreeBodyEnergy}, and
+\texttt{Dispersion} calls. A compact QUICK-side C++ adapter owns three
+independent systems and evaluates Eq.~\ref{eq:shadow_cross_residual}; no
+second MBX global singleton and no file I/O are used inside the gradient
+loop. Two concrete MBX defects were isolated during validation: virtual-
+site gradient redistribution used a site offset as a monomer index for
+multi-monomer systems, and the public \texttt{h2o-pbe} identifier was not
+accepted by generated MB-PBE constructors. In addition, this MBX snapshot
+enabled \texttt{PRINT\_INDIVIDUAL\_TERMS} in source, causing every library
+energy call to write to standard error. Minimal local MBX commits fix the
+two correctness issues and disable the unconditional diagnostic; they
+should be proposed upstream.
+
+For the implemented water targets, the resulting analytic gradient is
+complete for all terms in Eq.~\ref{eq:quick_mbx_total}. A future MBX ABI
+that accepts external EFG directly could move the
+$-\boldsymbol\mu\!:\!\mathbf G$ contraction into MBX, but it is not a
+correctness requirement for the present CPU implementation because QUICK
+evaluates and redistributes that explicit stationary term.
 
 \section{Implementation status}
 
-The first staged code patch adds:
+The CPU implementation now contains the complete energy and force path
+used in Eq.~\ref{eq:quick_mbx_total}:
 \begin{itemize}
-  \item Optional CMake switches \texttt{MBX}, \texttt{MBX\_ROOT}, and
-    \texttt{MBX\_LIBRARY}. MBX is not vendored into QUICK.
-  \item A thin \texttt{quick\_mbx\_module} adapter around MBX external-call
-    hooks for system initialization, site-coordinate/charge retrieval,
-    external potential/field handoff, MBX energy refresh, and induced
-    dipole retrieval.
-  \item No-I/O QUICK OEPROP evaluators for ESP, EFIELD, and analytic EFG
-    on caller-supplied points.
-  \item A shared ESP OEPROP fix so no-I/O ESP uses the current density
-    matrix, matching the EFIELD/EFG convention and avoiding stale
-    \texttt{denseSave} data in library-mode SCF coupling.
-  \item A CPU AO point-charge operator for MBX permanent site charges and
-    for reuse by the finite-difference dipole operator.
-  \item A CPU AO point-dipole operator,
-    \texttt{add\_point\_dipole\_field\_operator}, currently implemented as
-    a centered finite difference of the existing point-charge OEI path.
-  \item Serial SCF coupling hooks and MPI root-rank MBX handoff with
-    induced-dipole broadcast. The MPI operator follows QUICK's shell-pair
-    distribution and final Fock reduction style.
-  \item A post-SCF MBX energy refresh and QUICK total-energy hook.
-  \item A corrected energy decomposition that prints the raw MBX energy,
-    the accepted additive MBX correction, permanent total/classical/
-    electronic terms, induced total/classical/electronic terms, and the
-    MBX half-permanent residual check.
-  \item Library-mode API entry points \texttt{setQuickMBXSystem} and
-    \texttt{setQuickMBXWaterSystem}, plus \texttt{clearQuickMBXSystem};
-    \texttt{deleteQuickJob} also finalizes any active MBX system.
-  \item MBX force-adapter entry points:
-    \begin{center}
-    \small
-    \begin{tabular}{@{}l@{}}
-    \texttt{quick\_mbx\_get\_site\_data}\\
-    \texttt{quick\_mbx\_get\_induced\_dipoles\_au}\\
-    \texttt{quick\_mbx\_set\_real\_coordinates}\\
-    \texttt{quick\_mbx\_get\_real\_atom\_gradient}\\
-    \texttt{quick\_mbx\_redistribute\_site\_gradient}
-    \end{tabular}
-    \end{center}
-    These are guarded by the optional MBX build path and do not change
+  \item MBX remains an optional external dependency. CMake locates the MBX
+    library and public headers; QUICK neither vendors MBX nor links it into
     non-MBX builds.
-  \item A public reference API,
-    \texttt{getQuickMBXEnergyGradientsFD}, for tiny water-environment
-    finite-difference total QUICK--MBX gradients. This API is intended for
-    validation and CPU smoke dynamics, not production analytic MD.
-  \item Optional water and methane dimer validation drivers,
-    \texttt{test-api-mbx-dimer-scan} and
-    \texttt{test-api-mbx-ch4-dimer-scan}, for laptop-scale publication
-    checks against MBX standalone calculations.
-  \item A CPU derivative validation driver,
-    \texttt{test-api-qmmm-perm-grad}, which compares QUICK's analytic
-    permanent point-charge gradients against central finite differences
-    and checks analytic EFG against finite-difference EFIELD. The driver is
-    MPI-aware, so \texttt{test-api-qmmm-perm-grad.MPI} performs a genuine
-    two-rank QUICK API calculation.
-  \item Stage-4 CPU gradient smoke drivers:
-    \begin{center}
-    \small
-    \begin{tabular}{@{}l@{}}
-    \texttt{test-api-mbx-gradient-parity}\\
-    \texttt{test-api-mbx-total-fd-gradient}\\
-    \texttt{test-api-mbx-fd-md-smoke}\\
-    \texttt{test-api-mbx-gradient-decomp}
-    \end{tabular}
-    \end{center}
-  \item An experimental \texttt{MBX\_QMMM} keyword guarded to energy-only
-    jobs.
+  \item \texttt{quick\_mbx\_module} owns the SCF handoff of QM ESP and
+    EFIELD, induced-dipole retrieval, post-SCF energy refresh, analytic
+    MBX gradients, virtual-site redistribution, unit conversion, and MPI
+    broadcasts.
+  \item The no-I/O OEPROP API evaluates ESP, EFIELD, and analytic EFG at
+    MBX sites from the current density. CPU shell pairs are distributed
+    with QUICK's existing MPI ownership and reduction scheme.
+  \item Permanent charges and induced dipoles enter the Fock matrix through
+    direct Obara--Saika attraction and electric-field integrals. Their QM
+    coordinate derivatives use the Cartesian Gaussian center derivative in
+    Eq.~\ref{eq:gaussian_center_derivative}, including the raised
+    angular-momentum intermediates required by an $f$-function basis.
+  \item MB-site gradients combine MBX's analytic held-field derivative with
+    the explicit $-\boldsymbol{\mu}:\mathbf G$ term in
+    Eq.~\ref{eq:induced_site_gradient}. The same MBX redistribution map
+    transfers gradients from massless electrostatic sites to real atoms.
+  \item A QUICK-side C++ shadow adapter evaluates cross 2B, cross 3B, and
+    cross dispersion energies and analytic gradients by
+    Eq.~\ref{eq:shadow_cross_residual}. It uses three independent MBX
+    \texttt{System} objects and never mutates the self-consistent primary
+    MBX system.
+  \item Public APIs initialize MB-pol or MB-PBE water partitions, return
+    component-resolved energies and gradients, and provide a central
+    finite-difference total-gradient reference. The production analytic
+    path and finite-difference reference can therefore be compared from the
+    same converged energy expression.
+  \item The optional serial and MPI validation executables cover MBX
+    standalone parity, both QM/MB assignments of a water dimer, a
+    one-QM/two-MB water trimer, MB-PBE, target DFT methods, and short
+    velocity-Verlet dynamics.
 \end{itemize}
 
-Current limitations:
+The remaining limitations are interface and validation breadth rather
+than missing terms in the tested water force:
 \begin{itemize}
-  \item MBX system initialization exists in the adapter and a convenience
-    API is available for MB-pol water. General production input-file syntax
-    for MBX systems is still not complete.
-  \item MBX's Fortran external-call ABI does not expose a site-count query,
-    so the caller must provide the expected number of electrostatic sites
-    when initializing the adapter. For MB-pol water this is four sites per
-    monomer.
-  \item The stage-1.5 energy bookkeeping is accepted for the current
-    energy-only target and validated by the MBX half-permanent residual
-    check. Broader production validation should still add more geometries
-    before treating the interface as chemically production-ready.
-  \item The AO electric-field operator should be replaced by direct
-    analytic recurrence contraction after the interface is validated.
-  \item Full induced-dipole and MB-pol analytic gradients are not yet
-    implemented. The current production analytic derivative claim is
-    limited to the permanent electrostatic point-charge slice and OEPROP
-    derivative ingredients. The full total QUICK--MBX gradient is available
-    only as a finite-difference reference path for tiny CPU tests.
+  \item General production input syntax for arbitrary MBX mixtures is not
+    complete; the current convenience API targets water partitions and
+    requires a consistent monomer ordering.
+  \item The legacy MBX external-call ABI does not expose a site-count query.
+    QUICK therefore validates a caller-supplied count; MB-pol water has four
+    electrostatic sites per monomer.
+  \item Three small MBX source fixes are required by the tested configuration:
+    corrected multi-monomer virtual-site redistribution indexing and
+    acceptance of the public \texttt{h2o-pbe} model identifier, plus
+    disabling an unconditional component-energy diagnostic in library
+    calls. All are isolated commits suitable for upstream review.
+  \item Chemical acceptance still requires larger geometry sets, established
+    reference data, longer trajectories, and CPU performance/scaling
+    measurements on HPC hardware. GPU coupling is outside the present CPU
+    implementation.
 \end{itemize}
 
 \section{Validation}
@@ -595,101 +611,88 @@ does not change the production QUICK--MBX handoff, where MBX sites are not
 registered as QUICK external point charges when ESP/EFIELD are evaluated
 for MBX.
 
-\subsection{Stage-4 QUICK--MBX finite-difference gradient and MD smoke}
+\subsection{Complete analytic-gradient validation}
 
-The stage-4 CPU gradient target adds a deliberately conservative
-reference path before claiming analytic QM/MB-pol forces. The adapter first
-checks MBX's own real-atom analytic gradients through
-\texttt{get\_energy\_g\_}. Then \texttt{getQuickMBXEnergyGradientsFD}
-computes central finite-difference total QUICK--MBX gradients by repeatedly
-calling the accepted energy-only self-consistent interface. This route
-uses no \texttt{GRADIENT} keyword with \texttt{MBX\_QMMM}; it is an API
-reference path for tiny systems.
+The production analytic gradient was compared against central finite
+differences of the same corrected, fully self-consistent energy in
+Eq.~\ref{eq:quick_mbx_total}. The validation driver reports the separate
+QM, MBX held-field, induced-EFG, and cross-residual contributions and uses
+three displacement sizes.
 
-The local smoke system is one QUICK water monomer interacting with one MBX
-MB-pol water monomer at the fixed dimer geometry used throughout these
-notes. The QUICK method is HF/STO-3G with tightened integral cutoffs. This
-is not a chemical benchmark; it is a sign, unit, bookkeeping, and repeated
-API-call stability test for later PBE0/PBE and analytic-force work.
+The table below gives the smallest-step ($h=10^{-4}$ bohr) errors for
+HF/STO-3G. These inexpensive calculations are derivative tests rather
+than chemical benchmarks.
 
 \begin{center}
 \small
-\begin{tabular}{lll}
+\begin{tabular}{llll}
 \toprule
-Check & Result & Notes \\
+QM/MB assignment & MB model & Maximum & RMS \\
 \midrule
-MBX real-atom gradient parity max &
-$3.6013\times10^{-7}$ & hartree/bohr \\
-MBX real-atom gradient parity RMS &
-$1.6530\times10^{-7}$ & hartree/bohr \\
-Total FD gradient step sensitivity &
-$5.1074\times10^{-5}$ & max difference, $10^{-3}$ vs $2\times10^{-3}$ bohr \\
-Total FD net gradient norm &
-$2.2335\times10^{-5}$ & hartree/bohr \\
-Total FD max gradient component &
-$5.5062\times10^{-2}$ & hartree/bohr \\
-Two-step FD-MD smoke drift &
-$6.9718\times10^{-8}$ & hartree over two 0.10 fs steps \\
+$A_{\rm QM}/B_{\rm MB}$ & MB-pol &
+$7.8061\times10^{-8}$ & $3.7288\times10^{-8}$ \\
+$B_{\rm QM}/A_{\rm MB}$ & MB-pol &
+$3.9171\times10^{-8}$ & $1.6688\times10^{-8}$ \\
+$A_{\rm QM}/(BC)_{\rm MB}$ & MB-pol &
+$8.6690\times10^{-8}$ & $4.1257\times10^{-8}$ \\
+$A_{\rm QM}/B_{\rm MB}$ & MB-PBE &
+$3.5724\times10^{-8}$ & $1.3973\times10^{-8}$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-The MD smoke executable uses velocity-Verlet with forces
-$-\partial E/\partial R$ from the finite-difference total gradient. All
-coordinates passed through the public API are Angstrom; all finite
-differences and gradients are reported in bohr-based atomic units. The
-small energy drift is a useful local sanity check that the repeated
-QUICK--MBX calls, force sign, mass conversion, and energy expression are
-self-consistent for a tiny system. It should not be interpreted as a
-production MD performance or timestep recommendation.
+All errors are in hartree/bohr. The reversed dimer assignment tests that
+the force does not depend on which water is declared quantum. The trimer
+contains one QM and two MB-pol waters and exercises a nonzero cross 3B
+gradient. The MB-PBE row exercises a different set of water polynomials
+and dispersion parameters. The standalone MBX analytic gradient agrees
+with its own finite-difference energy to a maximum of
+$3.6013\times10^{-7}$ hartree/bohr.
 
-\subsection{Stage-4.5 gradient decomposition diagnostic}
+\subsection{Target DFT methods and MPI}
 
-The next development diagnostic asks how much of the MBX-side total
-finite-difference gradient can already be recovered from analytic pieces.
-The probe computes, on the same one-water/one-water smoke geometry:
-\begin{itemize}
-  \item the total QUICK--MBX gradient by central finite differences of the
-    accepted self-consistent energy expression;
-  \item the MBX real-atom internal gradient from \texttt{get\_energy\_g\_}
-    without an external QUICK field;
-  \item the QUICK permanent electrostatic site-gradient term
-    $-q_s\mathbf{E}^{\rm QM}(\mathbf{C}_s)$, redistributed from MBX sites
-    to real atoms;
-  \item the frozen-induced site-gradient term
-    $-\sum_i\mu_{s,i}G_{ij}^{\rm QM}(\mathbf{C}_s)$, also redistributed to
-    real atoms.
-\end{itemize}
-This is a diagnostic decomposition, not a production gradient. It uses the
-available QUICK EFIELD/EFG convention and MBX redistribution hook while
-leaving the unavailable induced-dipole response and external-field
-bookkeeping derivatives in the residual.
+The intended electronic-structure pairings were tested with def2-SVP.
+For PBE0-D3/MB-pol, the $5\times10^{-4}$ bohr finite-difference step is
+the most stable compromise because smaller displacements expose SCF and
+quadrature noise. PBE-D3/MB-PBE remains stable down to $10^{-4}$ bohr.
 
 \begin{center}
 \small
-\begin{tabular}{lll}
+\begin{tabular}{llll}
 \toprule
-MBX-side model & Max residual & RMS residual \\
+QM/MB method & FD step & Maximum & RMS \\
 \midrule
-MBX internal only &
-$3.2401\times10^{-3}$ & $1.4613\times10^{-3}$ \\
-Internal + permanent site gradient &
-$7.0280\times10^{-4}$ & $3.9001\times10^{-4}$ \\
-Internal + permanent + frozen-induced &
-$8.3468\times10^{-4}$ & $4.3899\times10^{-4}$ \\
+PBE0-D3/MB-pol & $5\times10^{-4}$ &
+$4.1892\times10^{-7}$ & $1.2351\times10^{-7}$ \\
+PBE-D3/MB-PBE & $5\times10^{-4}$ &
+$1.2675\times10^{-7}$ & $4.6110\times10^{-8}$ \\
+PBE-D3/MB-PBE & $1\times10^{-4}$ &
+$4.2861\times10^{-8}$ & $1.7661\times10^{-8}$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-All residuals are relative to the MBX-atom components of the total
-finite-difference gradient and are reported in hartree/bohr. The maximum
-MBX-atom finite-difference component for this geometry is
-$1.0558\times10^{-2}$ hartree/bohr. The permanent site-gradient term
-therefore removes most of the missing MBX-side force. The frozen-induced
-term is small here and does not close the residual by itself, which is
-consistent with the MBX audit: production induced gradients require the
-external field-gradient/response path inside MBX, not only a frozen
-$\boldsymbol{\mu}\cdot G$ contraction in QUICK.
+The norms of the total translational gradients are
+$6.22\times10^{-8}$ and $5.37\times10^{-8}$ hartree/bohr for the two
+pairings, respectively. A genuine two-rank MPI calculation reproduces
+the serial analytic gradient to a maximum component difference of
+$6.58\times10^{-15}$ hartree/bohr and the total energy to approximately
+$1.4\times10^{-14}$ hartree.
+
+\subsection{Corrected analytic-force dynamics}
+
+A velocity-Verlet smoke trajectory uses the analytic force from the
+corrected energy, including cross 2B/3B/dispersion gradients; finite
+differences are not used by the integrator. For the HF/STO-3G water-dimer
+test, 20 steps of 0.05~fs give a 1~fs trajectory with maximum total-energy
+drift $2.52\times10^{-6}$ hartree. The maximum net gradient norm is
+$1.71\times10^{-7}$ hartree/bohr. This short run verifies force sign,
+energy/force bookkeeping, repeated API state updates, virtual-site
+redistribution, and the velocity-Verlet plumbing. It is not a timestep,
+ensemble, or long-time energy-conservation benchmark. After each accepted
+step the same driver evaluates QM ESP, EFIELD, and EFG at the moving MB
+water atoms from the converged density and writes a compact OEPROP CSV
+without another SCF.
 
 \subsection{Water dimer PES}
 
@@ -809,8 +812,6 @@ MB-pol water model.
 The production commands were:
 \begin{verbatim}
 export QUICK_BUILD=/private/tmp/quick-build-mbx-focktest
-export CODEX_PY=/Users/etiennepalos/.cache/codex-runtimes/\
-codex-primary-runtime/dependencies/python/bin/python3
 
 cmake --build $QUICK_BUILD \
   --target quick test-api-mbx-water-xyz-scan --parallel 8
@@ -818,7 +819,7 @@ cmake --build $QUICK_BUILD \
 python3 validation/quick_mbx/optimize_water_dimer_mbx_scan.py \
   --max-steps 600 --force-tol 5.0e-4
 
-$CODEX_PY validation/quick_mbx/run_mbpbe_water_scan.py \
+python3 validation/quick_mbx/run_mbpbe_water_scan.py \
   --scan-exe $QUICK_BUILD/src/test-api-mbx-water-xyz-scan \
   --xyz validation/quick_mbx/water_dimer_mbpol_optimized_20pt.xyz \
   --csv validation/quick_mbx/water_dimer_mbpolopt_pbe_d3_mbpbe_20pt.csv \
@@ -987,12 +988,11 @@ triplet O2/H2O case verifies the unrestricted open-shell path and MBX water
 coupling, but because no O2 cross residual is available it is not a
 complete chemical validation.
 
-\subsection{Trimer roadmap}
+\subsection{Water-trimer force validation}
 
-A trimer scan was not attempted in this resource window. For a future
-water-trimer validation with monomer $A$ in QUICK and monomers $B,C$ in
-MBX, the cross residual should be isolated explicitly rather than silently
-mixing MB-only and QM/MB terms. A practical MBX-derived residual is
+A fixed water trimer with monomer $A$ in QUICK and monomers $B,C$ in MBX
+tests that the cross residual removes the purely MBX $B$--$C$ component
+while retaining every component that spans the partition:
 \begin{equation}
   \Delta E_{\rm cross}^{ABC}
   =
@@ -1004,64 +1004,52 @@ mixing MB-only and QM/MB terms. A practical MBX-derived residual is
     E_{\rm full}^{BC}-E_{\rm elec+pol}^{BC}
   \right].
 \end{equation}
-The first bracket contains all non-electrostatic residual terms in the
-trimer, while the second removes the purely MBX $B$--$C$ residual already
-belonging to the MBX internal environment. A 2B-only correction should
-disable only h2o/h2o two-body polynomial and dispersion terms. Any 3B
-short-range correction must be isolated and reported separately by also
-controlling the h2o/h2o/h2o three-body polynomial term.
+This expression is exactly the $Q\cup M-Q-M$ shadow subtraction in
+Eq.~\ref{eq:shadow_cross_residual}. At the tested geometry the cross
+components are $6.9876\times10^{-3}$, $3.5237\times10^{-4}$, and
+$-3.6628\times10^{-3}$ hartree for 2B, 3B, and dispersion, respectively.
+The analytic total gradient agrees with the $10^{-4}$ bohr central
+difference to $8.67\times10^{-8}$ hartree/bohr maximum error. This is a
+force/bookkeeping acceptance case; a geometry scan remains useful as a
+later chemical benchmark.
 
-When QUICK is configured with \texttt{-DMBX=TRUE}, CMake also builds optional
-\texttt{test-api-mbx} and \texttt{test-api-mbx.MPI} smoke executables. These
-initialize one and two MB-pol waters through
-\texttt{setQuickMBXWaterSystem}, run fixed-geometry energy-only QUICK SCF
-calculations with \texttt{MBX\_QMMM}, check SCF convergence, and print
-parseable total energies. The validation driver runs them automatically when
-the executables are present or when paths are supplied with
-\texttt{--quick-mbx-smoke} and \texttt{--quick-mbx-smoke-mpi}. The next
-validation cases should be:
+When QUICK is configured with \texttt{-DMBX=TRUE}, CMake builds the
+energy smoke tests and the analytic-gradient and analytic-MD validation
+executables. The gradient probe accepts the MBX JSON file, QM method, case
+selection, and a raw/corrected residual mode; its CSV records every
+analytic component, each finite-difference step, translational and torque
+checks, and the energy decomposition. The MD executable writes a compact
+energy/force CSV and XYZ trajectory.
+
+\section{Remaining production roadmap}
+
+The CPU water implementation now has matching analytic energies and
+forces and can run short deterministic trajectories. The next work is to
+turn this validated method-development path into a production and
+publication workflow:
 \begin{itemize}
-  \item QUICK-generated ESP/EFIELD at MBX sites compared to a controlled
-    point-charge reference.
-  \item More fixed-geometry QM/MB-pol water monomer/dimer geometries, kept
-    small enough for routine laptop validation.
+  \item Replace water-specific convenience initialization with a validated
+    general input/API schema for arbitrary MBX monomers and partitions.
+  \item Upstream the three narrowly scoped MBX fixes and test against a clean
+    released MBX installation.
+  \item Add a chemically representative benchmark set for energies and
+    forces, including geometries outside stationary points and comparison
+    with published PBE0/MB-pol and PBE/MB-PBE data.
+  \item Run longer NVE conservation tests, finite-temperature trajectories,
+    and MPI CPU scaling benchmarks on HPC hardware.
+  \item Add GPU acceleration after CPU reference data are frozen. The
+    highest-value kernels are the ESP/EFIELD/EFG site evaluation and the
+    point-multipole AO contractions; MBX can remain a host-side library
+    initially.
+  \item Extend cross-component initialization beyond water only where MBX
+    exposes compatible 2B/3B/dispersion models and unambiguous monomer IDs.
 \end{itemize}
 
-\section{Roadmap toward gradients and MD}
-
-EFG is not required for the first energy-only QM/MB-pol target, but it is
-needed for analytic gradients and MD. Stage 4 provides a CPU finite-
-difference total-gradient reference and a tiny MD smoke test. Stage 4.5
-adds a decomposition diagnostic showing that MBX internal forces plus the
-QUICK permanent site-gradient term recover most of the MBX-side total
-finite-difference gradient for the tiny water test. Production analytic
-QM/MB-pol gradients still require:
-\begin{itemize}
-  \item Derivatives of QUICK ESP and EFIELD at MBX sites with respect to QM
-    nuclear coordinates, including direct analytic AO field-operator
-    derivatives rather than finite differences of point-charge operators.
-  \item A MBX external-derivative ABI that accepts the QUICK field-gradient
-    tensor and any induced-dipole response data needed by MBX's external
-    induced-gradient machinery.
-  \item Component-consistent gradients for the same energy bookkeeping used
-    in Eq.~\ref{eq:quick_mbx_additive} and for any MBX short-range/
-    dispersion residual added to a corrected hybrid validation energy.
-  \item Consistent redistribution of MBX site gradients to real atoms,
-    validated for virtual sites and lone-pair sites.
-  \item Explicit tests that the QUICK field-gradient convention
-    $G_{ij}=\partial E_i/\partial C_j$ is used throughout.
-\end{itemize}
-
-The next QUICK-side development step is to promote the permanent
-$-q_s\mathbf{E}^{\rm QM}(\mathbf{C}_s)$ MBX-site gradient and MBX
-redistribution path from diagnostic code into an analytic gradient
-component, with finite-difference regression tests on fixed water
-geometries. The highest-value QUICK-side refactor after that is a direct
-analytic AO field-operator derivative contraction that shares recurrence
-tables with EFIELD/EFG. The highest-value MBX-side interface improvement
-is an external-call wrapper that exposes and validates external
-field-gradient handoff without requiring QUICK to vendor or patch MBX
-locally.
+An MBX external ABI that accepts EFG could eventually absorb the explicit
+induced site-gradient contraction now performed in QUICK. That would
+simplify ownership, but it is an optimization of the interface rather than
+a missing force term: analytic--finite-difference agreement already tests
+the present stationary formulation end to end.
 
 \section*{References}
 
