@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "report_date": "2026-10-14",
+  "status": "pending",
+  "scope": "Integration of the source-only GPU electrostatics/BOMD feature with current upstream master; fresh final-source validation is not yet recorded here.",
+  "source": {
+    "upstream_master_commit": "f33543cae174c3b46d204c22e9a89ab57ac86a4e",
+    "feature_export_commit": "dba43da12d0a0528c2af667b29671ea21c870ab3",
+    "initial_integration_merge_commit": "7db88f1e0019dc1e50d7050aa3ee85a9f4b74e86",
+    "final_measured_commit": null,
+    "final_measured_tree": null,
+    "final_dirty_snapshot_manifest": null,
+    "final_source_files_sha256": {},
+    "source_review_status": "pending",
+    "optimizer_compatibility_status": "pending"
+  },
+  "fresh_builds": {
+    "master_cpu": {"status": "pending", "build_report": null, "runtime_sha256": {}},
+    "master_cuda": {"status": "pending", "build_report": null, "runtime_sha256": {}},
+    "integration_cpu": {"status": "pending", "build_report": null, "runtime_sha256": {}},
+    "integration_cuda": {"status": "pending", "build_report": null, "runtime_sha256": {}}
+  },
+  "validation": {
+    "upstream_standard_regression": {
+      "status": "pending", "report": null, "baseline_failures": null,
+      "integration_only_failures": null
+    },
+    "published_esp_preservation": {
+      "status": "pending", "report": null, "expected_fixtures": 4,
+      "expected_runs_cpu_and_cuda": 16, "accepted_runs": null,
+      "charge_absolute_tolerance_e": 0.00001,
+      "esp_table_absolute_tolerance": 0.0000002,
+      "energy_absolute_tolerance_eh": 0.00004,
+      "actual_external_resp_runtime_covered": false,
+      "actual_rwresp_runtime_covered": false
+    },
+    "parser_subcommunicator": {
+      "status": "pending", "report": null, "expected_parser_cases": 18,
+      "expected_serial_reference_jobs": 2, "world_ranks": 4,
+      "independent_groups": 2, "ranks_per_group": 2,
+      "accepted_parser_cases": null, "accepted_groups": null,
+      "energy_absolute_tolerance_eh": 0.0000000001,
+      "coordinate_absolute_tolerance_angstrom": 0.00000001,
+      "property_absolute_tolerance_au": 0.000000001
+    },
+    "api_derivative_optimizer_lifecycle": {
+      "status": "pending", "reports": [], "backends_tested": [],
+      "accepted_checks": null, "unresolved_failures": null
+    },
+    "short_bomd_and_gpu_execution": {
+      "status": "pending", "reports": [], "backends_tested": [],
+      "actual_property_launch_counts": null, "physical_gpus": null,
+      "additional_property_triggered_scf_calls": null
+    },
+    "external_resp_rwresp": {
+      "status": "unavailable", "resp_executable": null,
+      "runtime_coverage": false,
+      "reason": "No Amber resp executable is available; QUICK ESP_CHARGE is an unrestrained fit and ESP preservation is only the downstream input contract."
+    }
+  },
+  "raw_evidence_archive": {
+    "status": "pending", "local_root": "/home/epalos/software/quick_ep/master-integration-20261014",
+    "final_evidence_manifest": null, "public_archive_identifier": null
+  },
+  "historical_checkpoint": {
+    "scope": "Earlier feature source/runtime evidence; not fresh validation of the current master integration.",
+    "manifest": "manifest.json",
+    "manifest_sha256": "0f6b25718036390e859ccd00949ee49093dc43831c200d42520c371f0163a5f2",
+    "reports_sha256": {
+      "evidence/gpu-engineering-summary.txt": "51fdfcaabf762853c719abac7dc33d7cb85168c4aa09a94c69dd6c0391a6a811",
+      "evidence/water20-feasibility-summary.txt": "133ffe2cfad3717cbc90e90a682ba8994383952336d843e5ef3a59825039aa1a"
+    },
+    "files_modified_for_this_scaffold": false,
+    "water20_is_a_trajectory": false
+  },
+  "new_performance_claim": false,
+  "periodic_or_polarizable_bomd_covered": false,
+  "hip_or_multi_gpu_scaling_covered": false,
+  "acceptance_complete": false
+}

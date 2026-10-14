@@ -53,6 +53,22 @@ Implementation notes for this feature:
 - In MPI density-surface calculations, the master rank generates the point cloud
   and broadcasts `nvdwpoint` and `vdwpointxyz`; ESP/EFIELD/EFG then use the
   existing shell-pair distribution and reductions.
+- After the current master integration, API MPI clients call
+  `setQuickMPI(comm, ierr)` before creating a job; QUICK duplicates that
+  communicator. Library collectives and shell indexing use `quick_comm`,
+  `quick_comm_rank`, `quick_comm_size` and `quick_mpi_error`. Do not introduce
+  `MPI_COMM_WORLD` into job-local property/surface operations. The explicit
+  world-rank bookkeeping in MPI initialization is a separate operation.
+- Use the boundary-aware `found_keyword` parser for feature keywords rather
+  than substring matches. The CPU regression
+  `validation/oeprop_api/validate_master_integration.py` checks 18 parser cases
+  and two independent two-rank jobs within a four-rank MPI launch; see
+  `docs/gpu-electrostatics-bomd/master-integration-20261014.md` for its command.
+- Historical OEPROP reports and `docs/gpu-electrostatics-bomd/manifest.json`
+  describe the earlier frozen feature checkpoint. Preserve those files and
+  record current source/runtime identities and acceptance results separately.
+  `ESP_CHARGE` is an unrestrained QUICK fit; preserving its ESP/MKS output
+  does not establish execution of the external Amber RESP/rwRESP fitters.
 - CPU analytic EFG uses a recursive evaluator. GPU s/p/d EFIELD and EFG use a
   normalized Hermite expansion shared by Cartesian pairs and components.
   EFIELD constructs the required R_(t,u,v)^0 values directly from polynomials

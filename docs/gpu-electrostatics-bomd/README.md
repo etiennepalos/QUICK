@@ -1,5 +1,19 @@
 # QUICK GPU electrostatics and BOMD
 
+## Master integration, 2026-10-14
+
+The feature is being validated after merging upstream master
+`f33543cae174c3b46d204c22e9a89ab57ac86a4e` in merge
+`7db88f1e0019dc1e50d7050aa3ee85a9f4b74e86`. Final source/runtime identities
+and acceptance results are pending in the
+[integration report](master-integration-20261014.md) and
+[integration manifest](master-integration-20261014.json).
+That report documents the communicator API, parser/subcommunicator regression,
+and preservation checks. Historical passes below are not fresh validation of
+the merged source. Native/CPPE and MBX remain separate projects.
+
+## Historical feature checkpoint, 2026-10-13/14
+
 Checkpoint date: 2026-10-13. Scientific source base:
 `208ddbb3468bfdd9198e7952f32f4365f0d432d5`.
 
@@ -20,7 +34,7 @@ The proposed JCIM Application Note focuses on the GPU derivative implementation,
 its accuracy and performance, and trajectory-resolved electrostatic analysis.
 Native/CPPE polarizable embedding and MBX development remain separate projects.
 
-## Current evidence
+## Historical evidence before the current master merge
 
 - The accepted engineering run passed 2,084 API, lifecycle and short-BOMD gates
   across serial CPU, CPU MPI2, CUDA and CUDA MPI1, with one physical GPU.
@@ -39,9 +53,11 @@ Native/CPPE polarizable embedding and MBX development remain separate projects.
 verbatim historical reports. Statements about local branches not being pushed
 describe their state when those reports were sealed. Absolute paths identify
 workstation evidence; the full raw archive is not included in this checkpoint.
-[The manifest](manifest.json) records the report hashes, scientific file hashes
-and measured CUDA runtime identities. Matching source bytes does not imply that
-a fresh build reproduces binary bytes or performance.
+[The historical manifest](manifest.json) records the report hashes, scientific
+file hashes and measured CUDA runtime identities for that checkpoint. It and
+the two historical reports are retained unchanged. Their hashes and runtimes
+must not be relabeled as the current master integration. Matching source bytes
+does not imply that a fresh build reproduces binary bytes or performance.
 
 ## Runnable examples and validation
 
