@@ -1,111 +1,94 @@
 # Master integration validation: 2026-10-14
 
-Status: **pending**. This is a validation scaffold, not an acceptance report.
-The [machine-readable manifest](master-integration-20261014.json) deliberately
-leaves final identities, counts and results unset until the corresponding raw
-evidence is reviewed. No scientific pass is inferred from the historical files.
+Status: **accepted within the scope below**. The
+[machine-readable manifest](master-integration-20261014.json) records identities,
+accepted evidence and coverage limits. All required code-integration scientific
+gates passed; none was waived. Raw evidence is sealed locally, with no public
+archive identifier.
 
-## Source scope
+Measured source: `d1d7653a01643f60d03d29614ceb038523d5addf`; tree
+`52b3eda060ded827c1ba3be9fb5331a7b80bc0b8`. This integrates feature export
+`dba43da1` with upstream `f33543ca` through merge `7db88f1e`, followed by
+optimizer compatibility and exact numerical-grid keyword fixes. The manifest
+fingerprints 3,165 source/build/generator/validator/basis/fixture inputs, including
+all 1,632 `src/` files, and all four successful build/runtime records. A later
+documentation-only publication commit must preserve these measured inputs.
 
-The source-only feature export `dba43da12d0a0528c2af667b29671ea21c870ab3` was
-merged with upstream master `f33543cae174c3b46d204c22e9a89ab57ac86a4e` in
-`7db88f1e0019dc1e50d7050aa3ee85a9f4b74e86`. Follow-up optimizer compatibility
-work is part of the integration under validation; the merge alone does not
-identify the final measured source. Record its final commit or exact dirty-tree
-snapshot, binary/library identities, build commands and inputs before acceptance.
-
-This integration must retain upstream's overlap, SCF, basis and LRI changes,
-the established ESP/RESP numerical methods, and the feature's optimized
-EFIELD/EFG kernels. Ordinary CLI optimizer behavior must agree with master;
-the live-density API and new derivative/surface workflows additionally require
-geometry, density and energy to refer to the same evaluated endpoint. Validate
-both optimizer routes and repeated jobs after the compatibility fix is frozen.
-
-## MPI and keyword contracts
-
-MPI API clients now call `setQuickMPI(comm, ierr)` before `setQuickJob`.
-QUICK duplicates the supplied communicator. The old rank/size argument pair is
-not the current interface. `MPI_COMM_WORLD` is a valid caller choice; a split
-communicator is also valid.
-
-Library operations use `quick_comm`, `quick_comm_rank`, `quick_comm_size` and
-`quick_mpi_error` from `quick_mpi_module`. Surface broadcasts, shell partitioning,
-electronic reductions and returned property broadcasts must stay within that
-communicator. Electronic contributions are reduced to its rank zero; classical
-nuclear/external-charge terms are added once before returning the full result.
-World-rank bookkeeping during API initialization is distinct from collectives
-that operate on a QUICK job.
-
-Feature keywords use upstream's boundary-aware `found_keyword` parser. The
-regression checks property aliases, numerical EFG implication, density controls,
-field/origin aliases, rejected substrings, repeated matches and tab boundaries.
-
-## Parser and split-communicator regression
-
-From the repository root, after building the CPU serial and MPI API drivers:
-
-```bash
-QUICK_INTEGRATION_EVIDENCE=/home/epalos/software/quick_ep/master-integration-20261014
-python3 validation/oeprop_api/validate_master_integration.py \
-  --serial-driver "$QUICK_INTEGRATION_EVIDENCE/build/integration-cpu/src/test-api-oeprop" \
-  --mpi-driver "$QUICK_INTEGRATION_EVIDENCE/build/integration-cpu/src/test-api-oeprop.MPI" \
-  --launcher 'mpirun -np 4' \
-  --workdir "$QUICK_INTEGRATION_EVIDENCE/parser-subcomm-final"
-```
-
-Use a new evidence directory for every attempt. This standard-library Python
-harness runs 18 parser cases, two serial reference jobs, and four CPU MPI ranks
-split into two independent groups of two. The groups use different molecular
-jobs, probe counts, surface isovalues and property-call counts; each must agree
-with its own serial reference. Interleaved groups and a timeout expose accidental
-world collectives. Default absolute tolerances are `1e-10` hartree for energy,
-`1e-8` Angstrom for coordinates and `1e-9` a.u. for properties. These are small
-regression comparisons, not independent accuracy or large-rank scaling claims.
-
-The driver also exposes `parser-contract`, `subcommunicator-reference` and
-`mpi-subcommunicator` modes. Use the Python harness for acceptance because it
-checks raw outputs, ordering, convergence/lifecycle state and identities.
-
-## Published ESP preservation
-
-The local evidence runner `compare_published_esp.py` in
-`/home/epalos/software/quick_ep/master-integration-20261014/` compares four
-unchanged published test inputs on pristine master CPU/CUDA and integration
-CPU/CUDA. It retains commands, outputs, source/build/runtime identities, explicit
-SCF convergence and finite-value checks. Expected coverage is three MKS surface
-and unrestrained ESP-charge fits (neutral, anionic and unrestricted cases) plus
-an external-grid case, all at B3LYP/def2-SVP. The original absolute thresholds
-are `1e-5` electron for fitted charges, `2e-7` for ESP table entries and `4e-5`
-hartree for energy. Its local coverage file provides the full invocation.
-
-`ESP_CHARGE` is an **unrestrained** QUICK fit. No Amber `resp` executable is
-available in this environment. Preserving QUICK's ESP/MKS input for downstream
-RESP does not establish a fresh external RESP or rwRESP fit; those runtime
-coverage flags remain false. Two-stage restraints, orientation averaging and
-reweighting are not exercised by the four QUICK fixtures.
-
-## Evidence to complete
-
-| Evidence | Status |
+| Evidence | Accepted result |
 |---|---|
-| Final source snapshot and four fresh build/runtime identities | Pending |
-| Upstream CPU/CUDA regression controls and integration differences | Pending |
-| Published ESP input/surface/charge/grid preservation | Pending |
-| Parser and independent split-communicator jobs | Pending |
-| Final API, optimizer/lifecycle and derivative acceptance | Pending |
-| Short BOMD consistency and actual GPU property launches | Pending |
-| External Amber RESP/rwRESP execution | Unavailable; not claimed |
+| Fresh master CPU/CUDA and integration CPU/MPI + CUDA/MPI builds | Configure/build phases returned zero; executable/library identities verified |
+| API, derivatives and lifecycle | **1,187/1,187** checks: 533 + 297 + 357 |
+| Frozen short BOMD | **897/897** checks; 48 cases and 60 retained commands |
+| Parser/split communicator | **18/18** cases; two independent two-rank groups within four CPU MPI ranks |
+| Standard master CPU / integration CPU / master CUDA / integration CUDA | **183/183, 191/191, 184/184, 184/184** selected cases; zero failures/skips/differences/mutations |
+| Optimizer endpoints | **20** cases across CPU, CPU MPI2, CUDA and CUDA MPI1 |
+| Standalone analytic/numerical EFG grids | **16** jobs across four backends; two methods and 663 probes/job |
+| Published ESP preservation | **16/16** runs; eight primary and eight CPU/CUDA comparisons passed |
+| Extreme-coordinate stress | 129 probes; finite API properties at `1e62`, `1e70`, `1e80` Angstrom |
+| CUDA memcheck/initcheck | Four instrumented runs: zero errors; both memchecks zero leaks; eight common-density comparisons passed |
+| Exact WATER20 initial evaluation | Passed: 500 AOs, 20 probes, `nsteps=0`; no dynamics |
+| Protected worktrees and advanced target | 22,318 files before advance; 19,141 mapped nonadvanced files after; all 3,165 validated inputs match the advanced target |
 
-Record baseline failures as well as integration-only failures. Keep failed or
-superseded runs with their actual identities; only accepted runs on the final
-source may populate the current acceptance summary. Retained raw evidence is
-local until separately archived. This scaffold supplies no new speedup,
-multi-GPU, HIP, periodic, polarizable QM/MM or long-time sampling result.
+The [independent evidence audit](/home/epalos/software/quick_ep/master-integration-20261014/accepted-evidence-independent-review.json)
+recomputed accepted API comparisons, frozen BOMD and WATER20 metrics from raw
+files without launching science, and checked the remaining raw/provenance gates.
+The [sealed local evidence manifest](/home/epalos/software/quick_ep/master-integration-20261014/final-evidence-manifest.json)
+maps 3,905 files; SHA-256:
+`82b27baeccc3b5b41b8af46dadcd43fe177b705e285be1814d6bd490bb9f0794`.
+All sealed files, protected mapped files and advanced-target input fingerprints
+were independently rehashed with zero mismatches. Later publication metadata is
+kept separate from the seal; a new `publication-source-proof.json` can bind a
+documentation-only publication commit to the same measured inputs.
 
-## Historical evidence
+MPI clients use `setQuickMPI(comm, ierr)`; QUICK duplicates the caller's
+communicator and uses job-local `quick_comm`, rank and error state. Runtime
+coverage includes CPU MPI2 and CUDA MPI **one rank on one physical GPU**.
+The API report's internal `gpu_mpi2` label does not change the actual rank count.
+Frozen BOMD records 28 launches of each property per CUDA backend and zero extra
+property-triggered SCF calls; maximum short-test energy drift is
+`1.0912440018273628e-7` hartree. Each GPU optimizer endpoint records three
+successful launches per property. Standalone quick grid jobs have GPU/dispatch
+and numerical evidence, without exported kernel-counter CSVs.
 
-[manifest.json](manifest.json), [GPU engineering summary](evidence/gpu-engineering-summary.txt)
-and [WATER20 feasibility summary](evidence/water20-feasibility-summary.txt) describe
-the earlier source/runtime checkpoint. They remain unchanged and separate from
-this integration report. WATER20 is still a single unrelaxed `nsteps=0` initial
-calculation, not a trajectory or an independent reference comparison.
+Published ESP fitting/surface/grid outputs remain within the original absolute
+`1e-5` electron, `2e-7` table and `4e-5` hartree tolerances. Maximum
+same-backend ESP differences are `1.2140000002491824e-7` a.u. on CPU and
+`9.999998051846148e-11` a.u. on CUDA; maximum charge difference is
+`2.0000000000575113e-6` electron. All eight primary printed-energy differences
+are zero. Runtime outputs are not claimed byte-identical. `ESP_CHARGE`
+remains unrestrained; no external Amber RESP/rwRESP executable was available,
+so those fitter runtime coverage flags remain false.
+
+The CPU selected list contains 182 shared legacy cases plus nine feature cases:
+it replaces the B3LYP external-grid entry with PBE0-D3BJ/cc-pVDZ and adds eight
+other cases. The B3LYP grid is separately covered by published ESP preservation.
+CUDA selected lists match master. Shared inputs/references are unchanged; all
+12 original `check_*` functions and their thresholds remain byte-identical.
+Four f-function fixtures (`ENABLEF=FALSE`) and one indexed checkpoint fixture
+(`HDF5=OFF`) are explicitly excluded, unvalidated coverage.
+
+Initial targeted CPU controls found five optimizer regressions. The scoped
+compatibility fix restores ordinary CLI screening/endpoint defaults while
+retaining evaluated endpoints for live API/derivative/surface workflows; all five
+now pass geometry and dipole checks, and all backend endpoint checks pass.
+The initial CUDA unsupported-f-function/harness abort remains a failed,
+unaccepted attempt. The v1 acceptance campaign is superseded. The v2 BOMD
+inventory failure when `validate_grid_parser.py` became tracked was never
+accepted; its frozen rerun supplies the 897 passes. Failed and superseded
+attempts remain retained.
+
+The exact WATER20 PBE-D3/def2-SVP replay converged in 13 SCF cycles. Historical
+control, geometry and probes are unchanged. Energy differs by
+`3.637978807091713e-12` hartree and the largest property difference is
+`1.4566126083082054e-13` a.u. There is one force/energy-gradient API call,
+one property call and one ESP/EFIELD/EFG launch each, with zero extra SCFs.
+This is a nonperiodic step-zero regression against the earlier engine, not an
+independent electronic-structure oracle, trajectory or full-gradient comparison.
+
+The extreme-coordinate stress test establishes finite API behavior, without
+relative far-field accuracy or a speedup claim. Its legacy fixed-width ESP
+coordinate columns can print asterisks at those distances. Sanitizer
+common-density property differences are at most `8.526512829121202e-14` a.u.
+There is no new performance, HIP, multi-GPU, periodic/polarizable BOMD or
+production-length sampling claim. Historical checkpoint reports remain unchanged.
+The local-only archive status is explicit and does not block code acceptance.

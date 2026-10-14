@@ -2,15 +2,17 @@
 
 ## Master integration, 2026-10-14
 
-The feature is being validated after merging upstream master
+The feature includes upstream master
 `f33543cae174c3b46d204c22e9a89ab57ac86a4e` in merge
-`7db88f1e0019dc1e50d7050aa3ee85a9f4b74e86`. Final source/runtime identities
-and acceptance results are pending in the
+`7db88f1e0019dc1e50d7050aa3ee85a9f4b74e86`. CPU/MPI and CUDA/MPI builds,
+all 742 selected standard regression cases, 2,084 electrostatics/BOMD checks,
+GPU memory checks and the exact WATER20 zero-step replay passed.
+Measured source/runtime identities and accepted results are recorded in the
 [integration report](master-integration-20261014.md) and
 [integration manifest](master-integration-20261014.json).
 That report documents the communicator API, parser/subcommunicator regression,
-and preservation checks. Historical passes below are not fresh validation of
-the merged source. Native/CPPE and MBX remain separate projects.
+preservation checks and coverage limits. Historical passes below describe the
+earlier checkpoint. Native/CPPE and MBX remain separate projects.
 
 ## Historical feature checkpoint, 2026-10-13/14
 
