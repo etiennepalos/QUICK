@@ -18,6 +18,7 @@ program quick_oeprop_bomd_driver
 #ifdef MPIV
   use mpi
   use quick_api_module, only: setQuickMPI
+  use quick_mpi_module, only: quick_comm, quick_comm_rank, quick_comm_size, quick_mpi_error
 #endif
   implicit none
 
@@ -58,9 +59,6 @@ program quick_oeprop_bomd_driver
   integer :: property_calls, probe_generation_calls, properties_extra_api_calls
   integer :: launches_before(3), launches_after(3), launch_deltas(3)
   double precision :: force_wall_seconds, probe_wall_seconds, oeprop_wall_seconds
-#ifdef MPIV
-  integer :: mpierror,mpirank,mpisize
-#endif
   logical :: is_master
 
   geometry_file='geometry.xyz'
@@ -105,13 +103,11 @@ program quick_oeprop_bomd_driver
   launches_after=0
   restart_hamiltonian_verified=.true.
 #ifdef MPIV
-  call MPI_INIT(mpierror)
-  call MPI_COMM_RANK(MPI_COMM_WORLD,mpirank,mpierror)
-  call MPI_COMM_SIZE(MPI_COMM_WORLD,mpisize,mpierror)
-  is_master=mpirank == 0
-  rank_id=mpirank
-  rank_count=mpisize
-  call setQuickMPI(mpirank,mpisize,ierr)
+  call MPI_INIT(quick_mpi_error)
+  call setQuickMPI(MPI_COMM_WORLD,ierr)
+  is_master=quick_comm_rank == 0
+  rank_id=quick_comm_rank
+  rank_count=quick_comm_size
   call stop_on_error(ierr,'setQuickMPI')
 #endif
 
@@ -261,7 +257,7 @@ program quick_oeprop_bomd_driver
     write(*,'("QUICK_OEPROP_BOMD_MAX_NET_GRADIENT ",ES12.4)') max_net_gradient
   endif
 #ifdef MPIV
-  call MPI_FINALIZE(mpierror)
+  call MPI_FINALIZE(quick_mpi_error)
 #endif
 
 contains
@@ -355,10 +351,10 @@ contains
     allocate(rank_counts(8,rank_count),rank_times(3,rank_count),stat=ierr)
     call stop_on_error(ierr,'allocate rank evidence')
 #ifdef MPIV
-    call MPI_GATHER(counts,8,MPI_INTEGER,rank_counts,8,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
-    call stop_on_error(mpierror,'gather API and launch counts')
-    call MPI_GATHER(times,3,MPI_DOUBLE_PRECISION,rank_times,3,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
-    call stop_on_error(mpierror,'gather wall times')
+    call MPI_GATHER(counts,8,MPI_INTEGER,rank_counts,8,MPI_INTEGER,0,quick_comm,quick_mpi_error)
+    call stop_on_error(quick_mpi_error,'gather API and launch counts')
+    call MPI_GATHER(times,3,MPI_DOUBLE_PRECISION,rank_times,3,MPI_DOUBLE_PRECISION,0,quick_comm,quick_mpi_error)
+    call stop_on_error(quick_mpi_error,'gather wall times')
 #else
     rank_counts(:,1)=counts
     rank_times(:,1)=times
@@ -377,7 +373,7 @@ contains
       endif
     endif
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
   end subroutine write_kernel_counts
 
@@ -652,7 +648,7 @@ contains
       endif
     endif
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
   end subroutine open_outputs
 
@@ -779,7 +775,7 @@ contains
       endif
     endif
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
   end subroutine write_checkpoint
 
@@ -902,7 +898,7 @@ contains
       endif
     endif
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
   end subroutine write_summary
 
@@ -976,7 +972,7 @@ contains
     if (ierr_in /= 0) then
       if (is_master) write(*,'("QUICK_OEPROP_BOMD_ERROR ",A,1X,I0)') trim(label),ierr_in
 #ifdef MPIV
-      call MPI_ABORT(MPI_COMM_WORLD,ierr_in,mpierror)
+      call MPI_ABORT(quick_comm,ierr_in,quick_mpi_error)
 #endif
       stop 1
     endif

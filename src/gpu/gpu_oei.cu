@@ -205,7 +205,9 @@ static void check_oei_launch() {
     fprintf(stderr, "[ERROR] OEI kernel launch failed: %s\n", hipGetErrorString(status));
 #endif
 #if defined(MPIV_GPU)
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Comm comm = gpu != NULL && gpu->mpi_comm != MPI_COMM_NULL
+        ? gpu->mpi_comm : MPI_COMM_WORLD;
+    MPI_Abort(comm, 1);
 #else
     exit(1);
 #endif

@@ -13,33 +13,64 @@ program quick_oeprop_api_driver
 #ifdef MPIV
   use mpi
   use quick_api_module, only: setQuickMPI
+  use quick_mpi_module, only: quick_comm, quick_comm_rank, quick_comm_size, quick_mpi_error
 #endif
 
   implicit none
 
   character(len=32) :: mode
   character(len=256) :: arg1, arg2, arg3, arg4, arg5, arg6
-  integer :: argc, ierr
+  integer :: argc, ierr, test_group
   logical :: is_master
 #ifdef MPIV
-  integer :: mpierror, mpirank, mpisize
+  integer :: input_comm, setup_world_rank, setup_world_size
 #endif
 
   is_master = .true.
   ierr = 0
-#ifdef MPIV
-  call MPI_INIT(mpierror)
-  call MPI_COMM_RANK(MPI_COMM_WORLD,mpirank,mpierror)
-  call MPI_COMM_SIZE(MPI_COMM_WORLD,mpisize,mpierror)
-  is_master = (mpirank == 0)
-  call setQuickMPI(mpirank,mpisize,ierr)
-#endif
-
+  test_group = 0
   argc = command_argument_count()
   mode = 'validate'
   if (argc >= 1) call get_command_argument(1, mode)
+#ifdef MPIV
+  call MPI_INIT(quick_mpi_error)
+  input_comm = MPI_COMM_WORLD
+  if (trim(mode) == 'mpi-subcommunicator') then
+    call MPI_COMM_RANK(MPI_COMM_WORLD,setup_world_rank,quick_mpi_error)
+    call MPI_COMM_SIZE(MPI_COMM_WORLD,setup_world_size,quick_mpi_error)
+    if (setup_world_size /= 4) then
+      if (setup_world_rank == 0) write(*,'(A)') 'mpi-subcommunicator requires exactly four ranks'
+      call MPI_ABORT(MPI_COMM_WORLD,49,quick_mpi_error)
+    endif
+    test_group = mod(setup_world_rank,2)
+    call MPI_COMM_SPLIT(MPI_COMM_WORLD,test_group,setup_world_rank,input_comm,quick_mpi_error)
+  endif
+  call setQuickMPI(input_comm,ierr)
+  if (trim(mode) == 'mpi-subcommunicator') call MPI_COMM_FREE(input_comm,quick_mpi_error)
+  is_master = (quick_comm_rank == 0)
+#endif
 
   select case(trim(mode))
+  case('parser-contract')
+    arg1 = 'parser_contract.csv'
+    if (argc >= 2) call get_command_argument(2,arg1)
+    call run_parser_contract(trim(arg1),ierr)
+  case('mpi-subcommunicator','subcommunicator-reference')
+    arg1 = 'subcommunicator'
+    if (argc >= 2) call get_command_argument(2,arg1)
+    if (trim(mode) == 'subcommunicator-reference') then
+      if (argc /= 3) then
+        ierr = 49
+      else
+        call get_command_argument(3,arg2)
+        read(arg2,*,iostat=ierr) test_group
+      endif
+    else
+#ifndef MPIV
+      ierr = 49
+#endif
+    endif
+    if (ierr == 0) call run_subcommunicator_case(trim(arg1),test_group,ierr)
   case('validate')
     arg1 = 'oeprop_api_validation.csv'
     if (argc >= 2) call get_command_argument(2, arg1)
@@ -92,16 +123,254 @@ program quick_oeprop_api_driver
   if (ierr /= 0) then
     if (is_master) write(*,'("QUICK OEPROP API driver failed with ierr=",I0)') ierr
 #ifdef MPIV
-    call MPI_FINALIZE(mpierror)
+    call MPI_FINALIZE(quick_mpi_error)
 #endif
     stop 1
   endif
 
 #ifdef MPIV
-  call MPI_FINALIZE(mpierror)
+  call MPI_FINALIZE(quick_mpi_error)
 #endif
 
 contains
+
+  subroutine run_parser_contract(filename,ierr)
+    use quick_method_module, only: quick_method_type, init, read
+    implicit none
+    character(len=*), intent(in) :: filename
+    integer, intent(out) :: ierr
+    integer, parameter :: ncases=18
+    character(len=48), parameter :: labels(ncases)=[character(len=48) :: &
+      'analytic_grid','numerical_implies_grid','reject_property_substrings', &
+      'esp_surface','efield_surface','efg_surface','density_value_implies_mode', &
+      'density_spacing_implies_mode','density_radius_implies_mode', &
+      'reject_density_substring','external_field_origin','finite_field_alias', &
+      'finite_alias_precedence','reject_field_substrings','cutoff_boundaries', &
+      'rejected_then_valid_token','origin_only_enables_field','tab_boundaries']
+    character(len=300), parameter :: cards(ncases)=[character(len=300) :: &
+      'HF BASIS=STO-3G EFG_GRID', &
+      'HF BASIS=STO-3G EFG_GRID_NUMERICAL', &
+      'HF BASIS=STO-3G XEFG_GRID EFG_GRID_NUMERICAL_SUFFIX ESP_SURFACE_SUFFIX', &
+      'HF BASIS=STO-3G ESP_SURFACE', &
+      'HF BASIS=STO-3G EFIELD_SURFACE', &
+      'HF BASIS=STO-3G EFG_SURFACE', &
+      'HF BASIS=STO-3G ESP_GRID DENSITY_SURFACE_VALUE=2.0D-3', &
+      'HF BASIS=STO-3G EFIELD_GRID DENSITY_SURFACE_SPACING=0.9', &
+      'HF BASIS=STO-3G EFG_GRID DENSITY_SURFACE_MAX_RADIUS=7.0', &
+      'HF BASIS=STO-3G ESP_GRID XDENSITY_SURFACE_VALUE=2.0D-3', &
+      'HF BASIS=STO-3G EXTERNAL_EFIELD_X=1.0D-4 EXTERNAL_EFIELD_ORIGIN_Y=2.0', &
+      'HF BASIS=STO-3G FINITE_FIELD_Z=-2.0D-4 FINITE_FIELD_ORIGIN_X=-1.0', &
+      'HF BASIS=STO-3G EXTERNAL_EFIELD_X=1.0D-4 FINITE_FIELD_X=3.0D-4', &
+      'HF BASIS=STO-3G XFINITE_FIELD_X=1.0D-4 EXTERNAL_EFIELD_X_SUFFIX=2.0', &
+      'HF BASIS=STO-3G GRADCUTOFF=1.0D-12', &
+      'HF BASIS=STO-3G XEFG_GRID EFG_GRID_NUMERICAL', &
+      'HF BASIS=STO-3G EXTERNAL_EFIELD_ORIGIN_Z=0.5', &
+      'HF'//achar(9)//'BASIS=STO-3G'//achar(9)//'EFG_GRID_NUMERICAL']
+    type(quick_method_type) :: method
+    character(len=300) :: keyword
+    logical :: flags(8),expected(8),passed
+    double precision :: field(3),origin(3),surface(3),expected_gradcutoff
+    integer :: i,unit,failures,local_error
+
+    ierr=0
+    failures=0
+    unit=-1
+    if (is_master) then
+      open(newunit=unit,file=filename,status='replace',iostat=ierr)
+      if (ierr == 0) write(unit,'(A)') 'case,passed,esp,efield,efg,numerical,density,external,extgrid,angstrom,'// &
+        'field_x,field_y,field_z,origin_x,origin_y,origin_z,isovalue,spacing,max_radius,cutoff,gradcutoff'
+    endif
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    do i=1,ncases
+      local_error=0
+      call init(method,local_error)
+      keyword=cards(i)
+      call read(method,keyword,local_error)
+      expected=.false.
+      field=0.0d0
+      origin=0.0d0
+      surface=(/1.0d-3,0.50d0,10.0d0/)
+      expected_gradcutoff=1.0d-7
+      select case(i)
+      case(1)
+        expected(3)=.true.; expected(7)=.true.
+      case(2,16,18)
+        expected(3:4)=.true.; expected(7)=.true.
+      case(4:6)
+        expected(i-3)=.true.; expected(5)=.true.; expected(8)=.true.
+      case(7:9)
+        expected(i-6)=.true.; expected(5)=.true.; expected(8)=.true.
+        if (i == 7) surface(1)=2.0d-3
+        if (i == 8) surface(2)=0.9d0
+        if (i == 9) surface(3)=7.0d0
+      case(10)
+        expected(1)=.true.; expected(7)=.true.
+      case(11)
+        expected(6)=.true.; field(1)=1.0d-4; origin(2)=2.0d0
+      case(12)
+        expected(6)=.true.; field(3)=-2.0d-4; origin(1)=-1.0d0
+      case(13)
+        expected(6)=.true.; field(1)=3.0d-4
+      case(15)
+        expected_gradcutoff=1.0d-12
+      case(17)
+        expected(6)=.true.; origin(3)=0.5d0
+      end select
+      flags=(/method%esp_grid,method%efield_grid,method%efg_grid,method%efg_grid_numerical, &
+        method%density_surface,method%external_efield,method%ext_grid,method%extgrid_angstrom/)
+      passed=local_error == 0 .and. all(flags .eqv. expected) &
+        .and. maxval(abs(method%external_efield_vector-field)) <= 1.0d-15 &
+        .and. maxval(abs(method%external_efield_origin-origin)) <= 1.0d-15 &
+        .and. maxval(abs((/method%density_surface_value,method%density_surface_spacing, &
+          method%density_surface_max_radius/)-surface)) <= 1.0d-15 &
+        .and. abs(method%integralCutoff-1.0d-10) <= 1.0d-20 &
+        .and. abs(method%gradCutoff-expected_gradcutoff) <= 1.0d-20
+      if (.not. passed) failures=failures+1
+      if (is_master) write(unit,'(A,",",L1,8(",",L1),11(",",ES24.16))') trim(labels(i)),passed,flags, &
+        method%external_efield_vector,method%external_efield_origin,method%density_surface_value, &
+        method%density_surface_spacing,method%density_surface_max_radius,method%integralCutoff,method%gradCutoff
+    enddo
+    if (is_master) close(unit)
+    if (failures /= 0) ierr=53
+    call sync_status(ierr)
+  end subroutine run_parser_contract
+
+
+  subroutine run_subcommunicator_case(prefix,group,ierr)
+    use ieee_arithmetic, only: ieee_is_finite
+    use quick_api_module, only: quick_api, getQuickDensitySurface
+    use quick_method_module, only: quick_method
+    implicit none
+    character(len=*), intent(in) :: prefix
+    integer, intent(in) :: group
+    integer, intent(out) :: ierr
+    integer :: natoms,npoints,api_step,after_step,unit,j,nsurface,cleanup,repeat
+    integer, allocatable :: atomic_numbers(:)
+    character(len=80) :: job
+    character(len=256) :: case_prefix,keyword
+    double precision, allocatable :: coords(:,:),points(:,:),v(:),e(:,:),g(:,:,:)
+    double precision, allocatable :: vr(:),er(:,:),gr(:,:,:),surface_points(:,:),sv(:),se(:,:),sg(:,:,:)
+    double precision :: energy,ptchg(4,0)
+    double precision, allocatable :: values(:),smallest(:),largest(:)
+    logical :: converged
+
+    ierr=0
+    if (group < 0 .or. group > 1) then
+      ierr=49
+      return
+    endif
+    write(case_prefix,'(A,".group",I0)') trim(prefix),group
+    write(job,'("oeprop_split_group",I0)') group
+    natoms=merge(3,1,group == 0)
+    npoints=merge(4,3,group == 0)
+    allocate(atomic_numbers(natoms),coords(3,natoms),points(3,npoints),v(npoints),e(3,npoints),g(3,3,npoints))
+    allocate(vr(npoints),er(3,npoints),gr(3,3,npoints),values(13*npoints),smallest(13*npoints),largest(13*npoints))
+    if (group == 0) then
+      atomic_numbers=(/8,1,1/)
+      coords(:,1)=(/0.0d0,0.0d0,0.0d0/)
+      coords(:,2)=(/0.0d0,0.0d0,0.96d0/)
+      coords(:,3)=(/0.90d0,0.0d0,-0.24d0/)
+      keyword='HF BASIS=STO-3G CUTOFF=1.0D-12 DENSERMS=1.0D-9 ENERGY CHARGE=0'
+    else
+      atomic_numbers=2
+      coords(:,1)=(/0.2d0,-0.1d0,0.3d0/)
+      keyword='HF BASIS=STO-3G CUTOFF=1.0D-12 DENSERMS=1.0D-9 ENERGY CHARGE=0 FINITE_FIELD_X=1.0D-4'
+    endif
+    do j=1,npoints
+      points(:,j)=(/2.0d0+0.3d0*j,-1.2d0+0.2d0*j,1.6d0+0.1d0*j/)/BOHRS_TO_A
+    enddo
+    call setQuickJob(job,keyword,natoms,atomic_numbers,.true.,ierr)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    call getQuickOEPROP(npoints,points,ierr,esp=v,efield=e,efg=g)
+    if (ierr == 47) then
+      ierr=0
+    else
+      ierr=53
+    endif
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    call getQuickEnergy(coords,0,ptchg,energy,ierr)
+    converged=quick_method%scf_conv
+    if (.not. converged .or. .not. ieee_is_finite(energy)) ierr=53
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    api_step=quick_api%step
+    call getQuickOEPROP(npoints,points,ierr,esp=v,efield=e,efg=g)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    if (.not. all(ieee_is_finite(v)) .or. .not. all(ieee_is_finite(e)) .or. &
+        .not. all(ieee_is_finite(g))) ierr=53
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    do repeat=1,group+1
+      call getQuickOEPROP(npoints,points,ierr,efield=er)
+      call sync_status(ierr)
+      if (ierr /= 0) return
+      if (.not. all(ieee_is_finite(er))) ierr=53
+      if (maxval(abs(er-e)) > 1.0d-12) ierr=53
+      call sync_status(ierr)
+      if (ierr /= 0) return
+    enddo
+    values=(/v,reshape(e,(/3*npoints/)),reshape(g,(/9*npoints/))/)
+#ifdef MPIV
+    call MPI_ALLREDUCE(values,smallest,size(values),MPI_DOUBLE_PRECISION,MPI_MIN,quick_comm,quick_mpi_error)
+    call MPI_ALLREDUCE(values,largest,size(values),MPI_DOUBLE_PRECISION,MPI_MAX,quick_comm,quick_mpi_error)
+#else
+    smallest=values
+    largest=values
+#endif
+    if (maxval(abs(largest-smallest)) /= 0.0d0) ierr=53
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    if (is_master) call write_property_csv(trim(case_prefix)//'.properties.csv',1,npoints,energy, &
+      points*BOHRS_TO_A,v,e,g,ierr)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    call getQuickDensitySurface(1.0d-3*(group+1),1.0d0,5.0d0,nsurface,surface_points,ierr)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    if (nsurface < 1 .or. .not. all(ieee_is_finite(surface_points))) ierr=53
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    allocate(sv(nsurface),se(3,nsurface),sg(3,3,nsurface))
+    call getQuickOEPROP(nsurface,surface_points,ierr,esp=sv,efield=se,efg=sg)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    if (.not. all(ieee_is_finite(sv)) .or. .not. all(ieee_is_finite(se)) .or. &
+        .not. all(ieee_is_finite(sg))) ierr=53
+    after_step=quick_api%step
+    if (after_step /= api_step) ierr=53
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    if (is_master) call write_property_csv(trim(case_prefix)//'.surface.csv',1,nsurface,energy, &
+      surface_points*BOHRS_TO_A,sv,se,sg,ierr)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    unit=-1
+    if (is_master) then
+      open(newunit=unit,file=trim(case_prefix)//'.state.csv',status='replace',iostat=ierr)
+      if (ierr == 0) then
+        write(unit,'(A)') 'group,ranks,api_step_before,api_step_after,scf_converged,surface_points'
+#ifdef MPIV
+        write(unit,'(4(I0,","),L1,",",I0)') group,quick_comm_size,api_step,after_step,converged,nsurface
+#else
+        write(unit,'(4(I0,","),L1,",",I0)') group,1,api_step,after_step,converged,nsurface
+#endif
+        close(unit)
+      endif
+    endif
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    call deleteQuickJob(ierr)
+    call sync_status(ierr)
+    if (ierr /= 0) return
+    call getQuickOEPROP(npoints,points,cleanup,esp=vr,efield=er,efg=gr)
+    if (cleanup /= 47) ierr=53
+    call sync_status(ierr)
+  end subroutine run_subcommunicator_case
+
 
   subroutine run_validation(csv_file, ierr)
     implicit none
@@ -161,7 +430,7 @@ contains
 
     if (is_master) call write_property_csv(csv_file, 1, npoints, energy, probes_ang, esp, efield, efg, ierr)
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
     call deleteQuickJob(i)
     if (ierr == 0 .and. i /= 0) ierr = i
@@ -329,9 +598,9 @@ contains
     call sync_status(ierr)
     if (ierr /= 0) goto 900
 #ifdef MPIV
-    call MPI_BCAST(logged,3*natoms,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
-    call MPI_BCAST(cycles,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
-    call MPI_BCAST(log_converged,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(logged,3*natoms,MPI_DOUBLE_PRECISION,0,quick_comm,quick_mpi_error)
+    call MPI_BCAST(cycles,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
+    call MPI_BCAST(log_converged,1,MPI_LOGICAL,0,quick_comm,quick_mpi_error)
 #endif
     ! Match the optimizer Angstrom conversion and six-decimal log precision.
     if (.not. all(ieee_is_finite(logged))) ierr = 53
@@ -502,7 +771,7 @@ contains
         'property,npoints,calls_per_trial,best_seconds_per_call,points_per_second,energy_hartree'
     endif
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
     if (ierr /= 0) then
       call deleteQuickJob(i)
@@ -625,7 +894,7 @@ contains
       if (ierr == 0) call write_csv_header(ounit)
     endif
 #ifdef MPIV
-    call MPI_BCAST(ierr,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
 #endif
     if (ierr /= 0) return
 
@@ -1119,7 +1388,7 @@ contains
 #ifdef MPIV
     integer :: mpierr
     double precision :: max_elapsed
-    call MPI_BARRIER(MPI_COMM_WORLD, mpierr)
+    call MPI_BARRIER(quick_comm, mpierr)
 #endif
     esp = 0.0d0
     efield = 0.0d0
@@ -1138,7 +1407,7 @@ contains
     call system_clock(finish)
     elapsed = dble(finish-start)/dble(rate)
 #ifdef MPIV
-    call MPI_ALLREDUCE(elapsed, max_elapsed, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, mpierr)
+    call MPI_ALLREDUCE(elapsed, max_elapsed, 1, MPI_DOUBLE_PRECISION, MPI_MAX, quick_comm, mpierr)
     elapsed = max_elapsed
 #endif
   end subroutine timed_property
@@ -1247,9 +1516,9 @@ contains
     if (is_master) call generate_density_surfaces()
     nsurface = quick_molspec%nvdwpoint
 #ifdef MPIV
-    call MPI_BCAST(nsurface,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nsurface,1,MPI_INTEGER,0,quick_comm,mpierr)
     if (.not.is_master) allocate(quick_molspec%vdwpointxyz(3,nsurface),stat=ierr)
-    call MPI_BCAST(quick_molspec%vdwpointxyz,3*nsurface,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(quick_molspec%vdwpointxyz,3*nsurface,MPI_DOUBLE_PRECISION,0,quick_comm,mpierr)
 #endif
     allocate(v(nsurface),e(3,nsurface),g(3,3,nsurface),stat=ierr)
     if (ierr /= 0) return
@@ -1268,7 +1537,7 @@ contains
 #ifdef MPIV
     integer :: collective_status, mpierr
     ierr = abs(ierr)
-    call MPI_ALLREDUCE(ierr,collective_status,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,mpierr)
+    call MPI_ALLREDUCE(ierr,collective_status,1,MPI_INTEGER,MPI_MAX,quick_comm,mpierr)
     ierr = collective_status
 #endif
   end subroutine sync_status
@@ -1282,13 +1551,13 @@ contains
     integer, allocatable :: all_counts(:,:)
 #ifdef MPIV
     integer :: mpierr
-    ranks = mpisize
+    ranks = quick_comm_size
 #else
     ranks = 1
 #endif
     allocate(all_counts(3,ranks))
 #ifdef MPIV
-    call MPI_GATHER(counts,3,MPI_INTEGER,all_counts,3,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_GATHER(counts,3,MPI_INTEGER,all_counts,3,MPI_INTEGER,0,quick_comm,mpierr)
 #else
     all_counts(:,1) = counts
 #endif
