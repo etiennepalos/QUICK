@@ -621,7 +621,7 @@ subroutine dlf_run(ierr2 &
 
             ! The callback broadcasts QUICK xyz before evaluating it. Preserve
             ! that geometry with the retained energy, density and gradient.
-            if (master .and. status == 0 .and. ierr2 == 0) then
+            if (quick_method%consistent_optimizer_state .and. master .and. status == 0 .and. ierr2 == 0) then
                evaluated_xyz=xyz
                have_evaluated_xyz=.true.
             endif
@@ -1068,17 +1068,19 @@ subroutine dlf_run(ierr2 &
 
   end do ! main simulation cycle
 
-  ! The last cycle may have formed an unevaluated proposal. Return the
-  ! evaluated QUICK geometry without another SCF, including on MPI workers.
+  ! API and derivative/surface jobs need the geometry of the retained density.
+  ! Other CLI jobs keep the established DL-FIND endpoint behavior.
+  if (quick_method%consistent_optimizer_state) then
 #ifdef MPIV
-  if (bMPI)call MPI_BCAST(have_evaluated_xyz,1,mpi_logical,0,quick_comm,quick_mpi_error)
+    if (bMPI)call MPI_BCAST(have_evaluated_xyz,1,mpi_logical,0,quick_comm,quick_mpi_error)
 #endif
-  if (have_evaluated_xyz) then
-    if (master) xyz=evaluated_xyz
+    if (have_evaluated_xyz) then
+      if (master) xyz=evaluated_xyz
 #ifdef MPIV
-    if (bMPI)call MPI_BCAST(xyz,quick_molspec%natom*3,mpi_double_precision,0,quick_comm,quick_mpi_error)
+      if (bMPI)call MPI_BCAST(xyz,quick_molspec%natom*3,mpi_double_precision,0,quick_comm,quick_mpi_error)
 #endif
-    glob%xcoords=xyz
+      glob%xcoords=xyz
+    endif
   endif
 
   ! Job finished, prepare for shutdown

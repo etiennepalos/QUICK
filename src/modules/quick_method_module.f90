@@ -53,6 +53,8 @@ module quick_method_module
         logical :: diisSCF =  .false.  ! DIIS SCF
         logical :: prtGap =  .false.   ! flag to print HOMO-LUMO gap
         logical :: opt =  .false.      ! optimization
+        ! API and derivative/surface jobs retain screening and an evaluated endpoint.
+        logical :: consistent_optimizer_state = .false.
         logical :: grad = .false.      ! if calculate gradient
         logical :: analGrad =  .false. ! Analytical Gradient
         logical :: analHess =  .false. ! Analytical Hessian Matrix
@@ -247,6 +249,7 @@ module quick_method_module
             call MPI_BCAST(self%diisSCF,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%prtGap,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%opt,1,mpi_logical,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%consistent_optimizer_state,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%grad,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%analGrad,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%analHess,1,mpi_logical,0,quick_comm,quick_mpi_error)
@@ -1003,6 +1006,12 @@ module quick_method_module
            if (index(keyWD, 'SADMO').ne.0) then
                self%sadmo = .true.
            endif
+
+           ! New derivative/surface jobs need the geometry of the retained density.
+           ! Legacy ESP-only CLI jobs keep established optimization behavior.
+           ! API callers enable this before keyword parsing, for any property.
+           self%consistent_optimizer_state = self%consistent_optimizer_state .or. &
+               self%efield_grid .or. self%efg_grid .or. self%density_surface
         end subroutine read_quick_method
 
 
@@ -1042,6 +1051,7 @@ module quick_method_module
             self%diisSCF =  .false.   ! DIIS SCF
             self%prtGap =  .false.    ! flag to print HOMO-LUMO gap
             self%opt =  .false.       ! optimization
+            self%consistent_optimizer_state = .false.
             self%usedlfind = .true.   ! Restore optimizer defaults for each new job
             self%dlfind_iopt = 3
             self%dlfind_icoord = 3

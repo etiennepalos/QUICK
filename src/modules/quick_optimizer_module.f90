@@ -120,10 +120,11 @@ contains
      initial_primitive_cutoff=quick_method%primLimit
      do WHILE (I.lt.quick_method%iopt.and..not.done)
         I=I+1
-        ! Use the requested initial screening for every evaluated geometry.
-        ! Coarse early Fock terms persist when SCF switches to density differences.
-        quick_method%integralCutoff=initial_integral_cutoff
-        quick_method%primLimit=initial_primitive_cutoff
+        if (quick_method%consistent_optimizer_state) then
+           ! Coarse early Fock terms persist when SCF switches to density differences.
+           quick_method%integralCutoff=initial_integral_cutoff
+           quick_method%primLimit=initial_primitive_cutoff
+        endif
 
         if (master) then
            call PrtAct(ioutfile,"Optimize for New Step")
@@ -141,6 +142,12 @@ contains
                     symbol(quick_molspec%iattype(J)),xyz(1,J)*0.529177249d0, &
                     xyz(2,J)*0.529177249d0,xyz(3,J)*0.529177249d0
            enddo
+
+           if (.not. quick_method%consistent_optimizer_state) then
+              ! Preserve the established screening for ordinary CLI optimization.
+              quick_method%integralCutoff=1.0d0/(10.0d0**6.0d0)
+              quick_method%Primlimit=1.0d0/(10.0d0**6.0d0)
+           endif
 
            ! Save grad and coordinate for further use
            do j=1,natom
@@ -326,12 +333,17 @@ contains
               done = done.and.quick_method%gNormCrt.gt.gradnorm
               if (done) then
                  Write (ioutfile,'(" NO SIGNIFICANT CHANGE, NO NEED TO OPTIMIZE. USE INITIAL GEOMETRY.")')
+                 do j=1,natom
+                    do k=1,3
+                       xyz(k,j)=coordsold((j-1)*3+K)
+                    enddo
+                 enddo
               endif
            endif
 
            ! LBFGS has proposed the next, unevaluated geometry. On exit,
            ! return the geometry matching the retained energy, density and gradient.
-           if (done .or. I == quick_method%iopt) then
+           if (quick_method%consistent_optimizer_state .and. (done .or. I == quick_method%iopt)) then
               do j=1,natom
                  do k=1,3
                     xyz(k,j)=coordsold((j-1)*3+k)

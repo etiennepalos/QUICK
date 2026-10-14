@@ -249,6 +249,10 @@ subroutine set_quick_job(fqin, keywd, natoms, atomic_numbers, reusedmx, ierr)
   ! Initialize quick
   call initialize1(ierr)
 
+  ! API properties may be requested after an optimization without OEPROP keywords.
+  ! Set this after every method reset, on all ranks, before job broadcasts.
+  quick_method%consistent_optimizer_state = .true.
+
   ! set the file name and template mode in quick_files_module
   inFileName = quick_api%fqin
   isTemplate = quick_api%apiMode
