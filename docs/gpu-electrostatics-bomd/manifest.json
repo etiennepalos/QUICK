@@ -1,0 +1,41 @@
+{
+  "checkpoint_date": "2026-10-13",
+  "branch": "feature/gpu-electrostatics-bomd",
+  "scientific_source_commit": "208ddbb3468bfdd9198e7952f32f4365f0d432d5",
+  "scientific_source_files_sha256": {
+    "src/gpu/gpu_oeprop_hermite.h": "429f90430f8f73de52f32cc2553f26433aa119e1082f5f3f4e26ba3fc0d925ec",
+    "src/gpu/gpu_oeprop_efg_direct.h": "9fbeae15b4662a7d79a89b0a91b30aefbf93ed88da1915f763167f087afa64a3",
+    "tools/generate_oeprop_efg_direct.py": "24df7a5c7b585bbb061f3af35288f80e87fd96e7f820894f1757a13873c17557",
+    "src/gpu/gpu_oeprop_efield_direct.h": "65cfa6b48e5607d65f8fb1dee4a693ea2495e04eb6a6713ed2de108388c6bad6",
+    "tools/generate_oeprop_efield_direct.py": "36dc449aa542f9c5a0d6660c30583e02f3289d2c7f9a49314a4b743465a346c3",
+    "src/modules/quick_oeproperties_module.f90": "a97ee7ea0127d338008f827a1d24df4f67616b6e2b544ceec0281d7ea5fe39ef",
+    "validation/oeprop_api/quick_oeprop_api_driver.f90": "a32085c4fbe5aeb1ca126b263ab6d0101de36eb5eea5263c58adcb027925dfa1",
+    "validation/oeprop_bomd/quick_oeprop_bomd_driver.f90": "32147a9897db14d0a812bbe11cd49644574776db72427733cdf2287f4b984311"
+  },
+  "source_check": "All listed scientific files match the accepted local source commit and frozen build source; engineering documentation is relocated for this distribution.",
+  "reports": {
+    "evidence/gpu-engineering-summary.txt": {
+      "sha256": "51fdfcaabf762853c719abac7dc33d7cb85168c4aa09a94c69dd6c0391a6a811",
+      "historical_source_path": "/home/epalos/software/quick_ep/host-output-opt-20261011/engineering-final-gpu-report.txt",
+      "verbatim_copy": true
+    },
+    "evidence/water20-feasibility-summary.txt": {
+      "sha256": "133ffe2cfad3717cbc90e90a682ba8994383952336d843e5ef3a59825039aa1a",
+      "historical_source_path": "/home/epalos/software/quick_ep/water20-jcim-20261013/FINAL-REPORT.txt",
+      "verbatim_copy": true
+    }
+  },
+  "accepted_historical_cuda_runtime_sha256": {
+    "/tmp/quick-derivative-bitguard-cuda-20261011/src/test-api-oeprop-bomd.cuda": "6e9e74d64f41a75d83b595166f6e96ce184aaa25c0ee314f5bac7ddcda1f50d9",
+    "/tmp/quick-derivative-bitguard-cuda-20261011/src/libquick_cuda.so": "b79c9ef04bab51f3b409147ed45eaac7a7ca4c59ddb6e538f19a22112ac5b661"
+  },
+  "runtime_files_included": false,
+  "raw_evidence_archive_included": false,
+  "fresh_build_or_science_executed_for_this_checkpoint": false,
+  "water20_scope": "One unrelaxed nonperiodic PBE-D3/DEF2-SVP initial GPU evaluation; nsteps=0; no trajectory, independent electronic-structure comparison or repeated performance benchmark.",
+  "distribution_date": "2026-10-14",
+  "distribution_base_commit": "bc80f985f7141f69a344aa4ca46f3078fe334864",
+  "local_development_commit": "e08d033c2482aee7456787f21c090794a225dea5",
+  "manuscripts_included": false,
+  "development_history_included": false
+}

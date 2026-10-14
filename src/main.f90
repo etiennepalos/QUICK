@@ -358,6 +358,7 @@
     ! 7.The final job is to output energy and many other infos
     !-----------------------------------------------------------------
 #if defined(GPU) || defined(MPIV_GPU)
+    call gpu_cleanup()
     call delete(quick_method, ierr)
     call gpu_deallocate_scratch(quick_method%grad .or. quick_method%opt)
 #if defined(MPIV_GPU)

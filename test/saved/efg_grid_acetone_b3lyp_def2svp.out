@@ -1,0 +1,213 @@
+| *********************************************************************************************************
+| **                                                                                                     **
+| **           888888888888                                                                              **
+| **         8888888888888888                                                                            **
+| **      888888888888888888                                                                             **
+| **     888888888888888888                                                                              **
+| **    888888888888888                                                                                  **
+| **   88888888888888888888                               88888                       8888:              **
+| **   8888888888888888888888Z                            88888                       8888:              **
+| **   888888888888888888888888?                          88888                       8888:              **
+| **   8888888888888      8888888                                        888888       8888:              **
+| **    88888888888         888888     8888:     88888    88888        888888888I     8888:    888888    **
+| **    8888888888           88888:    8888:     88888    88888      $888888888888    8888:   888888     **
+| **    I8Z 88888             88888    8888:     88888    88888    .888888     8888   8888: 888888       **
+| **    .8Z 88888             88888    8888:     88888    88888    $88888             8888:88888         **
+| **     8I 88888      .=88. .88888    8888:     88888    88888    88888              8888888888         **
+| **    :8  88888      888888$8888$    8888:     88888    88888    8888O              88888888888        **
+| **   ,7   +88888.     8888888888.    8888:     88888    88888    888888             88888O888888       **
+| **         $888888:.   .8888888      88888....888888    88888     888888     8888   8888:  888888      **
+| **          I8888888888888888888     888888888888888    88888     O888888888888O    8888:   888888     **
+| **            O888888888888888888     88888888888888    88888       88888888888$    8888:    888888    **
+| **               8888888Z     888      .8888I  88888    88888         8888888       8888:     888888   **
+| **                                                                                                     **
+| **                                                                                                     **
+| **                                         Copyright (c) 2026                                          **
+| **                          Regents of the University of California San Diego                          **
+| **                                    & Michigan State University                                      **
+| **                                        All Rights Reserved.                                         **
+| **                                                                                                     **
+| **             This software is subject to the terms of the Mozilla Public License, v. 2.0.            **
+| **                                                                                                     **
+| *********************************************************************************************************
+|
+| Cite this work as:
+| Manathunga, M.; O'Hearn, K. A.; Shajan, A.; Smith, J.; Miao, Y.; He, X.; Ayers, K.;
+| Brothers, E.; Palos, E.; Tripathy, V.; Goetz, A.W.; Merz, K.M. QUICK-26.03.
+| University of California,San Diego, CA and
+| Michigan State University, East Lansing, MI, 2026
+|
+| If you have any comments or queries, please reach out to us on GitHub issues or discussion sections:
+| https://github.com/merzlab/QUICK.
+|
+| TASK STARTS ON: Wed Jun  3 17:34:35 2026
+| INPUT FILE :    efg_grid_acetone_b3lyp_def2svp.in
+| OUTPUT FILE:    efg_grid_acetone_b3lyp_def2svp.out
+| BASIS SET PATH: /Users/etiennepalos/Documents/Research/QUICK/QUICK/basis
+
+ @ Read Job And Atom
+
+  KEYWORD=B3LYP BASIS=DEF2-SVP XCCUTOFF=1.0E-12 BASISCUTOFF=1.0E-12 CUTOFF=1.0E-12 DENSERMS=4.0E-8 EFG_GRID
+ ============== JOB CARD =============
+ METHOD = DENSITY FUNCTIONAL THEORY
+ DENSITY FUNCTIONAL = B3LYP
+ DIRECT SCF
+ SAD INITAL GUESS
+ USE DIIS SCF
+ PRINT ENERGY EVERY CYCLE
+ READ SAD GUESS FROM FILE
+ EXTERNAL GRID POINTS
+ STANDARD GRID = SG1
+ Level shifting allowed after cycle    3
+ DIIS error must exceed 0.100 for level shifting
+ Max HOMO-LUMO gap to allow level shifting = 0.200
+ ELECTRIC FIELD GRADIENT CALCULATION
+ MAX SCF CYCLES =    200
+ MAX DIIS CYCLES =   10
+ DELTA DENSITY START CYCLE =    3
+ COMPUTATIONAL CUTOFF:
+      TWO-e INTEGRAL         =  0.100E-11
+      BASIS SET PRIME        =  0.100E-12
+      MATRIX ELEMENTS        =  0.100E-09
+      BASIS FUNCTION         =  0.100E-11
+      NEAR-LINEAR DEPENDENCY =  0.100E-04
+ DENSITY MATRIX MAXIMUM RMS FOR CONVERGENCE  =  0.400E-07
+ BASIS SET = DEF2-SVP,  TYPE = CARTESIAN
+| BASIS FILE = /Users/etiennepalos/Documents/Research/QUICK/QUICK/basis/DEF2-SVP.BAS
+| DATA FILE  =    efg_grid_acetone_b3lyp_def2svp.dat
+
+ @ Finish reading job
+
+
+ @ Begin SAD initial guess
+
+ For Atom Kind =    1
+ ELEMENT = C
+ BASIS FUNCTIONS =   15
+ For Atom Kind =    2
+ ELEMENT = O
+ BASIS FUNCTIONS =   15
+ For Atom Kind =    3
+ ELEMENT = H
+ BASIS FUNCTIONS =    5
+
+ @ Finish SAD initial guess
+
+
+ @ Begin Reading Molecular Information
+
+
+ =========== Molecule Input ==========
+ TOTAL MOLECULAR CHARGE  =    0    MULTIPLICITY                =    1
+ TOTAL ATOM NUMBER       =   10    NUMBER OF ATOM TYPES        =    3
+ NUMBER OF HYDROGEN ATOM =    6    NUMBER OF NON-HYDROGEN ATOM =    4
+ NUMBER OF ELECTRONS     =   32
+
+ -- INPUT GEOMETRY -- :
+    C           0.0000       0.0000       0.0000
+    O           1.2273      -0.0000      -0.0020
+    C          -0.8212       1.3028       0.0000
+    H          -0.5860       1.8727      -0.8745
+    H          -1.8648       1.0666       0.0018
+    H          -0.5834       1.8743       0.8728
+    C          -0.8212      -1.3028       0.0027
+    H          -1.4367      -1.3346       0.8774
+    H          -1.4395      -1.3365      -0.8699
+    H          -0.1580      -2.1424       0.0026
+
+ -- DISTANCE MATRIX -- :
+              1           2           3           4           5
+      1     0.00000
+      2     2.31929     0.00000
+      3     2.91018     4.58766     0.00000
+      4     4.05963     5.19457     2.02201     0.00000
+      5     4.05963     6.18109     2.02201     3.30192     0.00000
+      6     4.05963     5.19481     2.02201     3.30192     3.30192
+      7     2.91018     4.58766     4.92380     6.24136     4.89250
+      8     4.05963     5.87073     5.37973     7.09077     4.89716
+      9     4.05963     5.87073     5.37980     6.27524     4.89697
+     10     4.05963     4.82125     6.63007     7.80838     6.86858
+              6           7           8           9          10
+      6     0.00000
+      7     6.24103     0.00000
+      8     6.27464     2.02201     0.00000
+      9     7.09055     2.02201     3.30192     0.00000
+     10     7.80811     2.02201     3.30192     3.30192     0.00000
+
+============== BASIS INFOS ==============
+ BASIS FUNCTIONS =   90
+ NSHELL =   42 NPRIM  =  142
+ JSHELL =   42 JBASIS =   78
+
+
+ @ End Reading Molecular Information
+
+
+ @ Begin XC Quadrature Formation
+
+ OCTAGO: OCTree Algorithm for Grid Operations
+   PRUNING CUTOFF       = 0.100E-11
+   INITIAL GRID POINTS  =       37776
+|   FINAL GRID POINTS    =       25336
+|   SIGNIFICANT NUMBER OF BASIS FUNCTIONS     =       33040
+|   SIGNIFICANT NUMBER OF PRIMITIVE FUNCTIONS =       37421
+
+ @ End XC Quadrature Formation
+
+
+ @ Begin Energy Calculation
+
+| condition number of overlap matrix:    2.080E+03
+| Smallest eigenvalue of overlap matrix:    3.603E-03
+
+                                         SCF ENERGY
+| ------------------------------------------------------------------------------------------------------------------------
+| NCYC       ENERGY         DELTA_E      SCF_TIME  DII_CYC   DII_TIME   O_TIME  DIAG_TIME    MAX_ERR    RMS_CHG    MAX_CHG
+| ------------------------------------------------------------------------------------------------------------------------
+|  1   -193.469252884      ------         0.347     1        0.00      0.35      0.00    0.2139E+01  0.3599E-01  0.4989E+00
+|  2   -192.805043479  -.664209E+00       0.540     2        0.00      0.54      0.00    0.3306E+00  0.4252E-01  0.9834E+00
+|  3   -192.376517516  -.428526E+00       0.551     3        0.00      0.55      0.00    0.7517E+00  0.3075E-01  0.7808E+00
+|   ***  Level shifting applied  ( HOMO-LUMO gap =  0.125 au ) ***
+|  4   -192.997902347  0.621385E+00       0.543     4        0.00      0.54      0.00    0.6141E-01  0.4353E-02  0.7753E-01
+|  5   -193.012512656  0.146103E-01       0.532     5        0.00      0.53      0.00    0.1210E-01  0.5281E-03  0.1119E-01
+|  6   -193.013054623  0.541967E-03       0.521     6        0.00      0.52      0.00    0.2113E-02  0.1180E-03  0.3138E-02
+|  7   -193.013069541  0.149185E-04       0.525     7        0.00      0.52      0.00    0.6603E-03  0.5293E-04  0.8613E-03
+|  8   -193.013071501  0.195955E-05       0.503     8        0.00      0.50      0.00    0.1901E-03  0.9664E-05  0.1123E-03
+|  9   -193.013071594  0.929569E-07       0.488     9        0.00      0.49      0.00    0.4116E-04  0.1534E-05  0.2525E-04
+| 10   -193.013071597  0.317726E-08       0.472    10        0.00      0.47      0.00    0.4378E-05  0.3608E-06  0.4882E-05
+| 11   -193.013071597  0.108514E-09       0.454     1        0.00      0.45      0.00    0.1327E-05  0.9480E-07  0.1559E-05
+| 12   -193.013071597  0.790124E-11       0.435     2        0.00      0.43      0.00    0.6280E-06  0.3552E-07  0.5690E-06
+| ------------------------------------------------------------------------------------------------------------------------
+| REACH CONVERGENCE AFTER  12 CYCLES
+| MAX ERROR = 0.627957E-06   RMS CHANGE = 0.355239E-07   MAX CHANGE = 0.569007E-06
+| -----------------------------------------------
+ ALPHA ELECTRON DENSITY    =    15.9999761166
+ BETA ELECTRON DENSITY     =    15.9999761166
+ ELECTRONIC ENERGY    =   -311.630555774
+ CORE_CORE REPULSION  =    118.617484177
+ TOTAL ENERGY         =   -193.013071597
+
+ @ End Energy calculation
+
+ *** Printing Electric Field Gradient (EFG) [a.u.] on grid efg_grid_acetone_b3lyp_def2svp.efg ***
+
+ @ Output Timing Information
+
+------------- TIMING ---------------
+| INITIAL GUESS TIME  =     0.069860000(  0.90%)
+| DFT GRID OPERATIONS =     0.035365000(  0.45%)
+| EFG COMPUTATION TIME =     1.778977000( 22.81%)
+| TOTAL SCF TIME      =     5.912135000( 75.79%)
+|       TOTAL OP TIME      =     5.903916000( 75.69%)
+|             TOTAL 1e TIME      =     0.002621000(  0.03%)
+|             TOTAL 2e TIME      =     4.162959000( 53.37%)
+|             TOTAL EXC TIME     =     1.735259000( 22.25%)
+|       TOTAL DII TIME      =     0.008045000(  0.10%)
+|             TOTAL DIAG TIME    =     0.005469000(  0.07%)
+| TOTAL TIME          =     7.800274000
+------------------------------------
+| Job cpu time:  0 days  0 hours  0 minutes  7.8 seconds.
+
+ @ Finish Output Timing Information
+
+| Normal Termination. Task Finished on: Wed Jun  3 17:34:43 2026

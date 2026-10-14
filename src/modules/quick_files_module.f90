@@ -39,6 +39,7 @@ module quick_files_module
     character(len=80) :: moldenFileName   = ''
     character(len=80) :: espFileName      = ''
     character(len=80) :: efieldFileName   = ''
+    character(len=80) :: efgFileName      = ''
     character(len=80) :: VdwSurfFileName  = ''
 
 
@@ -70,6 +71,7 @@ module quick_files_module
     integer :: iMoldenFile    = MOLDENFILEHANDLE     ! molden file
     integer :: iESPFile       = ESPFILEHANDLE        ! properties file for esp
     integer :: iEFIELDFile    = EFIELDFILEHANDLE     ! properties file for efield
+    integer :: iEFGFile       = EFGFILEHANDLE        ! properties file for efg
     integer :: iVdwSurfFile   = VDWSURFFILEHANDLE    ! prints the calculated vanderwaals surface
 
 
@@ -137,6 +139,7 @@ module quick_files_module
         moldenFileName=inFileName(1:i-1)//'.molden'
         espFileName=inFileName(1:i-1)//'.esp'
         efieldFileName=inFileName(1:i-1)//'.efield'
+        efgFileName=inFileName(1:i-1)//'.efg'
         VdwSurfFileName=inFileName(1:i-1)//'.vdw'
 
 

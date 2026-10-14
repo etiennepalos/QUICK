@@ -19,6 +19,7 @@ module quick_api_module
 
   public :: quick_api
   public :: setQuickJob, getQuickEnergy, getQuickEnergyGradients, deleteQuickJob
+  public :: getQuickOEPROP, getQuickDensitySurface
 
 #ifdef MPIV
   public :: setQuickMPI
@@ -78,6 +79,14 @@ module quick_api_module
     ! total energy in hartree
     double precision :: tot_ene = 0.0d0
 
+    ! true after a successful energy or gradient evaluation has produced
+    ! a density matrix that can be used by no-I/O OEPROP evaluators.
+    logical :: density_ready = .false.
+#if defined(GPU) || defined(MPIV_GPU)
+    ! Keep device basis and coordinates alive for properties from this density.
+    logical :: gpu_molspecs_ready = .false.
+#endif
+
     ! if gradients and point charge gradients are requested
     logical :: isForce = .false.
 
@@ -114,6 +123,14 @@ module quick_api_module
 
   interface getQuickEnergyGradients
     module procedure get_quick_energy_gradients
+  end interface
+
+  interface getQuickOEPROP
+    module procedure get_quick_oeprop
+  end interface
+
+  interface getQuickDensitySurface
+    module procedure get_quick_density_surface
   end interface
 
   interface deleteQuickJob
@@ -154,6 +171,15 @@ subroutine new_quick_api_type(self, natoms, atomic_numbers, ierr)
 
   ! set result vectors and matrices to zero
   self%gradient  = 0.0d0
+  ! A new job must rebuild the basis and initial guess released by deleteQuickJob.
+  self%firstStep = .true.
+  self%step = 1
+  self%apiMode = .false.
+  self%hasKeywd = .false.
+  self%density_ready = .false.
+#if defined(GPU) || defined(MPIV_GPU)
+  self%gpu_molspecs_ready = .false.
+#endif
 
 end subroutine new_quick_api_type
 
@@ -169,7 +195,12 @@ subroutine check_fqin(fqin, keywd, ierr)
 
   call upcase(keywd, 256)
 
-  if ((index(keywd, 'HF') .ne. 0) .or. (index(keywd, 'DFT') .ne. 0) .and. (index(keywd, 'BASIS=') .ne. 0 )) then
+  if (index(keywd, 'BASIS=') .ne. 0 .and. &
+      (index(keywd, 'HF') .ne. 0 .or. &
+       index(keywd, 'DFT') .ne. 0 .or. &
+       index(keywd, 'PBE0') .ne. 0 .or. &
+       index(keywd, 'B3LYP') .ne. 0 .or. &
+       index(keywd, 'LIBXC=') .ne. 0)) then
     quick_api%hasKeywd = .true.
     quick_api%Keywd = keywd
   endif
@@ -385,6 +416,7 @@ subroutine get_quick_energy(coords, nxt_ptchg, ptchg_crd, energy, ierr)
   ! assign passed parameter values into quick_api struct
   quick_api%nxt_ptchg = nxt_ptchg
   quick_api%coords        = coords
+  quick_api%density_ready = .false.
 
   ! set number of external atoms in quick_molspec
   quick_molspec%nextatom  = quick_api%nxt_ptchg
@@ -395,6 +427,7 @@ subroutine get_quick_energy(coords, nxt_ptchg, ptchg_crd, energy, ierr)
   endif
 
   call run_quick(quick_api,ierr)
+  if (ierr == 0) quick_api%density_ready = .true.
 
   ! send back total energy and charges
   energy = quick_api%tot_ene
@@ -423,6 +456,7 @@ subroutine get_quick_energy_gradients(coords, nxt_ptchg, ptchg_crd, &
   ! assign passed parameter values into quick_api struct
   quick_api%coords         = coords
   quick_api%nxt_ptchg = nxt_ptchg
+  quick_api%density_ready = .false.
 
   ! set number of external atoms in quick_molspec
   quick_molspec%nextatom  = quick_api%nxt_ptchg
@@ -433,6 +467,7 @@ subroutine get_quick_energy_gradients(coords, nxt_ptchg, ptchg_crd, &
   endif
 
   call run_quick(quick_api,ierr)
+  if (ierr == 0) quick_api%density_ready = .true.
 
   ! send back total energy, gradients and point charge gradients
   energy     = quick_api%tot_ene
@@ -444,6 +479,140 @@ subroutine get_quick_energy_gradients(coords, nxt_ptchg, ptchg_crd, &
   endif
 
 end subroutine get_quick_energy_gradients
+
+
+! evaluates no-I/O electrostatic properties at caller-supplied probe points.
+! Probe coordinates are in bohr. Returned properties are in QUICK atomic units:
+! ESP V(C), E_i(C)=-dV/dC_i, and G_ij(C)=dE_i/dC_j.
+! In an MPI build this is collective and returns identical arrays on all ranks.
+subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
+
+  use quick_oeproperties_module, only: compute_oeprop_values
+#ifdef MPIV
+  use mpi
+#endif
+
+  implicit none
+
+  integer, intent(in) :: npoints
+  double precision, intent(in) :: probe_xyz_bohr(3,npoints)
+  integer, intent(out) :: ierr
+  double precision, intent(out), optional :: esp(npoints)
+  double precision, intent(out), optional :: efield(3,npoints)
+  double precision, intent(out), optional :: efg(3,3,npoints)
+#ifdef MPIV
+  integer :: mpierror
+#endif
+
+  ierr = 0
+
+  if (npoints <= 0) then
+    ierr = 46
+    return
+  endif
+
+  if (.not. quick_api%density_ready) then
+    ierr = 47
+    return
+  endif
+
+  if (.not. (present(esp) .or. present(efield) .or. present(efg))) then
+    ierr = 48
+    return
+  endif
+
+#if defined(GPU) || defined(MPIV_GPU)
+  ! Optimizers release their device molecular data between evaluations.
+  ! Rebuild it from the converged host state without another SCF.
+  if (.not. quick_api%gpu_molspecs_ready) then
+    call gpu_upload_molspecs(ierr)
+    if (ierr /= 0) return
+  endif
+#endif
+  call compute_oeprop_values(npoints, probe_xyz_bohr, esp, efield, efg)
+
+#ifdef MPIV
+  if (present(esp)) call MPI_BCAST(esp,npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+  if (present(efield)) call MPI_BCAST(efield,3*npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+  if (present(efg)) call MPI_BCAST(efg,9*npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+#endif
+
+end subroutine get_quick_oeprop
+
+
+! Generates an electron-density isosurface from the current converged
+! density. Returned coordinates are in bohr and owned by the caller.
+subroutine get_quick_density_surface(isovalue,spacing_ang,max_radius_ang, &
+           npoints,points_bohr,ierr)
+
+  use quick_method_module, only: quick_method
+  use quick_molspec_module, only: quick_molspec
+  use quick_molsurface_module, only: generate_density_surfaces
+#ifdef MPIV
+  use mpi
+  use quick_mpi_module, only: master
+#endif
+
+  implicit none
+
+  double precision, intent(in) :: isovalue, spacing_ang, max_radius_ang
+  integer, intent(out) :: npoints
+  double precision, allocatable, intent(out) :: points_bohr(:,:)
+  integer, intent(out) :: ierr
+  double precision :: old_isovalue, old_spacing, old_max_radius
+#ifdef MPIV
+  integer :: mpierror, allocation_error
+#endif
+
+  ierr=0
+  npoints=0
+  if (allocated(points_bohr)) deallocate(points_bohr)
+  if (.not. quick_api%density_ready) then
+    ierr=47
+    return
+  endif
+  if (isovalue <= 0.0d0 .or. spacing_ang <= 0.0d0 .or. max_radius_ang <= spacing_ang) then
+    ierr=45
+    return
+  endif
+
+  old_isovalue=quick_method%density_surface_value
+  old_spacing=quick_method%density_surface_spacing
+  old_max_radius=quick_method%density_surface_max_radius
+  quick_method%density_surface_value=isovalue
+  quick_method%density_surface_spacing=spacing_ang
+  quick_method%density_surface_max_radius=max_radius_ang
+
+#ifdef MPIV
+  if (master) then
+#endif
+    call generate_density_surfaces()
+    npoints=quick_molspec%nvdwpoint
+#ifdef MPIV
+  endif
+  call MPI_BCAST(npoints,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierror)
+#endif
+
+  allocate(points_bohr(3,npoints),stat=ierr)
+#ifdef MPIV
+  call MPI_ALLREDUCE(ierr,allocation_error,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,mpierror)
+  ierr=allocation_error
+#endif
+  if (ierr == 0) then
+#ifdef MPIV
+    if (master) points_bohr=quick_molspec%vdwpointxyz(:,1:npoints)
+    call MPI_BCAST(points_bohr,3*npoints,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpierror)
+#else
+    points_bohr=quick_molspec%vdwpointxyz(:,1:npoints)
+#endif
+  endif
+  if (allocated(quick_molspec%vdwpointxyz)) deallocate(quick_molspec%vdwpointxyz)
+
+  quick_method%density_surface_value=old_isovalue
+  quick_method%density_surface_spacing=old_spacing
+  quick_method%density_surface_max_radius=old_max_radius
+
+end subroutine get_quick_density_surface
 
 
 ! runs quick, partially resembles quick main program
@@ -529,6 +698,10 @@ subroutine run_quick(self,ierr)
 
 #if defined(GPU) || defined(MPIV_GPU)
   ! upload molecular and basis information to gpu
+  if (quick_method%opt .and. self%gpu_molspecs_ready) then
+    call gpu_cleanup()
+    self%gpu_molspecs_ready = .false.
+  endif
   if(.not.quick_method%opt) call gpu_upload_molspecs(ierr)
 
 #ifdef CEW
@@ -603,11 +776,8 @@ subroutine run_quick(self,ierr)
 #endif
   endif
 
-#if defined(GPU) || defined(MPIV_GPU)
-      if (quick_method%bGPU) then
-        call gpu_cleanup()
-      endif
-#endif
+  ! GPU molecular data remains live for getQuickOEPROP. It is released
+  ! before the next molecular upload, or when deleteQuickJob is called.
 
 #ifdef MPIV
   if(master) then
@@ -754,6 +924,10 @@ subroutine gpu_upload_molspecs(ierr)
   implicit none
   integer, intent(inout) :: ierr
 
+  if (quick_api%gpu_molspecs_ready) then
+    call gpu_cleanup()
+    quick_api%gpu_molspecs_ready = .false.
+  endif
   call gpu_setup(quick_molspec%natom,nbasis, quick_molspec%nElec, quick_molspec%imult, &
        quick_molspec%molchg, quick_molspec%iAtomType)
   call gpu_upload_xyz(quick_molspec%xyz)
@@ -771,6 +945,7 @@ subroutine gpu_upload_molspecs(ierr)
   call gpu_upload_cutoff_matrix(Ycutoff, cutPrim)
 
   call gpu_upload_oei(quick_molspec%nextatom, quick_molspec%extxyz, quick_molspec%extchg, ierr)
+  if (ierr == 0) quick_api%gpu_molspecs_ready = .true.
 
 end subroutine gpu_upload_molspecs
 
@@ -829,7 +1004,10 @@ subroutine delete_quick_job(ierr)
   integer, intent(out) :: ierr
   ierr=0
 
+  quick_api%density_ready = .false.
 #if defined(GPU) || defined(MPIV_GPU)
+  if (quick_api%gpu_molspecs_ready) call gpu_cleanup()
+  quick_api%gpu_molspecs_ready = .false.
   call delete(quick_method, ierr)
   call gpu_deallocate_scratch(.true.)
 #if defined(MPIV_GPU)

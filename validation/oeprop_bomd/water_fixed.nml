@@ -1,0 +1,13 @@
+&quick_bomd
+  geometry_file = 'validation/oeprop_bomd/water.xyz'
+  probe_file = 'validation/oeprop_bomd/water_fixed.probe'
+  output_prefix = 'quick_oeprop_bomd_water'
+  checkpoint_file = 'quick_oeprop_bomd_water.chk'
+  keywd = 'HF BASIS=STO-3G CUTOFF=1.0D-12 GRADCUTOFF=1.0D-12 DENSERMS=1.0D-10 GRADIENT CHARGE=0'
+  probe_mode = 'fixed'
+  nsteps = 10
+  oeprop_stride = 1
+  dt_fs = 0.05
+  temperature_k = 50.0
+  coordinate_atoms = 2, 3
+/

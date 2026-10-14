@@ -1,0 +1,13 @@
+&quick_bomd
+  geometry_file = 'microdroplet_initial.xyz'
+  probe_file = 'reactive_site_probes.dat'
+  output_prefix = 'microdroplet_pbe0'
+  checkpoint_file = 'microdroplet_pbe0.chk'
+  keywd = 'DFT PBE0 D3 BASIS=DEF2-SVPD CUTOFF=1.0D-10 GRADCUTOFF=1.0D-10 XCCUTOFF=1.0D-9 BASISCUTOFF=1.0D-9 DENSERMS=1.0D-8 GRADIENT CHARGE=0'
+  probe_mode = 'molecule'
+  anchor_atoms = 1, 2, 3
+  coordinate_atoms = 4, 5
+  nsteps = 1000
+  dt_fs = 0.25
+  temperature_k = 300.0
+/

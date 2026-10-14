@@ -84,13 +84,10 @@ extern "C" void mgpu_init_device_(int *mpirank, int *mpisize, int *device, int* 
     PRINTERROR(status, "hipGetDeviceProperties gpu_init failed!");
 
 #if defined(HIP) || defined(HIP_MPIV)
-    hipDeviceSetCacheConfig(hipFuncCachePreferL1);
-    /* NOTE: setting the stack size limit to 8K is required for correctness
-     * in HIP/MPI+HIP codes to workaround GPU kernel issues for recent ROCm versions (>= v6.2.1);
-     * ideally, this could be dropped in the future if ROCm properly addresses
-     * this issues internally */
-    hipDeviceSetLimit(hipLimitStackSize, 8192);
+    status = hipDeviceSetCacheConfig(hipFuncCachePreferL1);
+    check_device_configuration(status == hipSuccess, "set cache preference", hipGetErrorString(status));
 #endif
+    ensure_device_stack_size();
 
     size_t val;
     hipDeviceGetLimit(&val, hipLimitStackSize);
@@ -131,7 +128,7 @@ extern "C" void mgpu_init_device_(int *mpirank, int *mpisize, int *device, int* 
 //--------------------------------------------------------
 void mgpu_oei_greedy_distribute() {
     // Total number of items to distribute
-    int nitems=gpu->gpu_basis->Qshell * gpu->gpu_basis->Qshell;
+    int nitems=gpu->gpu_sim.Qshell_OEI;
 
     // Array to store total number of items each core would have
     int tot_pcore[gpu->mpisize];

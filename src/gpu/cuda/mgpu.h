@@ -83,14 +83,7 @@ extern "C" void mgpu_init_device_(int *mpirank, int *mpisize, int *device, int* 
     status = cudaGetDeviceProperties(&deviceProp, gpu->gpu_dev_id);
     PRINTERROR(status, "cudaGetDeviceProperties gpu_init failed!");
 
-#if defined(HIP) || defined(HIP_MPIV)
-    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-    /* NOTE: setting the stack size limit to 8K is required for correctness
-     * in HIP/MPI+HIP codes to workaround GPU kernel issues for recent ROCm versions (>= v6.2.1);
-     * ideally, this could be dropped in the future if ROCm properly addresses
-     * this issues internally */
-    cudaDeviceSetLimit(cudaLimitStackSize, 8192);
-#endif
+    ensure_device_stack_size();
 
     size_t val;
     cudaDeviceGetLimit(&val, cudaLimitStackSize);
@@ -131,7 +124,7 @@ extern "C" void mgpu_init_device_(int *mpirank, int *mpisize, int *device, int* 
 //--------------------------------------------------------
 void mgpu_oei_greedy_distribute() {
     // Total number of items to distribute
-    int nitems=gpu->gpu_basis->Qshell * gpu->gpu_basis->Qshell;
+    int nitems=gpu->gpu_sim.Qshell_OEI;
 
     // Array to store total number of items each core would have
     int tot_pcore[gpu->mpisize];

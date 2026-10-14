@@ -22,6 +22,9 @@
   #include "hip/gpu.h"
 #endif
 #include "gpu_common.h"
+#if defined(MPIV_GPU)
+#include <mpi.h>
+#endif
 
 
 static __constant__ gpu_simulation_type devSim;
@@ -191,12 +194,31 @@ static float totTime;
 
 
 // interface for kernel launching
+static void check_oei_launch() {
+#if defined(CUDA) || defined(CUDA_MPIV)
+    cudaError_t status = cudaGetLastError();
+    if (status == cudaSuccess) return;
+    fprintf(stderr, "[ERROR] OEI kernel launch failed: %s\n", cudaGetErrorString(status));
+#else
+    hipError_t status = hipGetLastError();
+    if (status == hipSuccess) return;
+    fprintf(stderr, "[ERROR] OEI kernel launch failed: %s\n", hipGetErrorString(status));
+#endif
+#if defined(MPIV_GPU)
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+    exit(1);
+#endif
+}
+
 void getOEI(_gpu_type gpu) {
     QUICK_SAFE_CALL((getOEI_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+    check_oei_launch();
 }
 
 
 void get_oei_grad(_gpu_type gpu) {
     QUICK_SAFE_CALL((get_oei_grad_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+    check_oei_launch();
 }
 

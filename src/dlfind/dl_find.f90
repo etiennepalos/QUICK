@@ -367,6 +367,8 @@ subroutine dlf_run(ierr2 &
   integer  :: iimage,ivar,status,image_status,taskfarm_mode
   integer  :: icount, kiter, iat, jat, fail
   real(rk) :: svar
+  real(rk) :: evaluated_xyz(3,quick_molspec%natom)
+  logical  :: have_evaluated_xyz
   logical  :: tconv,trestarted,trerun_energy
   logical  :: needhessian ! do we need a Hessian?
   logical  :: testconv ! is convergence checked in coords_xtoi ?
@@ -376,6 +378,7 @@ subroutine dlf_run(ierr2 &
 ! **********************************************************************
   
   ! classical rate (i.e. rate w/o tunneling) should be calculated
+  have_evaluated_xyz=.false.
   if(glob%iopt == 13) then
     call dlf_htst_rate()
     return ! nothing else to do
@@ -615,6 +618,13 @@ subroutine dlf_run(ierr2 &
                  core,&
 #endif
                  status,ierr2)
+
+            ! The callback broadcasts QUICK xyz before evaluating it. Preserve
+            ! that geometry with the retained energy, density and gradient.
+            if (master .and. status == 0 .and. ierr2 == 0) then
+               evaluated_xyz=xyz
+               have_evaluated_xyz=.true.
+            endif
 
             ! ESP fit corrections
             if (glob%micro_esp_fit .and. status == 0) then
@@ -1058,6 +1068,18 @@ subroutine dlf_run(ierr2 &
 
   end do ! main simulation cycle
 
+  ! The last cycle may have formed an unevaluated proposal. Return the
+  ! evaluated QUICK geometry without another SCF, including on MPI workers.
+#ifdef MPIV
+  if (bMPI)call MPI_BCAST(have_evaluated_xyz,1,mpi_logical,0,MPI_COMM_WORLD,mpierror)
+#endif
+  if (have_evaluated_xyz) then
+    if (master) xyz=evaluated_xyz
+#ifdef MPIV
+    if (bMPI)call MPI_BCAST(xyz,quick_molspec%natom*3,mpi_double_precision,0,MPI_COMM_WORLD,mpierror)
+#endif
+    glob%xcoords=xyz
+  endif
 
   ! Job finished, prepare for shutdown
   if (glob%iopt /= 11 .and. glob%iopt /= 12 .and. glob%iopt /= 9 ) then

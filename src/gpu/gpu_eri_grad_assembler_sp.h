@@ -32,45 +32,49 @@ __device__ static inline void ERint_grad_vertical_sp(const int I, const int J, c
         const QUICKDouble ABcom, const QUICKDouble CDcom,
         QUICKDouble * const store, QUICKDouble * const YVerticalTemp)
 {
+    // The caller raises both bra and ket bounds, but a first derivative raises
+    // only one side. Blocks beyond this degree are never contracted and would
+    // read a Boys value beyond the caller's initialized order.
+    const int max_degree = I + J + K + L - 1;
 #include "iclass_ssss.h"
-    if ((I+J) >=  0 && (K+L)>= 1) {
+    if ((I+J) >=  0 && (K+L)>= 1 && max_degree >= 1) {
 #include "iclass_ssps.h"
-        if ((I+J) >=  0 && (K+L)>= 2) {
+        if ((I+J) >=  0 && (K+L)>= 2 && max_degree >= 2) {
 #include "iclass_ssds.h"
-            if ((I+J) >=  0 && (K+L)>= 3) {
+            if ((I+J) >=  0 && (K+L)>= 3 && max_degree >= 3) {
 #include "iclass_ssfs.h"
             }
         }
     }
-    if ((I+J) >=  1 && (K+L)>= 0) {
+    if ((I+J) >=  1 && (K+L)>= 0 && max_degree >= 1) {
 #include "iclass_psss.h"
-        if ((I+J) >=  1 && (K+L)>= 1) {
+        if ((I+J) >=  1 && (K+L)>= 1 && max_degree >= 2) {
 #include "iclass_psps.h"
-            if ((I+J) >=  1 && (K+L)>= 2) {
+            if ((I+J) >=  1 && (K+L)>= 2 && max_degree >= 3) {
 #include "iclass_psds.h"
-                if ((I+J) >=  1 && (K+L)>= 3) {
+                if ((I+J) >=  1 && (K+L)>= 3 && max_degree >= 4) {
 #include "iclass_psfs.h"
                 }
             }
-            if ((I+J) >=  2 && (K+L)>= 1) {
+            if ((I+J) >=  2 && (K+L)>= 1 && max_degree >= 3) {
 #include "iclass_dsps.h"
-                if ((I+J) >=  2 && (K+L)>= 2) {
+                if ((I+J) >=  2 && (K+L)>= 2 && max_degree >= 4) {
 #include "iclass_dsds.h"
-                    if ((I+J) >=  2 && (K+L)>= 3) {
+                    if ((I+J) >=  2 && (K+L)>= 3 && max_degree >= 5) {
 #include "iclass_dsfs.h"
                     }
-                    if ((I+J) >=  3 && (K+L)>= 2) {
+                    if ((I+J) >=  3 && (K+L)>= 2 && max_degree >= 5) {
 #include "iclass_fsds.h"
                     }
                 }
-                if ((I+J) >=  3 && (K+L)>= 1) {
+                if ((I+J) >=  3 && (K+L)>= 1 && max_degree >= 4) {
 #include "iclass_fsps.h"
                 }
             }
         }
-        if ((I+J) >=  2 && (K+L)>= 0) {
+        if ((I+J) >=  2 && (K+L)>= 0 && max_degree >= 2) {
 #include "iclass_dsss.h"
-            if ((I+J) >=  3 && (K+L)>= 0) {
+            if ((I+J) >=  3 && (K+L)>= 0 && max_degree >= 3) {
 #include "iclass_fsss.h"
             }
         }

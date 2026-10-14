@@ -1,0 +1,160 @@
+| *********************************************************************************************************
+| **                                                                                                     **
+| **           888888888888                                                                              **
+| **         8888888888888888                                                                            **
+| **      888888888888888888                                                                             **
+| **     888888888888888888                                                                              **
+| **    888888888888888                                                                                  **
+| **   88888888888888888888                               88888                       8888:              **
+| **   8888888888888888888888Z                            88888                       8888:              **
+| **   888888888888888888888888?                          88888                       8888:              **
+| **   8888888888888      8888888                                        888888       8888:              **
+| **    88888888888         888888     8888:     88888    88888        888888888I     8888:    888888    **
+| **    8888888888           88888:    8888:     88888    88888      $888888888888    8888:   888888     **
+| **    I8Z 88888             88888    8888:     88888    88888    .888888     8888   8888: 888888       **
+| **    .8Z 88888             88888    8888:     88888    88888    $88888             8888:88888         **
+| **     8I 88888      .=88. .88888    8888:     88888    88888    88888              8888888888         **
+| **    :8  88888      888888$8888$    8888:     88888    88888    8888O              88888888888        **
+| **   ,7   +88888.     8888888888.    8888:     88888    88888    888888             88888O888888       **
+| **         $888888:.   .8888888      88888....888888    88888     888888     8888   8888:  888888      **
+| **          I8888888888888888888     888888888888888    88888     O888888888888O    8888:   888888     **
+| **            O888888888888888888     88888888888888    88888       88888888888$    8888:    888888    **
+| **               8888888Z     888      .8888I  88888    88888         8888888       8888:     888888   **
+| **                                                                                                     **
+| **                                                                                                     **
+| **                                         Copyright (c) 2026                                          **
+| **                          Regents of the University of California San Diego                          **
+| **                                    & Michigan State University                                      **
+| **                                        All Rights Reserved.                                         **
+| **                                                                                                     **
+| **             This software is subject to the terms of the Mozilla Public License, v. 2.0.            **
+| **                                                                                                     **
+| *********************************************************************************************************
+|
+| Cite this work as:
+| Manathunga, M.; O'Hearn, K. A.; Shajan, A.; Smith, J.; Miao, Y.; He, X.; Ayers, K.;
+| Brothers, E.; Palos, E.; Tripathy, V.; Goetz, A.W.; Merz, K.M. QUICK-26.03.
+| University of California,San Diego, CA and
+| Michigan State University, East Lansing, MI, 2026
+|
+| If you have any comments or queries, please reach out to us on GitHub issues or discussion sections:
+| https://github.com/merzlab/QUICK.
+|
+| TASK STARTS ON: Sat Jul 11 01:56:33 2026
+| INPUT FILE :    ene_He_extcharge_rhf_sto3g.in
+| OUTPUT FILE:    ene_He_extcharge_rhf_sto3g.out
+| BASIS SET PATH: /private/tmp/quick-paper1-oeprop-worktree/basis
+
+ @ Read Job And Atom
+
+  KEYWORD=HF BASIS=STO-3G CUTOFF=1.0E-10 DENSERMS=1.0E-8 ENERGY EXTCHARGES CHARGE=0
+ ============== JOB CARD =============
+ METHOD = HARTREE FOCK
+ DIRECT SCF
+ SAD INITAL GUESS
+ USE DIIS SCF
+ PRINT ENERGY EVERY CYCLE
+ READ SAD GUESS FROM FILE
+ EXTERNAL CHARGES
+ Level shifting allowed after cycle    3
+ DIIS error must exceed 0.100 for level shifting
+ Max HOMO-LUMO gap to allow level shifting = 0.200
+ MAX SCF CYCLES =    200
+ MAX DIIS CYCLES =   10
+ DELTA DENSITY START CYCLE =    3
+ COMPUTATIONAL CUTOFF:
+      TWO-e INTEGRAL         =  0.100E-09
+      BASIS SET PRIME        =  0.100E-10
+      MATRIX ELEMENTS        =  0.100E-09
+      BASIS FUNCTION         =  0.100E-05
+      NEAR-LINEAR DEPENDENCY =  0.100E-04
+ DENSITY MATRIX MAXIMUM RMS FOR CONVERGENCE  =  0.100E-07
+ BASIS SET = STO-3G,  TYPE = CARTESIAN
+| BASIS FILE = /private/tmp/quick-paper1-oeprop-worktree/basis/STO-3G.BAS
+| DATA FILE  =    ene_He_extcharge_rhf_sto3g.dat
+
+ @ Finish reading job
+
+
+ @ Begin SAD initial guess
+
+ For Atom Kind =    1
+ ELEMENT = HE
+ BASIS FUNCTIONS =    1
+
+ @ Finish SAD initial guess
+
+
+ @ Begin Reading Molecular Information
+
+
+ =========== Molecule Input ==========
+ TOTAL MOLECULAR CHARGE  =    0    MULTIPLICITY                =    1
+ TOTAL ATOM NUMBER       =    1    NUMBER OF ATOM TYPES        =    1
+ NUMBER OF HYDROGEN ATOM =    0    NUMBER OF NON-HYDROGEN ATOM =    1
+ NUMBER OF EXTERNAL POINT CHARGES =    1
+ NUMBER OF ELECTRONS     =    2
+
+ -- INPUT GEOMETRY -- :
+    HE          0.0000       0.0000       0.0000
+
+ -- EXTERNAL POINT CHARGES: (X,Y,Z,Q) --
+        1.0000     0.0000     0.0000     0.2500
+
+ -- DISTANCE MATRIX -- :
+              1
+      1     0.00000
+
+============== BASIS INFOS ==============
+ BASIS FUNCTIONS =    1
+ NSHELL =    1 NPRIM  =    3
+ JSHELL =    1 JBASIS =    3
+
+
+ @ End Reading Molecular Information
+
+
+ @ Begin Energy Calculation
+
+| condition number of overlap matrix:    1.000E+00
+| Smallest eigenvalue of overlap matrix:    1.000E+00
+
+                                         SCF ENERGY
+| ------------------------------------------------------------------------------------------------------------------------
+| NCYC       ENERGY         DELTA_E      SCF_TIME  DII_CYC   DII_TIME   O_TIME  DIAG_TIME    MAX_ERR    RMS_CHG    MAX_CHG
+| ------------------------------------------------------------------------------------------------------------------------
+|  1     -2.805876389      ------         0.000     1        0.00      0.00      0.00    0.0000E+00  0.1332E-14  0.1332E-14
+| -------------- 2E-INT CUTOFF CHANGE TO 0.1000E-10 ------------
+|  2     -2.805876389  -.122125E-14       0.000     2        0.00      0.00      0.00    0.0000E+00  0.0000E+00  0.0000E+00
+|  3     -2.805876389  0.111022E-15       0.000     3        0.00      0.00      0.00    0.0000E+00  0.0000E+00  0.0000E+00
+|  4     -2.805876389  0.111022E-15       0.000     4        0.00      0.00      0.00    0.0000E+00  0.0000E+00  0.0000E+00
+| ------------------------------------------------------------------------------------------------------------------------
+| REACH CONVERGENCE AFTER   4 CYCLES
+| MAX ERROR = 0.000000E+00   RMS CHANGE = 0.000000E+00   MAX CHANGE = 0.000000E+00
+| -----------------------------------------------
+ ELECTRONIC ENERGY    =     -3.070464993
+ CORE_CORE REPULSION  =      0.264588604
+ EXT CHARGE REPULSION =      0.000000000
+ TOTAL ENERGY         =     -2.805876389
+
+ @ End Energy calculation
+
+  Skipping one-electron property calculation.
+
+ @ Output Timing Information
+
+------------- TIMING ---------------
+| INITIAL GUESS TIME  =     0.035797000( 90.29%)
+| TOTAL SCF TIME      =     0.000032000(  0.08%)
+|       TOTAL OP TIME      =     0.000022000(  0.06%)
+|             TOTAL 1e TIME      =     0.000006000(  0.02%)
+|             TOTAL 2e TIME      =     0.000004000(  0.01%)
+|       TOTAL DII TIME      =     0.000010000(  0.03%)
+|             TOTAL DIAG TIME    =     0.000000000(  0.00%)
+| TOTAL TIME          =     0.039645000
+------------------------------------
+| Job cpu time:  0 days  0 hours  0 minutes  0.0 seconds.
+
+ @ Finish Output Timing Information
+
+| Normal Termination. Task Finished on: Sat Jul 11 01:56:33 2026

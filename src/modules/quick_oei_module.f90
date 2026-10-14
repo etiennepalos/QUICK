@@ -135,6 +135,14 @@ subroutine get1e(deltaO)
 
          RECORD_TIME(timer_end%T1eV)
 
+         ! The external electric field is a one-electron perturbation,
+         ! h^F = F . (r-r0), added to Hcore after the usual T+V terms.
+         if (quick_method%external_efield) then
+            do Ibas=1,nbasis
+               call externalEFieldO(Ibas)
+            enddo
+         endif
+
          timer_cumer%T1eT=timer_cumer%T1eT+timer_end%T1eT-timer_begin%T1eT
          timer_cumer%T1eV=timer_cumer%T1eV+timer_end%T1eV-timer_begin%T1eV
 
@@ -220,6 +228,15 @@ subroutine get1e(deltaO)
       enddo
 #endif
       RECORD_TIME(timer_end%T1eV)
+
+      ! Each MPI rank contributes only its owned basis-function rows to the
+      ! finite-field one-electron operator; the normal reductions then apply.
+      if (quick_method%external_efield) then
+         do i=1,mpi_nbasisn(mpirank)
+            Ibas=mpi_nbasis(mpirank,i)
+            call externalEFieldO(Ibas)
+         enddo
+      endif
 
 #ifdef CEW
 
@@ -315,6 +332,80 @@ subroutine kineticO(IBAS)
    enddo
 
 end subroutine kineticO
+
+subroutine externalEFieldO(IBAS)
+
+   !------------------------------------------------
+   ! This subroutine adds the one-electron operator
+   ! for a uniform external electric field,
+   !       h^F = F_x (x-x0) + F_y (y-y0) + F_z (z-z0)
+   ! to the lower triangle of the one-electron matrix.
+   !------------------------------------------------
+   use allmod
+   use quick_overlap_module, only: opf
+   implicit double precision(a-h,o-z)
+   integer Ibas
+   double precision, external :: xmoment
+   double precision :: coef, valopf, moment_x, moment_y, moment_z
+   double precision :: field_x, field_y, field_z
+   double precision :: origin_x, origin_y, origin_z
+
+   field_x = quick_method%external_efield_vector(1)
+   field_y = quick_method%external_efield_vector(2)
+   field_z = quick_method%external_efield_vector(3)
+   if (abs(field_x)+abs(field_y)+abs(field_z) .eq. 0.0d0) return
+
+   origin_x = quick_method%external_efield_origin(1)
+   origin_y = quick_method%external_efield_origin(2)
+   origin_z = quick_method%external_efield_origin(3)
+
+   ix = itype(1,Ibas)
+   iy = itype(2,Ibas)
+   iz = itype(3,Ibas)
+   xyzxi = xyz(1,quick_basis%ncenter(Ibas))
+   xyzyi = xyz(2,quick_basis%ncenter(Ibas))
+   xyzzi = xyz(3,quick_basis%ncenter(Ibas))
+
+   do Jbas=Ibas,nbasis
+
+      jx = itype(1,Jbas)
+      jy = itype(2,Jbas)
+      jz = itype(3,Jbas)
+      xyzxj = xyz(1,quick_basis%ncenter(Jbas))
+      xyzyj = xyz(2,quick_basis%ncenter(Jbas))
+      xyzzj = xyz(3,quick_basis%ncenter(Jbas))
+
+      OJI = 0.0d0
+      do Icon=1,ncontract(ibas)
+         ai = aexp(Icon,Ibas)
+
+         do Jcon=1,ncontract(jbas)
+            aj = aexp(Jcon,Jbas)
+            coef = dcoeff(Jcon,Jbas)*dcoeff(Icon,Ibas)
+
+            valopf = opf(ai, aj, dcoeff(Jcon,Jbas), dcoeff(Icon,Ibas), &
+               xyzxi, xyzyi, xyzzi, xyzxj, xyzyj, xyzzj)
+
+            if(abs(valopf) .gt. quick_method%coreIntegralCutoff) then
+               moment_x = xmoment(aj,ai,jx,jy,jz,ix,iy,iz,1,0,0, &
+                  xyzxj,xyzyj,xyzzj,xyzxi,xyzyi,xyzzi, &
+                  origin_x,origin_y,origin_z)
+               moment_y = xmoment(aj,ai,jx,jy,jz,ix,iy,iz,0,1,0, &
+                  xyzxj,xyzyj,xyzzj,xyzxi,xyzyi,xyzzi, &
+                  origin_x,origin_y,origin_z)
+               moment_z = xmoment(aj,ai,jx,jy,jz,ix,iy,iz,0,0,1, &
+                  xyzxj,xyzyj,xyzzj,xyzxi,xyzyi,xyzzi, &
+                  origin_x,origin_y,origin_z)
+
+               OJI = OJI + coef*(field_x*moment_x + field_y*moment_y + field_z*moment_z)
+            endif
+         enddo
+      enddo
+
+      quick_qm_struct%o(Jbas,Ibas) = quick_qm_struct%o(Jbas,Ibas) + OJI
+   enddo
+
+end subroutine externalEFieldO
 
 double precision function ekinetic(a,b,i,j,k,ii,jj,kk,Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g_table)
    use quick_overlap_module, only: overlap_core

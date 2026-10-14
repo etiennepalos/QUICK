@@ -41,6 +41,9 @@ extern "C" void gpu_upload_grad_(QUICKDouble *);
 extern "C" void gpu_cleanup_();
 
 extern "C" void gpu_upload_density_matrix_(QUICKDouble *);
+extern "C" void gpu_upload_oeprop_(int *, QUICKDouble *, QUICKDouble *, int *);
+extern "C" void gpu_upload_oeprop_efield_(int *, QUICKDouble *, QUICKDouble *, int *);
+extern "C" void gpu_upload_oeprop_efg_(int *, QUICKDouble *, QUICKDouble *, int *);
 extern "C" void gpu_delete_dft_grid_();
 // call subroutine
 // Fortran subroutine   --->  c interface    ->   kernel interface   ->    global       ->    kernel
@@ -53,9 +56,22 @@ void get_oei_grad(_gpu_type);
 void upload_sim_to_constant_oei(_gpu_type);
 void upload_para_to_const_oei();
 
-// c interface ESP
+// Successful ESP/EFIELD/EFG launch counts for accelerator validation, per process.
+extern "C" void gpu_oeprop_launch_counts_(int*, int*, int*);
+
+// OEPROP electronic contributions in atomic units. Coordinates are in bohr.
+// The upload owns copies of coordinates and zeroed device accumulators; each
+// get call adds its result to caller-owned host storage, then clears the device
+// accumulator. The host supplies nuclear terms separately after MPI reduction.
+// E_i(C) = -dV/dC_i; G_ij(C) = dE_i/dC_j.
+// EFIELD(3,n) and EFG(3,3,n) are component-fast Fortran arrays, with EFG order
+// (xx,yx,zx,xy,yy,zy,xz,yz,zz) at each point.
 extern "C" void gpu_get_oeprop_(QUICKDouble* esp_electronic);
+extern "C" void gpu_get_oeprop_efield_(QUICKDouble* efield_electronic);
+extern "C" void gpu_get_oeprop_efg_(QUICKDouble* efg_electronic);
 void getOEPROP(_gpu_type gpu);
+void getOEPROPEField(_gpu_type gpu);
+void getOEPROPEFG(_gpu_type gpu);
 void upload_sim_to_constant_oeprop(_gpu_type gpu);
 void upload_para_to_const_oeprop();
 

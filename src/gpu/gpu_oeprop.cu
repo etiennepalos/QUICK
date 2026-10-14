@@ -20,6 +20,9 @@
   #include "hip/gpu.h"
 #endif
 #include "gpu_common.h"
+#if defined(MPIV_GPU)
+#include <mpi.h>
+#endif
 
 static __constant__ gpu_simulation_type devSim;
 static __constant__ int devTrans[TRANSDIM * TRANSDIM * TRANSDIM];
@@ -186,8 +189,54 @@ static float totTime;
 #endif
 
 
+// Check launch failures in release builds as well. Checked downloads below
+// synchronize the default stream and report asynchronous execution errors.
+static void check_oeprop_launch()
+{
+#if defined(CUDA) || defined(CUDA_MPIV)
+    cudaError_t status = cudaGetLastError();
+    if (status == cudaSuccess) return;
+    fprintf(stderr, "[ERROR] OEPROP kernel launch failed: %s\n", cudaGetErrorString(status));
+#else
+    hipError_t status = hipGetLastError();
+    if (status == hipSuccess) return;
+    fprintf(stderr, "[ERROR] OEPROP kernel launch failed: %s\n", hipGetErrorString(status));
+#endif
+#if defined(MPIV_GPU)
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+    exit(1);
+#endif
+}
+
+// Per-process counters expose actual successful submissions for backend validation.
+// A checked device-to-host download completes each property call before it returns.
+static int oeprop_launch_counts[3] = {0, 0, 0};
+extern "C" void gpu_oeprop_launch_counts_(int* esp, int* efield, int* efg)
+{
+    *esp = oeprop_launch_counts[0];
+    *efield = oeprop_launch_counts[1];
+    *efg = oeprop_launch_counts[2];
+}
+
 // interface for kernel launching
 void getOEPROP(_gpu_type gpu)
 {
     QUICK_SAFE_CALL((getOEPROP_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+    check_oeprop_launch();
+    ++oeprop_launch_counts[0];
+}
+
+void getOEPROPEField(_gpu_type gpu)
+{
+    QUICK_SAFE_CALL((getOEPROP_efield_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+    check_oeprop_launch();
+    ++oeprop_launch_counts[1];
+}
+
+void getOEPROPEFG(_gpu_type gpu)
+{
+    QUICK_SAFE_CALL((getOEPROP_efg_kernel<<<gpu->blocks, gpu->twoEThreadsPerBlock>>>()));
+    check_oeprop_launch();
+    ++oeprop_launch_counts[2];
 }

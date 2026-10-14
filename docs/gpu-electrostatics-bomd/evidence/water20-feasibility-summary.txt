@@ -1,0 +1,60 @@
+WATER20 JCIM application preparation and GPU feasibility
+======================================================
+Date: 2026-10-13
+
+The user's WATER27 directory contains four valid, neutral singlet O20H40
+geometries. Independent geometry analysis identifies a dodecahedral cage,
+an elongated square-prism chain and two denser/intermediate networks. Full
+assignments, geometric hydrogen-bond cutoff sensitivity, source attribution
+and safe initial probe definitions are in structure-assessment/assessment.txt
+and geometry-assessment.json. The original dataset was not edited.
+
+One real nonperiodic GPU PBE-D3/DEF2-SVP initial calculation of H2O20es passes:
+  - 13 explicitly converged SCF cycles at requested density RMS 1e-8;
+    actual final RMS 3.99359e-9, maximum density change 2.87956e-7.
+  - 500 printed basis functions; no separate overlap-reduction block.
+  - 20 ordered finite property rows / 540 numeric values.
+  - One energy/gradient API call, one property call and zero extra API calls.
+  - One actual CUDA launch each for ESP, EFIELD and EFG.
+  - Independent tensor symmetry and invariant checks pass.
+  - All 966 recorded before/after/current identities and 12 output hashes match.
+  - Exact accepted GPU executable/library/source used; no rebuilding or
+    modification of published ESP/RESP, protected worktrees or old evidence.
+
+Single launch-to-exit time: 58.8065 s. Initial force API time: 53.9449 s.
+Combined property API time: 0.0052289 s. These are one cold initial-call
+diagnostics; there is no repeated benchmark, steady-state throughput or
+properties-on/off MD overhead claim. nsteps=0 means no trajectory was run.
+Maximum initial gradient 0.0186353 Eh/bohr: this is not a relaxed PBE-D3 geometry.
+No CPU/oracle electronic-structure comparison was performed for WATER20 yet.
+
+The diffuse DEF2-SVPD attempt is interrupted and unaccepted. It used 820 basis
+functions with 819 retained overlap modes and did not print SCF convergence.
+The interruption decision followed 21 printed iterations; the final flushed
+file contains 23. No claim is made that its configured 200-cycle attempt could
+never converge. Raw inputs/outputs, returncode -15 and all 965 preserved
+identities remain in its report and independent negative audit. The successful
+non-diffuse case kept the same density target; no failed attempt was relabeled.
+
+Primary accepted evidence:
+  gpu-feasibility/H2O20es-pbe-d3-def2svp-step0/report.json
+  gpu-feasibility/H2O20es-pbe-d3-def2svp-step0/provenance.json
+  runtime-review/gpu-feasibility-svp-independent-audit.json
+Negative evidence:
+  gpu-feasibility/H2O20es-pbe-d3-def2svpd-step0/interruption.json
+  gpu-feasibility/H2O20es-pbe-d3-def2svpd-step0/report.json
+  runtime-review/gpu-feasibility-independent-audit.json
+
+Scientific scope:
+Standalone QUICK BOMD is nonperiodic finite-cluster dynamics. Amber/CEW has a
+separate periodic QM/MM electrostatic path, not validated by this study and
+not equivalent to all-QM periodic orbitals. Standard public grid properties
+do not automatically add reciprocal CEW fields or PE-site sources. Current
+Amber26 documentation includes polarizable classical models in specified
+engines; this does not establish a stock mutually polarizable QUICK interface.
+
+Next step is to choose/validate production basis and screening, relax the
+selected structures, add validated per-water rotating probes and strict
+per-step SCF guards, then perform matched timestep pilots and independent
+property checks. Detailed project boundaries and the ESP/EFIELD/EFG role in
+electrostatic/multipolar/polarizable QM/MM are recorded in study-plan.txt.

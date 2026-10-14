@@ -20,6 +20,7 @@ module quick_molsurface_module
   private
 
   public :: generate_MKS_surfaces
+  public :: generate_density_surfaces
 
   contains
 
@@ -416,5 +417,262 @@ module quick_molsurface_module
     end do
 
   end subroutine generate_vdW_surface
+
+!----------------------------------------------------------------------------!
+! This subroutine generates an electron-density isosurface for OEPROP.        !
+! The surface is sampled by atom-centered radial rays and each accepted ray   !
+! point is refined to rho(r) = density_surface_value.                         !
+!----------------------------------------------------------------------------!
+
+  subroutine generate_density_surfaces()
+    use quick_basis_module, only: nbasis
+    use quick_constants_module, only: PI, A_TO_BOHRS
+    use quick_files_module, only: ioutfile
+    use quick_method_module, only: quick_method
+    use quick_molspec_module, only: natom, quick_molspec, xyz
+
+    implicit none
+
+    integer :: alloc_status, idir, iatom, max_points, ndirections
+    integer :: total_points
+    double precision :: direction_radius, duplicate_thresh, max_radius
+    double precision :: phi_angle, rho_iso, rxy, spacing, zdir
+    double precision :: direction(3), point(3)
+    double precision, allocatable :: surface_points(:,:)
+    logical :: found
+
+    rho_iso = quick_method%density_surface_value
+    spacing = quick_method%density_surface_spacing*A_TO_BOHRS
+    max_radius = quick_method%density_surface_max_radius*A_TO_BOHRS
+
+    if (rho_iso .le. 0.0d0) then
+      call PrtErr(OUTFILEHANDLE, '!! DENSITY_SURFACE_VALUE must be positive.')
+      call quick_exit(OUTFILEHANDLE,1)
+    endif
+
+    if (spacing .le. 0.0d0) then
+      call PrtErr(OUTFILEHANDLE, '!! DENSITY_SURFACE_SPACING must be positive.')
+      call quick_exit(OUTFILEHANDLE,1)
+    endif
+
+    if (max_radius .le. spacing) then
+      call PrtErr(OUTFILEHANDLE, '!! DENSITY_SURFACE_MAX_RADIUS must exceed DENSITY_SURFACE_SPACING.')
+      call quick_exit(OUTFILEHANDLE,1)
+    endif
+
+    ! The angular sampling radius controls the number of atom-centered rays.
+    ! It is not the final surface radius; ray roots determine that.
+    direction_radius = 2.0d0*A_TO_BOHRS
+    ndirections = max(64,int(4.0d0*PI*direction_radius*direction_radius/(spacing*spacing)))
+    max_points = natom*ndirections
+    duplicate_thresh = 0.50d0*spacing
+
+    allocate(surface_points(3,max_points), stat=alloc_status)
+    if(alloc_status /= 0) then
+      call PrtErr(OUTFILEHANDLE, '!!surface_points array allocation failed in generate_density_surfaces!!')
+      call quick_exit(OUTFILEHANDLE,1)
+    endif
+
+    total_points = 0
+    do iatom = 1, natom
+      do idir = 1, ndirections
+        zdir = 1.0d0 - 2.0d0*(dble(idir)-0.5d0)/dble(ndirections)
+        rxy = sqrt(max(0.0d0,1.0d0-zdir*zdir))
+        phi_angle = PI*(3.0d0-sqrt(5.0d0))*dble(idir-1)
+
+        direction(1) = rxy*cos(phi_angle)
+        direction(2) = rxy*sin(phi_angle)
+        direction(3) = zdir
+
+        call density_surface_crossing(iatom,direction,rho_iso,max_radius, &
+          spacing,point,found)
+
+        if (found) then
+          call add_density_surface_point(point,surface_points,total_points, &
+            duplicate_thresh)
+        endif
+      enddo
+    enddo
+
+    if (total_points .le. 0) then
+      deallocate(surface_points)
+      call PrtErr(OUTFILEHANDLE, '!! No electron-density surface points were generated.')
+      call quick_exit(OUTFILEHANDLE,1)
+    endif
+
+    quick_molspec%nvdwpoint = total_points
+    if (allocated(quick_molspec%vdwpointxyz)) deallocate(quick_molspec%vdwpointxyz)
+    allocate(quick_molspec%vdwpointxyz(3,quick_molspec%nvdwpoint), stat=alloc_status)
+    if(alloc_status /= 0) then
+      call PrtErr(OUTFILEHANDLE, '!!quick_molspec%vdwpointxyz allocation failed in generate_density_surfaces!!')
+      call quick_exit(OUTFILEHANDLE,1)
+    endif
+
+    quick_molspec%vdwpointxyz(1:3,1:total_points) = surface_points(1:3,1:total_points)
+    deallocate(surface_points)
+
+    write(ioutfile,'(" Electron-density surface points generated = ",I10)') total_points
+    write(ioutfile,'(" Electron-density isovalue = ",ES14.6," a.u.")') rho_iso
+
+  end subroutine generate_density_surfaces
+
+!----------------------------------------------------------------------------!
+! Locate the first density-isosurface crossing along one atom-centered ray.   !
+!----------------------------------------------------------------------------!
+
+  subroutine density_surface_crossing(iatom,direction,rho_iso,max_radius, &
+    spacing,point,found)
+    use quick_molspec_module, only: xyz
+
+    implicit none
+
+    integer, intent(in) :: iatom
+    double precision, intent(in) :: direction(3), max_radius, rho_iso, spacing
+    double precision, intent(out) :: point(3)
+    logical, intent(out) :: found
+
+    integer :: iter
+    double precision :: density_mid, density_outer, lower, mid, upper
+    double precision :: trial(3)
+
+    found = .false.
+    point(:) = 0.0d0
+
+    density_outer = density_at_point(xyz(1,iatom),xyz(2,iatom),xyz(3,iatom))
+    if (density_outer .lt. rho_iso) return
+
+    lower = 0.0d0
+    upper = spacing
+
+    do while (upper .le. max_radius)
+      trial(:) = xyz(1:3,iatom) + upper*direction(:)
+      density_outer = density_at_point(trial(1),trial(2),trial(3))
+
+      if (density_outer .le. rho_iso) then
+        do iter = 1, 30
+          mid = 0.5d0*(lower+upper)
+          trial(:) = xyz(1:3,iatom) + mid*direction(:)
+          density_mid = density_at_point(trial(1),trial(2),trial(3))
+
+          if (density_mid .gt. rho_iso) then
+            lower = mid
+          else
+            upper = mid
+          endif
+        enddo
+
+        point(:) = xyz(1:3,iatom) + 0.5d0*(lower+upper)*direction(:)
+        found = .true.
+        return
+      endif
+
+      lower = upper
+      upper = upper + spacing
+    enddo
+
+  end subroutine density_surface_crossing
+
+!----------------------------------------------------------------------------!
+! Add a point if it is not already represented within the requested spacing.  !
+!----------------------------------------------------------------------------!
+
+  subroutine add_density_surface_point(point,surface_points,npoints,thresh)
+    implicit none
+
+    integer, intent(inout) :: npoints
+    double precision, intent(in) :: point(3), thresh
+    double precision, intent(inout) :: surface_points(:,:)
+
+    integer :: ipoint
+    double precision :: dist2, thresh2
+
+    thresh2 = thresh*thresh
+    do ipoint = 1, npoints
+      dist2 = (point(1)-surface_points(1,ipoint))**2 &
+        + (point(2)-surface_points(2,ipoint))**2 &
+        + (point(3)-surface_points(3,ipoint))**2
+      if (dist2 .lt. thresh2) return
+    enddo
+
+    npoints = npoints + 1
+    surface_points(1:3,npoints) = point(1:3)
+
+  end subroutine add_density_surface_point
+
+!----------------------------------------------------------------------------!
+! Evaluate the total electron density at one point from the AO density matrix.!
+!----------------------------------------------------------------------------!
+
+  double precision function density_at_point(gridx,gridy,gridz)
+    use quick_basis_module, only: nbasis
+    use quick_calculated_module, only: quick_qm_struct
+    use quick_method_module, only: quick_method
+
+    implicit none
+
+    integer :: ibas, jbas
+    double precision, intent(in) :: gridx, gridy, gridz
+    double precision :: phi(nbasis)
+
+    density_at_point = 0.0d0
+
+    do ibas = 1, nbasis
+      phi(ibas) = density_basis_value(gridx,gridy,gridz,ibas)
+    enddo
+
+    do ibas = 1, nbasis
+      if (quick_method%UNRST) then
+        density_at_point = density_at_point &
+          + (quick_qm_struct%dense(ibas,ibas)+quick_qm_struct%denseb(ibas,ibas)) &
+          * phi(ibas)*phi(ibas)
+      else
+        density_at_point = density_at_point &
+          + quick_qm_struct%dense(ibas,ibas)*phi(ibas)*phi(ibas)
+      endif
+
+      do jbas = ibas+1, nbasis
+        if (quick_method%UNRST) then
+          density_at_point = density_at_point &
+            + 2.0d0*(quick_qm_struct%dense(jbas,ibas) &
+            + quick_qm_struct%denseb(jbas,ibas))*phi(ibas)*phi(jbas)
+        else
+          density_at_point = density_at_point &
+            + 2.0d0*quick_qm_struct%dense(jbas,ibas)*phi(ibas)*phi(jbas)
+        endif
+      enddo
+    enddo
+
+  end function density_at_point
+
+!----------------------------------------------------------------------------!
+! Evaluate one contracted Cartesian Gaussian basis function at one point.     !
+!----------------------------------------------------------------------------!
+
+  double precision function density_basis_value(gridx,gridy,gridz,ibas)
+    use quick_basis_module, only: aexp, dcoeff, itype, ncontract, quick_basis
+    use quick_molspec_module, only: xyz
+
+    implicit none
+
+    integer, intent(in) :: ibas
+    integer :: icenter, icon
+    double precision, intent(in) :: gridx, gridy, gridz
+    double precision :: dx, dy, dz, radial, rsq
+
+    icenter = quick_basis%ncenter(ibas)
+    dx = gridx - xyz(1,icenter)
+    dy = gridy - xyz(2,icenter)
+    dz = gridz - xyz(3,icenter)
+    rsq = dx*dx + dy*dy + dz*dz
+
+    radial = 0.0d0
+    do icon = 1, ncontract(ibas)
+      radial = radial + dcoeff(icon,ibas)*dexp(-aexp(icon,ibas)*rsq)
+    enddo
+
+    density_basis_value = radial*(dx**itype(1,ibas)) &
+      *(dy**itype(2,ibas))*(dz**itype(3,ibas))
+
+  end function density_basis_value
 
 end module quick_molsurface_module

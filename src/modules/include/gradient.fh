@@ -122,11 +122,8 @@ contains
 
      endif
   
-#if defined(GPU) || defined(MPIV_GPU)
-     if (quick_method%bGPU) then
-        call gpu_cleanup()
-     endif
-#endif
+    ! The caller owns GPU molecular teardown. API callers retain this state
+    ! for live-density properties; main and optimizers release it explicitly.
   
 #ifdef MPIV
      if(master) then

@@ -3,15 +3,20 @@
  *  Copyright 2011 University of Florida. All rights reserved.
  */
 
+#include <cublas.h>
 #include <stdio.h>
 #include <string>
 #include <ctime>
 #include <time.h>
 
 #include "gpu.h"
+
+static void check_device_configuration(bool success, const char* operation, const char* detail);
+static void ensure_device_stack_size();
 #include "gpu_get2e_grad_ffff.h"
 #include "gpu_libxc.h"
 #if defined(MPIV_GPU)
+  #include <mpi.h>
   #include "mgpu.h"
 #endif
 #if defined(CEW)
@@ -21,6 +26,37 @@
 #define OSHELL
 #include "../gpu_get2e_getxc_drivers.h"
 #undef OSHELL
+
+
+// Recursive electrostatic derivatives require more than the default CUDA stack,
+// particularly under instrumentation. Retain the existing HIP 8 KiB minimum
+// on both serial and MPI paths, and preserve any larger runtime limit.
+static void check_device_configuration(bool success, const char* operation, const char* detail)
+{
+    if (success) return;
+    fprintf(stderr, "[ERROR] GPU initialization: %s: %s\n", operation, detail);
+    fflush(stderr);
+#if defined(MPIV_GPU)
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#endif
+    exit(1);
+}
+
+static void ensure_device_stack_size()
+{
+    const size_t minimum_stack_size = 8192;
+    size_t stack_size = 0;
+    cudaError_t status = cudaDeviceGetLimit(&stack_size, cudaLimitStackSize);
+    check_device_configuration(status == cudaSuccess, "query thread stack size", cudaGetErrorString(status));
+    if (stack_size >= minimum_stack_size) return;
+
+    status = cudaDeviceSetLimit(cudaLimitStackSize, minimum_stack_size);
+    check_device_configuration(status == cudaSuccess, "set thread stack size", cudaGetErrorString(status));
+    status = cudaDeviceGetLimit(&stack_size, cudaLimitStackSize);
+    check_device_configuration(status == cudaSuccess, "read back thread stack size", cudaGetErrorString(status));
+    check_device_configuration(stack_size >= minimum_stack_size, "verify thread stack size",
+                               "runtime returned a limit below 8192 bytes");
+}
 
 
 #if defined(COMPILE_GPU_AOINT)
@@ -246,6 +282,7 @@ extern "C" void gpu_new_(
     gpu->iattype = NULL;
     gpu->xyz = NULL;
     gpu->allxyz = NULL;
+    gpu->extpointxyz = NULL;
     gpu->chg = NULL;
     gpu->allchg = NULL;
     gpu->DFT_calculated = NULL;
@@ -345,14 +382,7 @@ extern "C" void gpu_init_device_(int* ierr)
     status = cudaGetDeviceProperties(&deviceProp, device);
     PRINTERROR(status, "cudaGetDeviceProperties gpu_init failed!");
 
-#if defined(HIP) || defined(HIP_MPIV)
-    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-    /* NOTE: setting the stack size limit to 8K is required for correctness
-     * in HIP/MPI+HIP codes to workaround GPU kernel issues for recent ROCm versions (>= v6.2.1);
-     * ideally, this could be dropped in the future if ROCm properly addresses
-     * this issues internally */
-    cudaDeviceSetLimit(cudaLimitStackSize, 8192);
-#endif
+    ensure_device_stack_size();
 
 #if defined(DEBUG)
     size_t val;
@@ -495,15 +525,15 @@ extern "C" void gpu_allocate_scratch_(bool* allocate_gradient_scratch)
 //-----------------------------------------------
 extern "C" void gpu_deallocate_scratch_(bool* deallocate_gradient_scratch)
 {
+    if (gpu->scratch == NULL) return;
     SAFE_DELETE(gpu->scratch->store);
     SAFE_DELETE(gpu->scratch->YVerticalTemp);
     SAFE_DELETE(gpu->scratch->store2);
 
-    if (*deallocate_gradient_scratch) {
-        SAFE_DELETE(gpu->scratch->storeAA);
-        SAFE_DELETE(gpu->scratch->storeBB);
-        SAFE_DELETE(gpu->scratch->storeCC);
-    }
+    SAFE_DELETE(gpu->scratch->storeAA);
+    SAFE_DELETE(gpu->scratch->storeBB);
+    SAFE_DELETE(gpu->scratch->storeCC);
+    SAFE_DELETE(gpu->scratch);
 }
 
 
@@ -517,8 +547,20 @@ extern "C" void gpu_delete_(int* ierr)
 
     PRINTDEBUG("BEGIN GPU DELETE");
 
+    // Fortran BLAS thunking uses the legacy cuBLAS context. Release its
+    // implicit workspace before resetting CUDA so leak checking sees teardown.
+    cublasStatus blas_status = cublasShutdown();
+    if (blas_status != CUBLAS_STATUS_SUCCESS && blas_status != CUBLAS_STATUS_NOT_INITIALIZED) {
+        fprintf(stderr, "[ERROR] cuBLAS shutdown failed (status %d)\n", (int) blas_status);
 #if defined(MPIV_GPU)
-    delete gpu->timer;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+        exit(1);
+#endif
+    }
+
+#if defined(MPIV_GPU)
+    SAFE_DELETE(gpu->timer);
 #endif
     delete gpu;
 
@@ -566,8 +608,12 @@ extern "C" void gpu_setup_(int* natom, int* nbasis, int* nElec, int* imult, int*
 #endif
     gpu->gpu_calculated->distance = NULL;
     gpu->gpu_calculated->esp_electronic = NULL;
+    gpu->gpu_calculated->efield_electronic = NULL;
+    gpu->gpu_calculated->efg_electronic = NULL;
 #if defined(USE_LEGACY_ATOMICS)
     gpu->gpu_calculated->esp_electronicULL = NULL;
+    gpu->gpu_calculated->efield_electronicULL = NULL;
+    gpu->gpu_calculated->efg_electronicULL = NULL;
 #endif
 
     gpu->gpu_basis = new gpu_basis_type;
@@ -1661,7 +1707,19 @@ extern "C" void gpu_upload_oei_(int* nextatom, QUICKDouble* extxyz, QUICKDouble*
 extern "C" void gpu_upload_oeprop_(int * nextpoint, QUICKDouble * extpointxyz,
         QUICKDouble * esp_electronic, int *ierr)
 {
+    *ierr = 0;
+    // Electronic accumulation starts at zero; the host adds nuclear terms once.
+    // Coordinates are in bohr and remain in caller-owned Fortran storage.
     // store coordinates and charges for oeprop calculation
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
     gpu->nextpoint = *nextpoint;
     gpu->extpointxyz = new gpu_buffer_type<QUICKDouble>(extpointxyz, 3, gpu->nextpoint);
 
@@ -1683,6 +1741,76 @@ extern "C" void gpu_upload_oeprop_(int * nextpoint, QUICKDouble * extpointxyz,
 #endif
 }
 
+extern "C" void gpu_upload_oeprop_efield_(int * nextpoint, QUICKDouble * extpointxyz,
+        QUICKDouble * efield_electronic, int *ierr)
+{
+    *ierr = 0;
+    // EFIELD uses component-fast Fortran layout: (Ex,Ey,Ez) for each point.
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
+    gpu->nextpoint = *nextpoint;
+    gpu->extpointxyz = new gpu_buffer_type<QUICKDouble>(extpointxyz, 3, gpu->nextpoint);
+
+    gpu->extpointxyz->Upload();
+
+    gpu->gpu_sim.nextpoint = *nextpoint;
+    gpu->gpu_sim.extpointxyz = gpu->extpointxyz->_devData;
+
+    gpu->gpu_calculated->efield_electronic = new gpu_buffer_type<QUICKDouble>(3, gpu->nextpoint);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efield_electronic->DeleteGPU();
+    gpu->gpu_calculated->efield_electronicULL = new gpu_buffer_type<QUICKULL>(3, gpu->nextpoint);
+    gpu->gpu_calculated->efield_electronicULL->Upload();
+    gpu->gpu_sim.efield_electronicULL = gpu->gpu_calculated->efield_electronicULL->_devData;
+#else
+    gpu->gpu_calculated->efield_electronic->Upload();
+    gpu->gpu_sim.efield_electronic = gpu->gpu_calculated->efield_electronic->_devData;
+#endif
+}
+
+extern "C" void gpu_upload_oeprop_efg_(int * nextpoint, QUICKDouble * extpointxyz,
+        QUICKDouble * efg_electronic, int *ierr)
+{
+    *ierr = 0;
+    // EFG uses component-fast Fortran layout: (xx,yx,zx,xy,yy,zy,xz,yz,zz) for each point.
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+    SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
+    gpu->nextpoint = *nextpoint;
+    gpu->extpointxyz = new gpu_buffer_type<QUICKDouble>(extpointxyz, 3, gpu->nextpoint);
+
+    gpu->extpointxyz->Upload();
+
+    gpu->gpu_sim.nextpoint = *nextpoint;
+    gpu->gpu_sim.extpointxyz = gpu->extpointxyz->_devData;
+
+    gpu->gpu_calculated->efg_electronic = new gpu_buffer_type<QUICKDouble>(9, gpu->nextpoint);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efg_electronic->DeleteGPU();
+    gpu->gpu_calculated->efg_electronicULL = new gpu_buffer_type<QUICKULL>(9, gpu->nextpoint);
+    gpu->gpu_calculated->efg_electronicULL->Upload();
+    gpu->gpu_sim.efg_electronicULL = gpu->gpu_calculated->efg_electronicULL->_devData;
+#else
+    gpu->gpu_calculated->efg_electronic->Upload();
+    gpu->gpu_sim.efg_electronic = gpu->gpu_calculated->efg_electronic->_devData;
+#endif
+}
+
 
 //-----------------------------------------------
 //  upload calculated information
@@ -1697,7 +1825,6 @@ extern "C" void gpu_upload_calculated_(QUICKDouble* o, QUICKDouble* co, QUICKDou
     PRINTDEBUG("BEGIN TO UPLOAD O MATRIX");
 
     gpu->gpu_calculated->o = new gpu_buffer_type<QUICKDouble>(gpu->nbasis, gpu->nbasis);
-    gpu->gpu_calculated->dense = new gpu_buffer_type<QUICKDouble>(dense, gpu->nbasis, gpu->nbasis);
 
 #if defined(USE_LEGACY_ATOMICS)
     gpu->gpu_calculated->o->DeleteGPU();
@@ -1709,8 +1836,7 @@ extern "C" void gpu_upload_calculated_(QUICKDouble* o, QUICKDouble* co, QUICKDou
     gpu->gpu_sim.o = gpu->gpu_calculated->o->_devData;
 #endif
 
-    gpu->gpu_calculated->dense->Upload();
-    gpu->gpu_sim.dense = gpu->gpu_calculated->dense->_devData;
+    gpu_upload_density_matrix_(dense);
 
 #if defined(DEBUG)
     GPU_TIMER_STOP();
@@ -1762,17 +1888,41 @@ extern "C" void gpu_upload_calculated_beta_(QUICKDouble* ob, QUICKDouble* denseb
 //This method uploads density matrix onto gpu for XC gradient calculation
 extern "C" void gpu_upload_density_matrix_(QUICKDouble* dense)
 {
-    gpu->gpu_calculated->dense = new gpu_buffer_type<QUICKDouble>(dense,  gpu->nbasis, gpu->nbasis);
-    gpu->gpu_calculated->dense->Upload();
-    gpu->gpu_sim.dense = gpu->gpu_calculated->dense->_devData;
+    // Reuse the allocation across live-density property calls. SCF/gradient
+    // teardown clears this pointer whenever it releases the buffer.
+    gpu_buffer_type<QUICKDouble>* buffer = gpu->gpu_calculated->dense;
+    if (buffer != NULL && (buffer->_length != (unsigned int) gpu->nbasis
+            || buffer->_length2 != (unsigned int) gpu->nbasis)) {
+        SAFE_DELETE(gpu->gpu_calculated->dense);
+        buffer = NULL;
+    }
+    if (buffer == NULL) {
+        buffer = new gpu_buffer_type<QUICKDouble>(gpu->nbasis, gpu->nbasis);
+        gpu->gpu_calculated->dense = buffer;
+    }
+    memcpy(buffer->_hostData, dense, sizeof(QUICKDouble) * gpu->nbasis * gpu->nbasis);
+    buffer->Upload();
+    gpu->gpu_sim.dense = buffer->_devData;
 }
 
 
 extern "C" void gpu_upload_beta_density_matrix_(QUICKDouble* denseb)
 {
-    gpu->gpu_calculated->denseb = new gpu_buffer_type<QUICKDouble>(denseb,  gpu->nbasis, gpu->nbasis);
-    gpu->gpu_calculated->denseb->Upload();
-    gpu->gpu_sim.denseb = gpu->gpu_calculated->denseb->_devData;
+    // Reuse the allocation across live-density property calls. SCF/gradient
+    // teardown clears this pointer whenever it releases the buffer.
+    gpu_buffer_type<QUICKDouble>* buffer = gpu->gpu_calculated->denseb;
+    if (buffer != NULL && (buffer->_length != (unsigned int) gpu->nbasis
+            || buffer->_length2 != (unsigned int) gpu->nbasis)) {
+        SAFE_DELETE(gpu->gpu_calculated->denseb);
+        buffer = NULL;
+    }
+    if (buffer == NULL) {
+        buffer = new gpu_buffer_type<QUICKDouble>(gpu->nbasis, gpu->nbasis);
+        gpu->gpu_calculated->denseb = buffer;
+    }
+    memcpy(buffer->_hostData, denseb, sizeof(QUICKDouble) * gpu->nbasis * gpu->nbasis);
+    buffer->Upload();
+    gpu->gpu_sim.denseb = buffer->_devData;
 }
 
 
@@ -2881,45 +3031,137 @@ void gpu_delete_sswgrad_vars()
 
 extern "C" void gpu_cleanup_()
 {
-    SAFE_DELETE(gpu->gpu_basis->ncontract);
-    SAFE_DELETE(gpu->gpu_basis->itype);
-    SAFE_DELETE(gpu->gpu_basis->aexp);
-    SAFE_DELETE(gpu->gpu_basis->dcoeff);
-    SAFE_DELETE(gpu->gpu_basis->ncenter);
-    SAFE_DELETE(gpu->gpu_basis->kstart);
-    SAFE_DELETE(gpu->gpu_basis->katom);
-    SAFE_DELETE(gpu->gpu_basis->kprim);
-    SAFE_DELETE(gpu->gpu_basis->Ksumtype);
-    SAFE_DELETE(gpu->gpu_basis->Qnumber);
-    SAFE_DELETE(gpu->gpu_basis->Qstart);
-    SAFE_DELETE(gpu->gpu_basis->Qfinal);
-    SAFE_DELETE(gpu->gpu_basis->Qsbasis);
-    SAFE_DELETE(gpu->gpu_basis->Qfbasis);
-    SAFE_DELETE(gpu->gpu_basis->gccoeff);
-    SAFE_DELETE(gpu->gpu_basis->cons);
-    SAFE_DELETE(gpu->gpu_basis->gcexpo);
-    SAFE_DELETE(gpu->gpu_basis->KLMN);
-    SAFE_DELETE(gpu->gpu_basis->prim_start);
-    SAFE_DELETE(gpu->gpu_basis->Xcoeff);
-    SAFE_DELETE(gpu->gpu_basis->Xcoeff_oei);
-    SAFE_DELETE(gpu->gpu_basis->expoSum);
-    SAFE_DELETE(gpu->gpu_basis->weightedCenterX);
-    SAFE_DELETE(gpu->gpu_basis->weightedCenterY);
-    SAFE_DELETE(gpu->gpu_basis->weightedCenterZ);
-    SAFE_DELETE(gpu->gpu_calculated->distance);
+    // Retained SCF data supports live-density OEPROP until the next molecular
+    // upload or job deletion. Nulling every owner makes cleanup idempotent.
+    if (gpu == NULL) return;
+    if (gpu->gpu_basis != NULL) {
+        SAFE_DELETE(gpu->gpu_basis->ncontract);
+        SAFE_DELETE(gpu->gpu_basis->itype);
+        SAFE_DELETE(gpu->gpu_basis->aexp);
+        SAFE_DELETE(gpu->gpu_basis->dcoeff);
+        SAFE_DELETE(gpu->gpu_basis->ncenter);
+        SAFE_DELETE(gpu->gpu_basis->sigrad2);
+        SAFE_DELETE(gpu->gpu_basis->kstart);
+        SAFE_DELETE(gpu->gpu_basis->katom);
+        SAFE_DELETE(gpu->gpu_basis->kprim);
+        SAFE_DELETE(gpu->gpu_basis->Ksumtype);
+        SAFE_DELETE(gpu->gpu_basis->Qnumber);
+        SAFE_DELETE(gpu->gpu_basis->Qstart);
+        SAFE_DELETE(gpu->gpu_basis->Qfinal);
+        SAFE_DELETE(gpu->gpu_basis->Qsbasis);
+        SAFE_DELETE(gpu->gpu_basis->Qfbasis);
+        SAFE_DELETE(gpu->gpu_basis->sorted_Qnumber);
+        SAFE_DELETE(gpu->gpu_basis->sorted_Q);
+        SAFE_DELETE(gpu->gpu_basis->gccoeff);
+        SAFE_DELETE(gpu->gpu_basis->Xcoeff);
+        SAFE_DELETE(gpu->gpu_basis->Xcoeff_oei);
+        SAFE_DELETE(gpu->gpu_basis->expoSum);
+        SAFE_DELETE(gpu->gpu_basis->weightedCenterX);
+        SAFE_DELETE(gpu->gpu_basis->weightedCenterY);
+        SAFE_DELETE(gpu->gpu_basis->weightedCenterZ);
+        SAFE_DELETE(gpu->gpu_basis->cons);
+        SAFE_DELETE(gpu->gpu_basis->gcexpo);
+        SAFE_DELETE(gpu->gpu_basis->KLMN);
+        SAFE_DELETE(gpu->gpu_basis->Apri);
+        SAFE_DELETE(gpu->gpu_basis->Kpri);
+        SAFE_DELETE(gpu->gpu_basis->PpriX);
+        SAFE_DELETE(gpu->gpu_basis->PpriY);
+        SAFE_DELETE(gpu->gpu_basis->PpriZ);
+        SAFE_DELETE(gpu->gpu_basis->prim_start);
+        SAFE_DELETE(gpu->gpu_basis->mpi_bcompute);
+        SAFE_DELETE(gpu->gpu_basis->mpi_boeicompute);
+        SAFE_DELETE(gpu->gpu_basis);
+    }
+    if (gpu->gpu_calculated != NULL) {
+        SAFE_DELETE(gpu->gpu_calculated->o);
+        SAFE_DELETE(gpu->gpu_calculated->ob);
+        SAFE_DELETE(gpu->gpu_calculated->dense);
+        SAFE_DELETE(gpu->gpu_calculated->denseb);
+#if defined(USE_LEGACY_ATOMICS)
+        SAFE_DELETE(gpu->gpu_calculated->oULL);
+        SAFE_DELETE(gpu->gpu_calculated->obULL);
+#endif
+        SAFE_DELETE(gpu->gpu_calculated->distance);
+        SAFE_DELETE(gpu->gpu_calculated->esp_electronic);
+        SAFE_DELETE(gpu->gpu_calculated->efield_electronic);
+        SAFE_DELETE(gpu->gpu_calculated->efg_electronic);
+#if defined(USE_LEGACY_ATOMICS)
+        SAFE_DELETE(gpu->gpu_calculated->esp_electronicULL);
+        SAFE_DELETE(gpu->gpu_calculated->efield_electronicULL);
+        SAFE_DELETE(gpu->gpu_calculated->efg_electronicULL);
+#endif
+        SAFE_DELETE(gpu->gpu_calculated);
+    }
+    if (gpu->gpu_cutoff != NULL) {
+        SAFE_DELETE(gpu->gpu_cutoff->sorted_YCutoffIJ);
+        SAFE_DELETE(gpu->gpu_cutoff->cutMatrix);
+        SAFE_DELETE(gpu->gpu_cutoff->YCutoff);
+        SAFE_DELETE(gpu->gpu_cutoff->cutPrim);
+        SAFE_DELETE(gpu->gpu_cutoff->sorted_OEICutoffIJ);
+        SAFE_DELETE(gpu->gpu_cutoff);
+    }
+    if (gpu->gpu_xcq != NULL) {
+        SAFE_DELETE(gpu->gpu_xcq->gridx);
+        SAFE_DELETE(gpu->gpu_xcq->gridy);
+        SAFE_DELETE(gpu->gpu_xcq->gridz);
+        SAFE_DELETE(gpu->gpu_xcq->sswt);
+        SAFE_DELETE(gpu->gpu_xcq->weight);
+        SAFE_DELETE(gpu->gpu_xcq->gatm);
+        SAFE_DELETE(gpu->gpu_xcq->bin_counter);
+        SAFE_DELETE(gpu->gpu_xcq->dweight_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->basf);
+        SAFE_DELETE(gpu->gpu_xcq->primf);
+        SAFE_DELETE(gpu->gpu_xcq->primfpbin);
+        SAFE_DELETE(gpu->gpu_xcq->basf_locator);
+        SAFE_DELETE(gpu->gpu_xcq->primf_locator);
+        SAFE_DELETE(gpu->gpu_xcq->bin_locator);
+        SAFE_DELETE(gpu->gpu_xcq->densa);
+        SAFE_DELETE(gpu->gpu_xcq->densb);
+        SAFE_DELETE(gpu->gpu_xcq->gax);
+        SAFE_DELETE(gpu->gpu_xcq->gbx);
+        SAFE_DELETE(gpu->gpu_xcq->gay);
+        SAFE_DELETE(gpu->gpu_xcq->gby);
+        SAFE_DELETE(gpu->gpu_xcq->gaz);
+        SAFE_DELETE(gpu->gpu_xcq->gbz);
+        SAFE_DELETE(gpu->gpu_xcq->exc);
+        SAFE_DELETE(gpu->gpu_xcq->xc_grad);
+        SAFE_DELETE(gpu->gpu_xcq->gxc_grad);
+        SAFE_DELETE(gpu->gpu_xcq->phi);
+        SAFE_DELETE(gpu->gpu_xcq->dphidx);
+        SAFE_DELETE(gpu->gpu_xcq->dphidy);
+        SAFE_DELETE(gpu->gpu_xcq->dphidz);
+        SAFE_DELETE(gpu->gpu_xcq->phi_loc);
+        SAFE_DELETE(gpu->gpu_xcq->gridx_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->gridy_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->gridz_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->exc_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->quadwt);
+        SAFE_DELETE(gpu->gpu_xcq->gatm_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->uw_ssd);
+        SAFE_DELETE(gpu->gpu_xcq->wtang);
+        SAFE_DELETE(gpu->gpu_xcq->rwt);
+        SAFE_DELETE(gpu->gpu_xcq->rad3);
+        SAFE_DELETE(gpu->gpu_xcq->gpweight);
+        SAFE_DELETE(gpu->gpu_xcq->cfweight);
+        SAFE_DELETE(gpu->gpu_xcq->pfweight);
+        SAFE_DELETE(gpu->gpu_xcq->mpi_bxccompute);
+        SAFE_DELETE(gpu->gpu_xcq);
+    }
+    SAFE_DELETE(gpu->iattype);
     SAFE_DELETE(gpu->xyz);
-    SAFE_DELETE(gpu->gpu_basis->sorted_Q);
-    SAFE_DELETE(gpu->gpu_basis->sorted_Qnumber);
-    SAFE_DELETE(gpu->gpu_cutoff->cutMatrix);
-    SAFE_DELETE(gpu->gpu_cutoff->sorted_YCutoffIJ);
-    SAFE_DELETE(gpu->gpu_cutoff->YCutoff);
-    SAFE_DELETE(gpu->gpu_cutoff->cutPrim);
-
     SAFE_DELETE(gpu->allxyz);
+    SAFE_DELETE(gpu->extpointxyz);
+    SAFE_DELETE(gpu->chg);
     SAFE_DELETE(gpu->allchg);
-    SAFE_DELETE(gpu->gpu_cutoff->sorted_OEICutoffIJ);
+    SAFE_DELETE(gpu->DFT_calculated);
+    SAFE_DELETE(gpu->grad);
+    SAFE_DELETE(gpu->ptchg_grad);
+    SAFE_DELETE(gpu->cew_grad);
+#if defined(USE_LEGACY_ATOMICS)
+    SAFE_DELETE(gpu->gradULL);
+    SAFE_DELETE(gpu->ptchg_gradULL);
+#endif
 }
-
 
 #if defined(COMPILE_GPU_AOINT)
 static bool debut = true;
@@ -3158,14 +3400,14 @@ extern "C" void gpu_addint_(QUICKDouble* o, int* intindex, char* intFileName)
 
     PRINTDEBUG("DELETE TEMP VARIABLES");
 
-    delete gpu->gpu_calculated->o;
-    delete gpu->gpu_calculated->dense;
-    delete gpu->gpu_cutoff->cutMatrix;
-    delete gpu->gpu_cutoff->sorted_YCutoffIJ;
-    delete gpu->gpu_cutoff->YCutoff;
-    delete gpu->gpu_cutoff->cutPrim;
+    SAFE_DELETE(gpu->gpu_calculated->o);
+    SAFE_DELETE(gpu->gpu_calculated->dense);
+    SAFE_DELETE(gpu->gpu_cutoff->cutMatrix);
+    SAFE_DELETE(gpu->gpu_cutoff->sorted_YCutoffIJ);
+    SAFE_DELETE(gpu->gpu_cutoff->YCutoff);
+    SAFE_DELETE(gpu->gpu_cutoff->cutPrim);
 #if defined(USE_LEGACY_ATOMICS)
-    delete gpu->gpu_calculated->oULL;
+    SAFE_DELETE(gpu->gpu_calculated->oULL);
 #endif    
 
     PRINTDEBUG("COMPLETE RUNNING ADDINT");

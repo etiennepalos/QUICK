@@ -96,26 +96,26 @@ extern "C" void gpu_get_cshell_eri_(bool *deltaO, QUICKDouble* o)
     PRINTDEBUG("DELETE TEMP VARIABLES");
 
     if (gpu->gpu_sim.method == HF) {
-        delete gpu->gpu_calculated->o;
-        delete gpu->gpu_calculated->dense;
+        SAFE_DELETE(gpu->gpu_calculated->o);
+        SAFE_DELETE(gpu->gpu_calculated->dense);
 #if defined(USE_LEGACY_ATOMICS)
-        delete gpu->gpu_calculated->oULL;
+        SAFE_DELETE(gpu->gpu_calculated->oULL);
 #  if defined(OSHELL)
-        delete gpu->gpu_calculated->obULL;
+        SAFE_DELETE(gpu->gpu_calculated->obULL);
 #  endif
 #endif
 #if defined(OSHELL)
-        delete gpu->gpu_calculated->ob;
-        delete gpu->gpu_calculated->denseb;
+        SAFE_DELETE(gpu->gpu_calculated->ob);
+        SAFE_DELETE(gpu->gpu_calculated->denseb);
 #endif
     } else if (*deltaO != 0) {
-        delete gpu->gpu_calculated->dense;
+        SAFE_DELETE(gpu->gpu_calculated->dense);
 #if defined(OSHELL)
-        delete gpu->gpu_calculated->denseb;
+        SAFE_DELETE(gpu->gpu_calculated->denseb);
 #endif
     }
 
-    delete gpu->gpu_cutoff->cutMatrix;
+    SAFE_DELETE(gpu->gpu_cutoff->cutMatrix);
 
     PRINTDEBUG("COMPLETE RUNNING GET2E");
 }
@@ -169,14 +169,14 @@ extern "C" void gpu_get_cshell_eri_grad_(QUICKDouble* grad)
     if (gpu -> gpu_sim.method == HF) {
         gpu->grad->DownloadSum(grad);
 
-        delete gpu->grad;
+        SAFE_DELETE(gpu->grad);
 #if defined(USE_LEGACY_ATOMICS)
-        delete gpu->gradULL;
+        SAFE_DELETE(gpu->gradULL);
 #endif
-        delete gpu->gpu_calculated->dense;
+        SAFE_DELETE(gpu->gpu_calculated->dense);
 
 #if defined(OSHELL)
-        delete gpu->gpu_calculated->denseb;
+        SAFE_DELETE(gpu->gpu_calculated->denseb);
 #endif
     }
 
@@ -192,6 +192,7 @@ extern "C" void gpu_get_cshell_xc_(QUICKDouble* Eelxc, QUICKDouble* aelec, QUICK
 {
     PRINTDEBUG("BEGIN TO RUN GETXC");
 
+    SAFE_DELETE(gpu->DFT_calculated);
     gpu->DFT_calculated = new gpu_buffer_type<DFT_calculated_type>(1, 1);
 #if defined(USE_LEGACY_ATOMICS)
     gpu->DFT_calculated->_hostData[0].Eelxc = DOUBLETOULL(*Eelxc * OSCALE);
@@ -270,16 +271,16 @@ extern "C" void gpu_get_cshell_xc_(QUICKDouble* Eelxc, QUICKDouble* aelec, QUICK
 
     PRINTDEBUG("DELETE TEMP VARIABLES");
 
-    delete gpu->gpu_calculated->o;
-    delete gpu->gpu_calculated->dense;
+    SAFE_DELETE(gpu->gpu_calculated->o);
+    SAFE_DELETE(gpu->gpu_calculated->dense);
 #if defined(OSHELL)
-    delete gpu->gpu_calculated->ob;
-    delete gpu->gpu_calculated->denseb;
+    SAFE_DELETE(gpu->gpu_calculated->ob);
+    SAFE_DELETE(gpu->gpu_calculated->denseb);
 #endif
 #if defined(USE_LEGACY_ATOMICS)
-    delete gpu->gpu_calculated->oULL;
+    SAFE_DELETE(gpu->gpu_calculated->oULL);
 #  if defined(OSHELL)
-    delete gpu->gpu_calculated->obULL;
+    SAFE_DELETE(gpu->gpu_calculated->obULL);
 #  endif
 #endif
 }
@@ -317,17 +318,17 @@ extern "C" void gpu_get_cshell_xcgrad_(QUICKDouble *grad)
 
 #if defined(CEW) && !defined(USE_LEGACY_ATOMICS)
     gpu->cew_grad->DownloadSum(grad);
-    delete gpu->cew_grad;
+    SAFE_DELETE(gpu->cew_grad);
 #endif
 
-    delete gpu->grad;
+    SAFE_DELETE(gpu->grad);
 #if defined(USE_LEGACY_ATOMICS)
-    delete gpu->gradULL;
+    SAFE_DELETE(gpu->gradULL);
 #endif
-    delete gpu->gpu_calculated->dense;
+    SAFE_DELETE(gpu->gpu_calculated->dense);
 
 #if defined(OSHELL)
-    delete gpu->gpu_calculated->denseb;
+    SAFE_DELETE(gpu->gpu_calculated->denseb);
 #endif
 }
 
@@ -354,6 +355,58 @@ extern "C" void gpu_get_oeprop_(QUICKDouble* esp_electronic)
 #endif
     
     gpu->gpu_calculated->esp_electronic->DownloadSum(esp_electronic);
+}
+
+extern "C" void gpu_get_oeprop_efield_(QUICKDouble* efield_electronic)
+{
+    upload_sim_to_constant_oeprop(gpu);
+    upload_para_to_const_oeprop();
+
+    getOEPROPEField(gpu);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efield_electronicULL->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efield_electronicULL->_devData, 0, sizeof(QUICKULL) * 3 * gpu->nextpoint, 0);
+
+    for (size_t i = 0; i < (size_t) 3 * gpu->nextpoint; i++) {
+        gpu->gpu_calculated->efield_electronic->_hostData[i]
+            = ULLTODOUBLE(gpu->gpu_calculated->efield_electronicULL->_hostData[i]) * ONEOVEROSCALE;
+    }
+#else
+    gpu->gpu_calculated->efield_electronic->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efield_electronic->_devData, 0, sizeof(QUICKDouble) * 3 * gpu->nextpoint, 0);
+#endif
+
+    // Both device and Fortran arrays are component-fast; DownloadSum would transpose them.
+    for (size_t i = 0; i < (size_t) 3 * gpu->nextpoint; i++) {
+        efield_electronic[i] += gpu->gpu_calculated->efield_electronic->_hostData[i];
+    }
+}
+
+extern "C" void gpu_get_oeprop_efg_(QUICKDouble* efg_electronic)
+{
+    upload_sim_to_constant_oeprop(gpu);
+    upload_para_to_const_oeprop();
+
+    getOEPROPEFG(gpu);
+
+#if defined(USE_LEGACY_ATOMICS)
+    gpu->gpu_calculated->efg_electronicULL->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efg_electronicULL->_devData, 0, sizeof(QUICKULL) * 9 * gpu->nextpoint, 0);
+
+    for (size_t i = 0; i < (size_t) 9 * gpu->nextpoint; i++) {
+        gpu->gpu_calculated->efg_electronic->_hostData[i]
+            = ULLTODOUBLE(gpu->gpu_calculated->efg_electronicULL->_hostData[i]) * ONEOVEROSCALE;
+    }
+#else
+    gpu->gpu_calculated->efg_electronic->Download();
+    gpuMemsetAsync(gpu->gpu_calculated->efg_electronic->_devData, 0, sizeof(QUICKDouble) * 9 * gpu->nextpoint, 0);
+#endif
+
+    // Preserve (xx,yx,zx,xy,yy,zy,xz,yz,zz) for each point without transposing.
+    for (size_t i = 0; i < (size_t) 9 * gpu->nextpoint; i++) {
+        efg_electronic[i] += gpu->gpu_calculated->efg_electronic->_hostData[i];
+    }
 }
 
 
@@ -410,7 +463,9 @@ extern "C" void gpu_get_oei_grad_(QUICKDouble* grad, QUICKDouble* ptchg_grad)
     }
 
     upload_sim_to_constant_oei(gpu);
-
+    // Small MPI jobs can evaluate SCF one-electron integrals on the CPU.
+    // Initialize the derivative transform table even without a GPU OEI call.
+    upload_para_to_const_oei();
     get_oei_grad(gpu);
 
     // download gradients

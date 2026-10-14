@@ -1,0 +1,47 @@
+Native GPU EFG reduces synchronous property API time by 7.86-13.58% in the four measured water/acetone cells. The EFIELD range guard repairs an extreme-coordinate NaN failure and costs 0.22-1.79% in median EFIELD API time. All 2,084 acceptance/lifecycle/BOMD gates pass; the derivative transfer and four GPU memory checks pass.
+
+Final local commits:
+  Paper 1 4c194ca20033a44855aefbf1077d89e5dc70904f
+  Paper 3 208ddbb3468bfdd9198e7952f32f4365f0d432d5
+Earlier accepted host/output commits: Paper 1 597032ed; Paper 3 574617e1 and 4509e98a. No changes were pushed.
+
+Final device comparison uses the frozen host/output baseline (4509e98a) against the accepted native-EFG/integer-guard build. The exact current committed scientific blobs match the frozen measured source. Earlier host/output improvements compare separately against 4eb0d176 and are not folded into these percentages.
+
+Property API paired percentage time reduction (median [minimum,maximum]; positive means faster):
+  system   probes  EFIELD                         EFG
+  water      4096  -0.215163% [-0.506038,+0.655147]  +9.366323% [+9.118159,+9.518723]
+  water     65536  -1.129231% [-1.248522,-1.039408]  +7.856786% [+7.836617,+8.439016]
+  acetone    4096  -1.455909% [-1.700543,-1.093693]  +13.579130% [+12.764458,+13.910784]
+  acetone   65536  -1.794517% [-2.356229,-0.958044]  +12.911075% [+12.818910,+16.049505]
+
+All twelve EFG pairs improved. EFIELD includes the accepted correctness guard and has a small measured cost; its water4096 pairs span zero. ESP controls retain the original kernel; compiled ESP instructions are identical. API output differences are <=1.43e-14 ESP, 8.89e-16 EFIELD and 6.67e-16 EFG a.u.
+There are 24 fresh processes, three independent pairs per cell and 216 retained calls after per-process warmup. The clock includes transfers and classical assembly, excluding SCF/setup/output. Independent process pairs are the inference units; these descriptive medians/ranges do not provide a statistical significance claim.
+
+Whole-job water HF/STO3G BOMD (4096 fixed probes, every step, 100 steps x 0.05 fs; discarded pair 0 then three retained pairs): median +0.332531% time reduction [+0.002111,+1.210254]. Retained values: +0.002111%, +1.210254%, +0.332531%.
+Median whole-job reduction is small relative to the paired spread. All three retained pairs are positive, but no robust or general whole-job speedup is established.
+This launch-to-exit clock includes setup, all SCFs/gradients, sampled properties/invariants, buffered CSV/XYZ output, normal checkpoints and teardown. All scientific output/trajectory/checkpoint/SCF checks pass. No fsync/cache flush was added. Short trajectories establish execution consistency, not converged scientific observables.
+
+Native EFG computes the 80 m=0 Cartesian slots required by second derivatives, instead of filling the reference order 6 recurrence (210 populated slots). Generated polynomials follow the existing EFIELD CUDA style. The original recurrence body, Boys seed, indexing, contraction, signs, normalization and atomics are preserved. It remains the GPU fallback outside the documented coordinate/exponent bounds and for legacy atomics. Higher-angular recursion and CPU reference mathematics are unchanged.
+EFIELD retains the original generated polynomial bytes. A magnitude-bit classifier routes nonzero coordinate magnitudes below 1e-50 or above 1e50 bohr to the original GPU recurrence. More than five million scalar bit patterns and one million coordinate triples, plus independent checks and host sanitizers, validate routing; no host signaling-NaN floating exception equivalence is claimed.
+
+Validation covered CPU serial, CPU MPI2, CUDA and CUDA-MPI1: 1,187 API/lifecycle gates plus 897 BOMD gates, 48 cases and 33 comparisons. BOMD checks include property sampling off/on/stride/restart, current-density online versus CPU postprocessing, fixed/atom/molecule probes, and HF/PBE-D3/PBE0-D3 cases. Property evaluation adds no SCF/gradient calls.
+Transfer tested 8,462 points / 101,544 derivative components per reference across seven models and mixed-SP, d-basis, charged, unrestricted and applied-field cases. CPU maximum absolute differences are EFIELD 2.6466296e-10 and EFG 1.4493708e-08 a.u., within 2e-7.
+Ten inherited near-nuclear ESP discrepancies with CPU remain; maximum 9.87092e-7 a.u. Their masks are unchanged and previous GPU ESP is preserved within 5.68435e-14 a.u. This is a derivative/preservation pass, not universal all-property CPU/GPU agreement. Published ESP/RESP source is unchanged; RESP-specific runtime tests were not rerun.
+Four actual CUDA memcheck/initcheck runs (SiH4 mixed SP and unrestricted methoxy d-basis) report zero errors and both full-leak checks report zero leaked bytes.
+At 129 extreme probes with coordinates 1e62/1e70/1e80 Angstrom the old EFIELD produces 271 NaNs; guarded GPU and CPU results are finite. The permanent regression first reproduced the old failure and passed with the earlier floating guard. The exact committed script was then run against the accepted integer-guard library and passed on the same density and probes; a separate final GPU replay also passed. Far-field values are cancellation/underflow dominated; the test establishes finite behavior and does not establish relative accuracy or performance.
+External-charge validation uses 129 points and public API source counts 3->0->3 with a common fixed CPU density after separately converged SCF energies. Analytic potential, field, negative-Hessian and restoration tests pass. This checks assembly/lifecycle, not polarization or MBX.
+
+GPU static resources (REG/STACK/LOCAL): ESP 162/0/0 unchanged; EFIELD 255/232/0 -> 255/224/0; EFG 194/104/0 -> 255/184/0. No occupancy or hardware-spill performance inference follows from these static counts. Actual paired API timings supply the performance evidence.
+
+Earlier independently measured host/output improvements remain documented in engineering-host-output-report.txt: dense-water stride 1 whole-job time 2.377% lower; extracted CSV writer 10.122% lower. The SCF-dominated PBE-D3 trimer shows no measurable whole-job benefit. These are distinct comparisons with distinct baselines and cannot be added to the final device percentages.
+
+One NVIDIA RTX PRO 5000 72GB Blackwell GPU, driver 595.91.07, CUDA 13, GNU 14.4, OpenMPI 5.0.11 and OpenBLAS 0.3.34 were used. GPU timings use one thread/rank on fixed CPU 6. Build flags and resolved dependency hashes are in the reproduction appendix and raw manifests. HIP, higher-angular and multi-GPU execution are untested; no MBX or long-time trajectory claim is made.
+Post-commit preservation independently checks 9,451 protected repository files and all 63 manuscript files. Original checkouts and Paper 2 are untouched, and Paper 3 retains only its existing untracked manuscript material. No generated benchmark artifacts are committed.
+
+Reproduction/build appendix: /home/epalos/software/quick_ep/host-output-opt-20261011/final-reproduction-appendix.txt
+Additional final committed regression invocation: /home/epalos/software/quick_ep/host-output-opt-20261011/permanent-bitguard-final-invocation.json
+Independent audit: /home/epalos/software/quick_ep/host-output-opt-20261011/review/independent-review-current.txt
+Final API/whole-BOMD plots and paired tables: /home/epalos/software/quick_ep/host-output-opt-20261011/figures-bitguard-final
+Complete machine-readable results, source/library hashes and evidence index: /home/epalos/software/quick_ep/host-output-opt-20261011/engineering-final-gpu-report.json
+
+Limits are explicit in the JSON report. Failed tracing/parser/RPATH attempts and intermediate classifiers are retained for audit and excluded from the accepted final performance results.

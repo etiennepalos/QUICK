@@ -381,14 +381,14 @@ __device__ static inline void iclass_oei_grad(unsigned int I, unsigned int J, un
 __global__ void get_oei_grad_kernel() {
     unsigned int offset = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int totalThreads = blockDim.x * gridDim.x;
-    unsigned int jshell = devSim.Qshell;
+    const QUICKULL shell_pairs = (QUICKULL) devSim.Qshell_OEI;
     unsigned int totalatom = devSim.natom + devSim.nextatom;
 
-    for (QUICKULL i = offset; i < jshell * jshell * totalatom; i += totalThreads) {
+    for (QUICKULL i = offset; i < shell_pairs * totalatom; i += totalThreads) {
         // use the global index to obtain shell pair. Note that here we obtain a couple of indices that helps us to obtain
         // shell number (ii and jj) and quantum numbers (iii, jjj).
-        unsigned int iatom = (int) i / (jshell * jshell);
-        unsigned int idx   = i - iatom * jshell * jshell;
+        const unsigned int iatom = (unsigned int) (i / shell_pairs);
+        const QUICKULL idx = i - (QUICKULL) iatom * shell_pairs;
 
 #ifdef MPIV_GPU
         if (devSim.mpi_boeicompute[idx] > 0) {

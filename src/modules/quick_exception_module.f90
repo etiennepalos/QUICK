@@ -153,6 +153,27 @@ contains
       msg='Number of launched processes is greater than the available number of GPUs. Please &
               &relaunch with lower number of processes.'
 
+   case(46)
+      msg='Invalid QUICK OEPROP API request. Number of probe points must be positive.'
+
+   case(47)
+      msg='QUICK OEPROP API called before a converged density was available.'
+
+   case(48)
+      msg='Invalid QUICK OEPROP API request. No output property array was provided.'
+
+   case(49)
+      msg='Invalid QUICK OEPROP trajectory or probe file format.'
+
+   case(50)
+      msg='Inconsistent atom count in QUICK OEPROP trajectory frame.'
+
+   case(51)
+      msg='Atom identities changed between QUICK OEPROP trajectory frames.'
+
+   case(52)
+      msg='Unsupported element symbol in QUICK OEPROP trajectory file.'
+
     case default
       msg='Unknown error.'
 

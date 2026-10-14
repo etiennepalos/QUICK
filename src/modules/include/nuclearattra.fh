@@ -240,10 +240,11 @@
               if (III /= JJJ) dense_sym_factor = 2.0d0
 
                  if (quick_method%UNRST) then
-                   esp_update = dense_sym_factor*quick_qm_struct%denseab(JJJ,III)*Xconstant &
+                   esp_update = dense_sym_factor*(quick_qm_struct%dense(JJJ,III) &
+                     + quick_qm_struct%denseb(JJJ,III))*Xconstant &
                      *quick_basis%cons(III)*quick_basis%cons(JJJ)*attraxiao(itemp1,itemp2,0)
                  else
-                   esp_update = dense_sym_factor*quick_qm_struct%denseSave(JJJ,III)*Xconstant &
+                   esp_update = dense_sym_factor*quick_qm_struct%dense(JJJ,III)*Xconstant &
                      *quick_basis%cons(III)*quick_basis%cons(JJJ)*attraxiao(itemp1,itemp2,0)
                  endif
 
@@ -1275,4 +1276,192 @@ endif
 end subroutine efield_1pdm
 #elif defined (OEI)
 end subroutine nuclearattraopt
+#endif
+
+#if defined (OEPROP)
+
+subroutine efg_1pdm_grid_block(Ips,Jps,IIsh,JJsh, &
+      Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g,nblock,igridstart,xyz_points,aux_block,efg)
+   use quick_method_module, only: quick_method
+   use quick_basis_module, only: quick_basis
+   use quick_calculated_module, only: quick_qm_struct
+   implicit none
+
+   integer Ips, Jps, IIsh, JJsh
+   integer Iang, Jang, III, III1, III2, JJJ, JJJ1, JJJ2, NBI1, NBI2, NBJ1, NBJ2
+   integer iblockpoint, igridpoint, igridstart, nblock
+   integer lx1, ly1, lz1, lx2, ly2, lz2
+   double precision Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g
+   double precision, intent(in) :: aux_block(0:20,nblock), xyz_points(:,:)
+   double precision, intent(inout) :: efg(:,:,:)
+   double precision Cx,Cy,Cz
+   double precision X1temp, Xconstant, Xconstant1, Xconstant2, DENSEJI
+   double precision efg_deriv(10)
+
+   do Iang=quick_basis%Qstart(IIsh),quick_basis%Qfinal(IIsh)
+      X1temp=quick_basis%gccoeff(ips,quick_basis%ksumtype(IIsh)+Iang)
+      do Jang=quick_basis%Qstart(JJsh),quick_basis%Qfinal(JJsh)
+         NBI1=quick_basis%Qsbasis(IIsh,Iang)
+         NBI2=quick_basis%Qfbasis(IIsh,Iang)
+         NBJ1=quick_basis%Qsbasis(JJsh,Jang)
+         NBJ2=quick_basis%Qfbasis(JJsh,Jang)
+
+         III1=quick_basis%ksumtype(IIsh)+NBI1
+         III2=quick_basis%ksumtype(IIsh)+NBI2
+         JJJ1=quick_basis%ksumtype(JJsh)+NBJ1
+         JJJ2=quick_basis%ksumtype(JJsh)+NBJ2
+
+         Xconstant=X1temp*quick_basis%gccoeff(jps,quick_basis%ksumtype(JJsh)+Jang)
+
+         do III=III1,III2
+            Xconstant1=Xconstant*quick_basis%cons(III)
+            lx1=quick_basis%KLMN(1,III)
+            ly1=quick_basis%KLMN(2,III)
+            lz1=quick_basis%KLMN(3,III)
+            do JJJ=max(III,JJJ1),JJJ2
+
+               if (quick_method%UNRST) then
+                  DENSEJI=quick_qm_struct%dense(JJJ,III)+quick_qm_struct%denseb(JJJ,III)
+               else
+                  DENSEJI=quick_qm_struct%dense(JJJ,III)
+               endif
+
+               if(III.ne.JJJ)DENSEJI=2.0d0*DENSEJI
+               Xconstant2=Xconstant1*quick_basis%cons(JJJ)*DENSEJI
+
+               lx2=quick_basis%KLMN(1,JJJ)
+               ly2=quick_basis%KLMN(2,JJJ)
+               lz2=quick_basis%KLMN(3,JJJ)
+
+               do iblockpoint=1,nblock
+                  igridpoint=igridstart+iblockpoint-1
+                  Cx=xyz_points(1,igridpoint)
+                  Cy=xyz_points(2,igridpoint)
+                  Cz=xyz_points(3,igridpoint)
+
+                  efg_deriv=efg_attra_recurse_all(lx1,ly1,lz1,lx2,ly2,lz2,0, &
+                       aux_block(0,iblockpoint),Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g)
+
+                  efg(1,1,igridpoint)=efg(1,1,igridpoint)+Xconstant2*efg_deriv(5)
+                  efg(1,2,igridpoint)=efg(1,2,igridpoint)+Xconstant2*efg_deriv(6)
+                  efg(1,3,igridpoint)=efg(1,3,igridpoint)+Xconstant2*efg_deriv(7)
+                  efg(2,1,igridpoint)=efg(2,1,igridpoint)+Xconstant2*efg_deriv(6)
+                  efg(2,2,igridpoint)=efg(2,2,igridpoint)+Xconstant2*efg_deriv(8)
+                  efg(2,3,igridpoint)=efg(2,3,igridpoint)+Xconstant2*efg_deriv(9)
+                  efg(3,1,igridpoint)=efg(3,1,igridpoint)+Xconstant2*efg_deriv(7)
+                  efg(3,2,igridpoint)=efg(3,2,igridpoint)+Xconstant2*efg_deriv(9)
+                  efg(3,3,igridpoint)=efg(3,3,igridpoint)+Xconstant2*efg_deriv(10)
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+
+end subroutine efg_1pdm_grid_block
+
+
+! Propagate the scalar attraction integral, its three center derivatives,
+! and six independent second derivatives in one Obara--Saika traversal.
+recursive function efg_attra_recurse_all(i,j,k,ii,jj,kk,m,aux,Ax,Ay,Az, &
+      Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g) result(deriv)
+   implicit none
+
+   integer, intent(in) :: i,j,k,ii,jj,kk,m
+   double precision, intent(in) :: aux(0:20)
+   double precision, intent(in) :: Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz,Px,Py,Pz,g
+   double precision :: deriv(10)
+
+   integer, parameter :: pair_i(6) = (/1,1,1,2,2,3/)
+   integer, parameter :: pair_j(6) = (/1,2,3,2,3,3/)
+   integer :: exponents(6), ilowex, ilownum, l, mu, pair
+   double precision :: center(12), pc(3), coeff, pa
+   double precision :: lower(10), higher(10), same_m(10), same_m1(10)
+
+   deriv(:) = 0.0d0
+   if (i+j+k+ii+jj+kk == 0) then
+      pc(:) = (/Px-Cx,Py-Cy,Pz-Cz/)
+      deriv(1) = aux(m)
+      do mu=1,3
+         deriv(1+mu) = 2.0d0*g*pc(mu)*aux(m+1)
+      enddo
+      do pair=1,6
+         deriv(4+pair) = 4.0d0*g*g*pc(pair_i(pair))*pc(pair_j(pair))*aux(m+2)
+         if (pair_i(pair) == pair_j(pair)) &
+            deriv(4+pair) = deriv(4+pair) - 2.0d0*g*aux(m+1)
+      enddo
+      return
+   endif
+
+   exponents(:) = (/i,j,k,ii,jj,kk/)
+   center(7:12) = (/Cx,Cy,Cz,Px,Py,Pz/)
+   ilownum = 0
+   ilowex = huge(ilowex)
+   do l=1,6
+      if (exponents(l) /= 0 .and. exponents(l) < ilowex) then
+         ilowex = exponents(l)
+         ilownum = l
+      endif
+   enddo
+
+   if (ilownum <= 3) then
+      center(1:6) = (/Ax,Ay,Az,Bx,By,Bz/)
+   else
+      center(1:6) = (/Bx,By,Bz,Ax,Ay,Az/)
+      exponents(:) = (/ii,jj,kk,i,j,k/)
+      ilownum = ilownum-3
+   endif
+
+   exponents(ilownum) = exponents(ilownum)-1
+   lower = efg_attra_recurse_all(exponents(1),exponents(2),exponents(3), &
+      exponents(4),exponents(5),exponents(6),m,aux,center(1),center(2), &
+      center(3),center(4),center(5),center(6),center(7),center(8),center(9), &
+      center(10),center(11),center(12),g)
+   higher = efg_attra_recurse_all(exponents(1),exponents(2),exponents(3), &
+      exponents(4),exponents(5),exponents(6),m+1,aux,center(1),center(2), &
+      center(3),center(4),center(5),center(6),center(7),center(8),center(9), &
+      center(10),center(11),center(12),g)
+
+   pa = center(9+ilownum)-center(ilownum)
+   deriv(:) = pa*lower(:) - (center(9+ilownum)-center(6+ilownum))*higher(:)
+
+   if (exponents(ilownum) /= 0) then
+      coeff = dble(exponents(ilownum))/(2.0d0*g)
+      exponents(ilownum) = exponents(ilownum)-1
+      same_m = efg_attra_recurse_all(exponents(1),exponents(2),exponents(3), &
+         exponents(4),exponents(5),exponents(6),m,aux,center(1),center(2), &
+         center(3),center(4),center(5),center(6),center(7),center(8),center(9), &
+         center(10),center(11),center(12),g)
+      same_m1 = efg_attra_recurse_all(exponents(1),exponents(2),exponents(3), &
+         exponents(4),exponents(5),exponents(6),m+1,aux,center(1),center(2), &
+         center(3),center(4),center(5),center(6),center(7),center(8),center(9), &
+         center(10),center(11),center(12),g)
+      deriv(:) = deriv(:) + coeff*(same_m(:)-same_m1(:))
+      exponents(ilownum) = exponents(ilownum)+1
+   endif
+
+   if (exponents(ilownum+3) /= 0) then
+      coeff = dble(exponents(ilownum+3))/(2.0d0*g)
+      exponents(ilownum+3) = exponents(ilownum+3)-1
+      same_m = efg_attra_recurse_all(exponents(1),exponents(2),exponents(3), &
+         exponents(4),exponents(5),exponents(6),m,aux,center(1),center(2), &
+         center(3),center(4),center(5),center(6),center(7),center(8),center(9), &
+         center(10),center(11),center(12),g)
+      same_m1 = efg_attra_recurse_all(exponents(1),exponents(2),exponents(3), &
+         exponents(4),exponents(5),exponents(6),m+1,aux,center(1),center(2), &
+         center(3),center(4),center(5),center(6),center(7),center(8),center(9), &
+         center(10),center(11),center(12),g)
+      deriv(:) = deriv(:) + coeff*(same_m(:)-same_m1(:))
+      exponents(ilownum+3) = exponents(ilownum+3)+1
+   endif
+
+   ! Differentiating -(P_q-C_q)R^(m+1) generates the lower-rank terms.
+   deriv(1+ilownum) = deriv(1+ilownum) + higher(1)
+   do pair=1,6
+      if (pair_i(pair) == ilownum) &
+         deriv(4+pair) = deriv(4+pair) + higher(1+pair_j(pair))
+      if (pair_j(pair) == ilownum) &
+         deriv(4+pair) = deriv(4+pair) + higher(1+pair_i(pair))
+   enddo
+
+end function efg_attra_recurse_all
 #endif

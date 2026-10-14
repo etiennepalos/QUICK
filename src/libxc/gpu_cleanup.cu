@@ -19,6 +19,9 @@ void gpu_libxc_cleanup(gpu_libxc_info* d_glinfo)
     if (h_glinfo->d_maple2c_params != NULL) {
         gpuFree(h_glinfo->d_maple2c_params);
     }
+    if (h_glinfo->d_worker_params != NULL) {
+        gpuFree(h_glinfo->d_worker_params);
+    }
     gpuFree(h_glinfo->d_gdm);
     gpuFree(h_glinfo->d_ds);
     gpuFree(h_glinfo->d_rhoLDA);
