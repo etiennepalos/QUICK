@@ -429,7 +429,7 @@ contains
     if (found_keyword(keywd,'EFIELD_GRID')) is_extgrid=.true.
    
     ! determine if external grid points exist
-    if (found_keyword(keywd,'EFG_GRID')) is_extgrid=.true.
+    if (found_keyword(keywd,'EFG_GRID') .or. found_keyword(keywd,'EFG_GRID_NUMERICAL')) is_extgrid=.true.
 
     ! determine if constraints exists
     if (found_keyword(keywd,'CONSTRAIN')) is_constrain=.true.
