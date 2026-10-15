@@ -31,8 +31,22 @@ Current external-grid property keywords:
 | `EXTERNAL_EFIELD_GRADIENT_XX/YY/ZZ/XY/XZ/YZ` | Six symmetric components G_ij=dE_i/dr_j of a static spatial field gradient |
 | `EFIELD_GXX/GYY/GZZ/GXY/GXZ/GYZ` | Compact spatial-gradient aliases |
 | `EFIELD_FX/FY/FZ`, `EFIELD_OX/OY/OZ` | Compact field-vector and fixed-origin aliases |
+| `XC_RADIAL`, `XC_ANGULAR` | Paired opt-in unpruned XC quadrature; original SG0/SG1 defaults are preserved |
 
 Implementation notes for this feature:
+
+- Explicit XC refinement reuses SG1's Euler--Maclaurin radial map, existing
+  positive-weight Lebedev rules, SSW partitioning and native CPU/GPU XC paths.
+  Use both `XC_RADIAL` (1--400) and `XC_ANGULAR` (supported positive rule up
+  to 5810). Negative-weight rules 74/230/266 are rejected because existing
+  XC screening assumes positive weights. Reject malformed new values with
+  error 57; keep published keyword readers unchanged. Refined grids also
+  require checking the independent `MATRIXZERO` weight-screening threshold:
+  `1e-14` was qualified on the documented small-water PBE0 cases, without
+  changing its default. Broadcast each new unbinned point count before MPI
+  workers traverse temporary arrays after a grid-size change. See
+  `validation/external_field/XC_CONVERGENCE.md` and
+  `validation/external_field/XC_GRID_LIFECYCLE.md` for the tested scope.
 
 - `EFG_GRID` is the default analytic route. `EFG_GRID_NUMERICAL` is retained as a
   regression/reference path.

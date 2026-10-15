@@ -1,0 +1,76 @@
+{
+  "scope": "Opt-in refined XC quadrature and numerical protocol qualification; original SG0/SG1 defaults retained",
+  "author": "etiennepalos <33858083+etiennepalos@users.noreply.github.com>",
+  "branch": "feature/adaptive-electrostatics",
+  "baseline": "9d63c22820754e377ee9ba2d3cfbadfe5901ba88",
+  "implementation": {
+    "paired_controls": [
+      "XC_RADIAL",
+      "XC_ANGULAR"
+    ],
+    "radial_map": "existing Euler-Maclaurin",
+    "angular": "existing positive-weight Lebedev rules",
+    "default": "unchanged SG1 or requested SG0",
+    "malformed_grid_request_error": 57,
+    "MPI": "broadcast new unbinned count on quick_comm before temporary-array traversal"
+  },
+  "selected_small_model_protocol": {
+    "XC_RADIAL": 150,
+    "XC_ANGULAR": 590,
+    "MATRIXZERO": 1e-14,
+    "CUTOFF": 1e-12,
+    "GRADCUTOFF": 1e-12,
+    "XCCUTOFF": 1e-12,
+    "BASISCUTOFF": 1e-12,
+    "DENSERMS": 1e-10
+  },
+  "source_sha256": {
+    "src/modules/quick_method_module.f90": "9eefaf5ce1be80321e17abe2c5b1797461274fb5e153eee59d6e317904a9d35c",
+    "src/modules/quick_gridpoints_module.f90": "629074651cb8a01a6286a28484f205e03b212c02864c08c44282f9c5be7b0f6e",
+    "src/modules/quick_exception_module.f90": "f6c7648a5d06eda0f44dca35d7022d10da17cfec0403e69a7b585e9ac53c8c52"
+  },
+  "evidence": {
+    "CPU_XC_numerical_qualification": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/xc-convergence/acceptance-report.json",
+      "sha256": "8929543ee35f5f3f50f6f39be6223bfca959d84a47ecf2eb5f2d2dd93adfbd69",
+      "passed": true
+    },
+    "CUDA_XC_central_accuracy": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/xc-convergence/native-cuda-central-v4/report.json",
+      "sha256": "cf2a0ff5ccfb8186b81dcbf9ce3529b28c1930a6879b33706ac0769ab792b922",
+      "passed": true
+    },
+    "CUDA_linked_memcheck": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/xc-convergence/cuda-memcheck-v4/report.json",
+      "sha256": "1add4d42c1c8095ebbb67ffd28453f786d9305f8ecd696c824bf920f74418af9",
+      "passed": true
+    },
+    "serial_MPI_lifecycle_parser": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/xc-grid-lifecycle-v2/report.json",
+      "sha256": "1614897cf5c845012f4d7a2770b0ba70c6159a187802a1cfccb0879890142633",
+      "passed": true
+    },
+    "default_OFF_lifecycle_parser": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/xc-grid-lifecycle-default-off-v2/report.json",
+      "sha256": "db0e82126812f3d197fbce325da1fa23b05933c2aafec1be82f6169b8317b3a3",
+      "passed": true
+    },
+    "ON_OFF_v4_v5_valid_input_identity": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/xc-grid-final-comparisons-v1/report.json",
+      "sha256": "6a5b555283570f23f45519f2a00af586534c6e3fb491c37f658aef2569656ee7",
+      "passed": true
+    },
+    "direct_frozen_density_field_variation": {
+      "path": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/field-uniformity/native-small-water-v1/report.json",
+      "sha256": "133b3d4bf3e317733e6248a48eb39ac00b7876a9cb82692689fad79f00367280",
+      "passed": true
+    }
+  },
+  "limitations": [
+    "Selected XC accuracy covers explicitly tested small PBE0 water/dimer Cartesian STO-3G/def2-SVP cases; WATER20 protocol convergence is separate",
+    "No continuum harmonic-convergence acceptance follows; its failed campaigns and diagnostic alternatives are retained separately",
+    "No production trajectory statistics, whole-BOMD speedup, HIP or multi-GPU acceptance",
+    "CUDA force comparisons use separately converged densities; the field-variation comparison explicitly uses identical retained density",
+    "Original published ESP/RESP sources and native CUDA kernels are unchanged by the refined-grid patch"
+  ]
+}

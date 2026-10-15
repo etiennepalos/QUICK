@@ -186,6 +186,9 @@ contains
     case(56)
       msg='QUICK field-Hessian allocation, backend, or communication failure.'
 
+    case(57)
+      msg='Invalid QUICK refined XC grid. Specify paired XC_RADIAL and positive-weight XC_ANGULAR controls for DFT.'
+
     case default
       msg='Unknown error.'
 

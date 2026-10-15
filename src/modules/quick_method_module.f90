@@ -115,6 +115,10 @@ module quick_method_module
 
         ! this is DFT grid
         integer :: iSG = 1             ! =0. SG0, =1. SG1(DEFAULT)
+        ! Explicit unpruned quadrature for numerical convergence studies.
+        ! False retains the original SG0/SG1 construction and arithmetic.
+        logical :: xc_custom_grid = .false.
+        integer :: xc_radial = 0, xc_angular = 0
 
         ! Level shift
         integer :: LShift_cycle = 3              ! After what cycle allow Level shifting
@@ -314,6 +318,9 @@ module quick_method_module
             call MPI_BCAST(self%MFCC,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%ifragbasis,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%iSG,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%xc_custom_grid,1,mpi_logical,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%xc_radial,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%xc_angular,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%iscf,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%iscf_sad,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%iopt,1,mpi_integer,0,quick_comm,quick_mpi_error)
@@ -495,8 +502,12 @@ module quick_method_module
             if (self%debug)     write(io,'(" DEBUG MODE")')
 
             if (self%DFT) then
-                if (self%iSG .eq. 0) write(io,'(" STANDARD GRID = SG0")')
-                if (self%iSG .eq. 1) write(io,'(" STANDARD GRID = SG1")')
+                if (self%xc_custom_grid) then
+                    write(io,'(" UNPRUNED XC GRID: RADIAL = ",I0," ANGULAR = ",I0)') self%xc_radial,self%xc_angular
+                else
+                    if (self%iSG .eq. 0) write(io,'(" STANDARD GRID = SG0")')
+                    if (self%iSG .eq. 1) write(io,'(" STANDARD GRID = SG1")')
+                endif
             endif
 
            write(io,'(" Level shifting allowed after cycle ", I4)') self%LShift_cycle
@@ -1063,12 +1074,70 @@ module quick_method_module
                self%sadmo = .true.
            endif
 
+           ! Both controls must be explicit. Check the DFT request here:
+           ! SAD temporarily switches a valid DFT job to HF internally.
+           if (found_keyword(keywd,'XC_RADIAL') .or. found_keyword(keywd,'XC_ANGULAR')) then
+               if (.not.found_keyword(keywd,'XC_RADIAL') .or. .not.found_keyword(keywd,'XC_ANGULAR') .or. &
+                   .not.self%DFT .or. found_keyword(keywd,'SG0')) then
+                   call PrtErr(OUTFILEHANDLE,'XC_RADIAL and XC_ANGULAR require a DFT job and cannot be combined with SG0.')
+                   ierr = 57
+                   return
+               endif
+               self%xc_custom_grid = .true.
+               call read_xc_grid_integer(keywd,'XC_RADIAL',self%xc_radial,ierr)
+               call read_xc_grid_integer(keywd,'XC_ANGULAR',self%xc_angular,ierr)
+               if (ierr /= 0) then
+                   call PrtErr(OUTFILEHANDLE,'XC grid controls require one explicit integer value each.')
+                   return
+               endif
+           endif
+
            ! New derivative/surface jobs need the geometry of the retained density.
            ! Legacy ESP-only CLI jobs keep established optimization behavior.
            ! API callers enable this before keyword parsing, for any property.
            self%consistent_optimizer_state = self%consistent_optimizer_state .or. &
                self%efield_grid .or. self%efg_grid .or. self%density_surface .or. self%ddx .or. self%external_efield
         end subroutine read_quick_method
+
+        ! New API controls return an error instead of terminating the host
+        ! process on malformed values. Published keyword readers are intact.
+        subroutine read_xc_grid_integer(keywd,key,value,ierr)
+            implicit none
+            character(len=*), intent(in) :: keywd,key
+            integer, intent(inout) :: value,ierr
+            integer :: first,last,limit,status,parsed
+            character(len=:), allocatable :: token
+
+            if (ierr /= 0) return
+            first = index_keyword(keywd,key) + len_trim(key)
+            limit = len_trim(keywd)
+            ierr = 57
+            if (first > limit) return
+            if (index_keyword(keywd(first:),key) /= 0) return
+            do while (first <= limit)
+                if (keywd(first:first) /= ' ' .and. keywd(first:first) /= achar(9)) exit
+                first = first+1
+            enddo
+            if (first > limit) return
+            if (keywd(first:first) /= '=') return
+            first = first+1
+            do while (first <= limit)
+                if (keywd(first:first) /= ' ' .and. keywd(first:first) /= achar(9)) exit
+                first = first+1
+            enddo
+            if (first > limit) return
+            last = first
+            do while (last <= limit)
+                if (keywd(last:last) == ' ' .or. keywd(last:last) == achar(9)) exit
+                last = last+1
+            enddo
+            token = keywd(first:last-1)
+            if (verify(token,'0123456789+-') /= 0) return
+            read(token,*,iostat=status) parsed
+            if (status /= 0) return
+            value = parsed
+            ierr = 0
+        end subroutine read_xc_grid_integer
 
         !---------------------------------------------------------------------!
         ! Static applied field E(r)=F+G*(r-r0), G_ij=dE_i/dr_j.                !
@@ -1245,6 +1314,9 @@ module quick_method_module
 
             self%ifragbasis = 1        ! =2.residue basis,=1.atom basis(DEFUALT),=3 non-h atom basis
             self%iSG = 1               ! =0. SG0, =1. SG1(DEFAULT)
+            self%xc_custom_grid = .false.
+            self%xc_radial = 0
+            self%xc_angular = 0
             self%MFCC = .false.        ! MFCC
 
             self%iscf = 200
@@ -1301,11 +1373,30 @@ module quick_method_module
         subroutine check_quick_method(self,io,ierr)
             use quick_exception_module
             use quick_ddx_backend_module, only: quick_ddx_available
+            use quick_size_module, only: MAXRADGRID
             use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
             implicit none
             type(quick_method_type) self
             integer io
             integer, intent(inout) :: ierr
+
+            if (self%xc_custom_grid) then
+                if (self%xc_radial < 1 .or. self%xc_radial > MAXRADGRID) then
+                    call PrtErr(io,'XC_RADIAL must be between 1 and 400.')
+                    ierr = 57
+                    return
+                endif
+                ! Existing XC screening assumes positive quadrature weights.
+                ! LD74/230/266 have negative weights and are not admitted.
+                select case(self%xc_angular)
+                case(6,14,26,38,50,86,110,146,170,194,302,350,434,590,770,974, &
+                     1202,1454,1730,2030,2354,2702,3074,3470,3890,4334,4802,5294,5810)
+                case default
+                    call PrtErr(io,'XC_ANGULAR requires a supported positive-weight Lebedev rule (6 to 5810).')
+                    ierr = 57
+                    return
+                end select
+            endif
 
             if (self%external_efield) then
                 if (.not.all(ieee_is_finite(self%external_efield_vector)) .or. &

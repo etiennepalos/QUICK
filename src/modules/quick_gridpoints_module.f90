@@ -147,8 +147,10 @@ module quick_gridpoints_module
     use quick_molspec_module, only: quick_molspec, xyz, natom
     use quick_basis_module
     use quick_timer_module
+    use quick_exception_module, only: RaiseException
 #if defined(MPIV)
-    use quick_mpi_module, only: bMPI, master, quick_comm, quick_comm_rank
+    use mpi, only: MPI_BCAST, MPI_INTEGER, MPI_SUCCESS
+    use quick_mpi_module, only: bMPI, master, quick_comm, quick_comm_rank, quick_mpi_error
 #endif
 
     implicit none
@@ -157,12 +159,30 @@ module quick_gridpoints_module
     type(quick_xcg_tmp_type), intent(inout) :: xcg_tmp
 
     integer :: Iang, Iatm, idx, idx_grid, iiangt, Irad, Iradtemp, ist, iend
+    integer :: grid_error
+    logical :: refined_grid
     double precision :: t_octree, t_prscrn, rad, rad3
     double precision, external :: SSW
 
     !Form the quadrature and store coordinates and other information
     !Measure the time to form grid
     
+    ! Explicit refinement retains the SG1 radial map and atomic radii but
+    ! uses one unpruned Lebedev rule on every radial shell.  Ordinary jobs
+    ! must reset these saved dimensions after a preceding refined job.
+    refined_grid = quick_method%xc_custom_grid
+    xcg_tmp%rad_gps = 50
+    xcg_tmp%ang_gps = 194
+    if (refined_grid) then
+        call form_refined_xc_rule(quick_method%xc_radial, quick_method%xc_angular, grid_error)
+        if (grid_error /= 0) call RaiseException(grid_error)
+        xcg_tmp%rad_gps = quick_method%xc_radial
+        xcg_tmp%ang_gps = quick_method%xc_angular
+        if (natom > huge(idx_grid)/xcg_tmp%rad_gps/xcg_tmp%ang_gps) then
+            grid_error = 57
+            call RaiseException(grid_error)
+        endif
+    endif
     call alloc_xcg_tmp_variables(xcg_tmp)
     xcg_tmp%sswt = 0.0d0
     xcg_tmp%weight = 0.0d0
@@ -170,7 +190,9 @@ module quick_gridpoints_module
 #ifdef MPIV
    if(master) then
 #endif
-   if (quick_method%iSG.eq.1) call gridformSG1() 
+   if (.not.refined_grid) then
+       if (quick_method%iSG.eq.1) call gridformSG1()
+   endif
 
 #ifdef MPIV
   endif
@@ -188,7 +210,9 @@ module quick_gridpoints_module
 
     idx_grid = 0
     do Iatm = 1, natom
-        if(quick_method%iSG.eq.1)then
+        if (refined_grid) then
+            Iradtemp = quick_method%xc_radial
+        else if(quick_method%iSG.eq.1)then
             Iradtemp=50
         else
             if(quick_molspec%iattype(iatm).le.10)then
@@ -198,7 +222,10 @@ module quick_gridpoints_module
             endif
         endif
         do Irad = 1, Iradtemp
-            if(quick_method%iSG.eq.1)then
+            if (refined_grid) then
+                iiangt = quick_method%xc_angular
+                rad = radii(quick_molspec%iattype(iatm))
+            else if(quick_method%iSG.eq.1)then
                 call gridformnew(iatm,RGRID(Irad),iiangt)
                 rad = radii(quick_molspec%iattype(iatm))
             else
@@ -229,6 +256,16 @@ module quick_gridpoints_module
     RECORD_TIME(timer_begin%TDFTGrdWt)
 
 #ifdef MPIV
+   endif
+   ! Establish the new count before any rank traverses its freshly sized
+   ! temporary arrays. setup_ssw_mpi otherwise sees the previous job's count
+   ! on nonmaster ranks when a refined grid is followed by a smaller grid.
+   if (bMPI) then
+       call MPI_BCAST(self%init_ngpts,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
+       if (quick_mpi_error /= MPI_SUCCESS) then
+           grid_error = 57
+           call RaiseException(grid_error)
+       endif
    endif
 #endif
 
@@ -1200,6 +1237,99 @@ module quick_gridpoints_module
       enddo
    end subroutine gridformnew
 
+
+   !---------------------------------------------------------------------!
+   ! Optional XC quadrature refinement.                                  !
+   !                                                                     !
+   ! This uses the existing Euler--Maclaurin radial transformation and    !
+   ! Lebedev--Laikov angular tables.  Molecular partition weights, their  !
+   ! nuclear derivatives, screening, binning, and CPU/GPU XC arithmetic   !
+   ! remain on their ordinary paths.  SG0/SG1 never call this routine.     !
+   !                                                                     !
+   ! Rules 74, 230, and 266 have negative weights.  The published XC path  !
+   ! skips weights below DMCutoff, so those rules cannot be offered here  !
+   ! without silently discarding part of the requested quadrature.       !
+   !---------------------------------------------------------------------!
+   subroutine form_refined_xc_rule(nrad, nang, ierr)
+      implicit none
+      integer, intent(in) :: nrad, nang
+      integer, intent(out) :: ierr
+      integer :: i, n
+
+      ierr = 57
+      if (nrad < 1 .or. nrad > MAXRADGRID) return
+      select case(nang)
+      case(6)
+         call LD0006(XANG,YANG,ZANG,WTANG,n)
+      case(14)
+         call LD0014(XANG,YANG,ZANG,WTANG,n)
+      case(26)
+         call LD0026(XANG,YANG,ZANG,WTANG,n)
+      case(38)
+         call LD0038(XANG,YANG,ZANG,WTANG,n)
+      case(50)
+         call LD0050(XANG,YANG,ZANG,WTANG,n)
+      case(86)
+         call LD0086(XANG,YANG,ZANG,WTANG,n)
+      case(110)
+         call LD0110(XANG,YANG,ZANG,WTANG,n)
+      case(146)
+         call LD0146(XANG,YANG,ZANG,WTANG,n)
+      case(170)
+         call LD0170(XANG,YANG,ZANG,WTANG,n)
+      case(194)
+         call LD0194(XANG,YANG,ZANG,WTANG,n)
+      case(302)
+         call LD0302(XANG,YANG,ZANG,WTANG,n)
+      case(350)
+         call LD0350(XANG,YANG,ZANG,WTANG,n)
+      case(434)
+         call LD0434(XANG,YANG,ZANG,WTANG,n)
+      case(590)
+         call LD0590(XANG,YANG,ZANG,WTANG,n)
+      case(770)
+         call LD0770(XANG,YANG,ZANG,WTANG,n)
+      case(974)
+         call LD0974(XANG,YANG,ZANG,WTANG,n)
+      case(1202)
+         call LD1202(XANG,YANG,ZANG,WTANG,n)
+      case(1454)
+         call LD1454(XANG,YANG,ZANG,WTANG,n)
+      case(1730)
+         call LD1730(XANG,YANG,ZANG,WTANG,n)
+      case(2030)
+         call LD2030(XANG,YANG,ZANG,WTANG,n)
+      case(2354)
+         call LD2354(XANG,YANG,ZANG,WTANG,n)
+      case(2702)
+         call LD2702(XANG,YANG,ZANG,WTANG,n)
+      case(3074)
+         call LD3074(XANG,YANG,ZANG,WTANG,n)
+      case(3470)
+         call LD3470(XANG,YANG,ZANG,WTANG,n)
+      case(3890)
+         call LD3890(XANG,YANG,ZANG,WTANG,n)
+      case(4334)
+         call LD4334(XANG,YANG,ZANG,WTANG,n)
+      case(4802)
+         call LD4802(XANG,YANG,ZANG,WTANG,n)
+      case(5294)
+         call LD5294(XANG,YANG,ZANG,WTANG,n)
+      case(5810)
+         call LD5810(XANG,YANG,ZANG,WTANG,n)
+      case default
+         return
+      end select
+      if (n /= nang .or. any(WTANG(1:nang) <= 0.d0)) return
+      do i = 1, nrad
+         RGRID(i) = (i**2.d0)/dble((nrad+1-i)*(nrad+1-i))
+         RWT(i) = 2.d0*dble(nrad+1)*(dble(i)**5.d0)*dble(nrad+1-i)**(-7.d0)
+      enddo
+      do i = 1, nang
+         WTANG(i) = WTANG(i)*12.56637061435917295385d0
+      enddo
+      ierr = 0
+   end subroutine form_refined_xc_rule
 
    subroutine gridformSG1
       use allmod
