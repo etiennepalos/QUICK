@@ -44,6 +44,7 @@ module quick_method_module
         logical :: ddx = .false., ddx_field_solute = .false.
         integer :: ddx_model = 1, ddx_lmax = 6, ddx_nlebedev = 302
         integer :: ddx_nrad = 75, ddx_nang = 302
+        integer :: ddx_source = 1      ! 1: regular all-space; 2: Coulomb continuation
         double precision :: ddx_epsilon = 78.3553d0, ddx_radius_scale = 1.1d0
         double precision :: ddx_tolerance = 1.0d-10
         logical :: UNRST =  .false.    ! Unrestricted
@@ -279,6 +280,7 @@ module quick_method_module
             call MPI_BCAST(self%ddx,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%ddx_field_solute,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%ddx_model,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_source,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%ddx_lmax,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%ddx_nlebedev,1,mpi_integer,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%ddx_nrad,1,mpi_integer,0,quick_comm,quick_mpi_error)
@@ -1054,6 +1056,7 @@ module quick_method_module
            if (found_keyword(keyWD,'DDX_NANG')) call read(keywd,'DDX_NANG',self%ddx_nang)
            if (found_keyword(keyWD,'DDX_RADIUS_SCALE')) call read(keywd,'DDX_RADIUS_SCALE',self%ddx_radius_scale)
            if (found_keyword(keyWD,'DDX_TOL')) call read(keywd,'DDX_TOL',self%ddx_tolerance)
+           call read_ddx_source(self,keywd,ierr)
            if (found_keyword(keyWD,'DDX_FIELD')) then
                tempstring = ''
                call read(keywd,'DDX_FIELD',tempstring)
@@ -1138,6 +1141,46 @@ module quick_method_module
             value = parsed
             ierr = 0
         end subroutine read_xc_grid_integer
+
+        ! Explicit source conventions are separate finite functionals. Keep
+        ! the existing regular projection as default, including its arithmetic.
+        subroutine read_ddx_source(self,keywd,ierr)
+            implicit none
+            type(quick_method_type), intent(inout) :: self
+            character(len=*), intent(in) :: keywd
+            integer, intent(inout) :: ierr
+            integer :: first,last,limit,offset
+            character(len=*), parameter :: key = 'DDX_SOURCE'
+
+            if (ierr /= 0 .or. .not.found_keyword(keywd,key)) return
+            ierr = 53
+            if (.not.self%ddx) return
+            first = index_keyword(keywd,key)+len(key)
+            limit = len_trim(keywd)
+            if (first > limit) return
+            if (index_keyword(keywd(first:),key) /= 0) return
+            offset = verify(keywd(first:limit),' '//achar(9))
+            if (offset == 0) return
+            first = first+offset-1
+            if (keywd(first:first) /= '=') return
+            first = first+1
+            if (first > limit) return
+            offset = verify(keywd(first:limit),' '//achar(9))
+            if (offset == 0) return
+            first = first+offset-1
+            offset = scan(keywd(first:limit),' '//achar(9))
+            last = limit
+            if (offset > 0) last = first+offset-2
+            select case(keywd(first:last))
+            case('REGULAR')
+                self%ddx_source = 1
+            case('COULOMB')
+                self%ddx_source = 2
+            case default
+                return
+            end select
+            ierr = 0
+        end subroutine read_ddx_source
 
         !---------------------------------------------------------------------!
         ! Static applied field E(r)=F+G*(r-r0), G_ij=dE_i/dr_j.                !
@@ -1273,6 +1316,7 @@ module quick_method_module
             self%ddx = .false.
             self%ddx_field_solute = .false.
             self%ddx_model = 1
+            self%ddx_source = 1
             self%ddx_lmax = 6
             self%ddx_nlebedev = 302
             self%ddx_nrad = 75
@@ -1428,6 +1472,7 @@ module quick_method_module
                     return
                 endif
                 if (self%MP2 .or. self%PBSOL .or. self%ddx_lmax < 0 .or. self%ddx_lmax > 20 .or. &
+                    self%ddx_source < 1 .or. self%ddx_source > 2 .or. &
                     self%ddx_nrad < 1 .or. self%ddx_nang < 6 .or. self%ddx_nlebedev < 6 .or. &
                     .not.ieee_is_finite(self%ddx_epsilon) .or. self%ddx_epsilon < 1.d0 .or. &
                     .not.ieee_is_finite(self%ddx_radius_scale) .or. self%ddx_radius_scale <= 0.d0 .or. &

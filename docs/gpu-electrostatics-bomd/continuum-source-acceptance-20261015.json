@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "finished_utc": "2026-10-15T19:19:16.517547+00:00",
+  "scope": "Explicit DDX_SOURCE=COULOMB source implementation and finite HF/STO-3G water/dimer validation; original REGULAR failures and default preserved",
+  "production_source_hashes": {
+    "src/modules/quick_ddx_backend_module.f90": "7758f492023df1cf140f22109d5ef6cdb1f480c122e81a75e763ff2ecf2d594f",
+    "src/modules/quick_solvation_module.f90": "ad5268e0a048c188aa895429574dfdd8d8451eb57305e7597f7fa07ce0359a17",
+    "src/modules/quick_method_module.f90": "653470c99c348f726834391960135060281ee74e43ce8c41c75194ccac2a10e5"
+  },
+  "report_summaries": {
+    "source-basis-cpu-v1": {
+      "sha256": "90e18980c26d09c9b69312aec8fa640b20e7cc50aaef197cbebdd36ac7528b07",
+      "passed": true,
+      "runs": 0,
+      "checks": 8
+    },
+    "molecular-cpu-v1": {
+      "sha256": "63fdb3adcf62e72fadf1d089ec5b752c23644cbcbf258022fc5aca2c5615e6d9",
+      "passed": true,
+      "runs": 112,
+      "checks": 898
+    },
+    "matched-gpu-v1": {
+      "sha256": "bae639379fcc0251d80982bc0b3089f50135b341c4ae2f6f6496ce5988b28861",
+      "passed": true,
+      "runs": 14,
+      "checks": 176
+    },
+    "source2-gpu-refinement-v1": {
+      "sha256": "52d8e3f45136bc9f46bffe3035d011c36463623868758ee6eb6dd74f7de727c9",
+      "passed": true,
+      "runs": 8,
+      "checks": 56
+    },
+    "source2-practical-gpu-v1": {
+      "sha256": "d21ffd65afb740f6ab619a1ab0e35355ea189ab7f5c88e32bd7fc6d4978b5524",
+      "passed": false,
+      "runs": 10,
+      "checks": 70
+    },
+    "source2-practical-pcm-extension-v1": {
+      "sha256": "dc3567d15533603938ebdce38bbdc8849512c9c11bbb7ad972abee8b19f36571",
+      "passed": true,
+      "runs": 3,
+      "checks": 21
+    },
+    "source-smoke-cpu-v1": {
+      "sha256": "371c73b3b677bcb73e07c88f9ba2c74e31d5ab29ed587d38222f658cee0ae756",
+      "passed": true,
+      "runs": 8,
+      "checks": 33
+    }
+  },
+  "cross_campaign_report_sha256": "5f25e4b842dec20dc79f439048ca07dacf40a19c00dafb9eb44159599b10f283",
+  "cross_campaign_all_five_pass": true,
+  "dependency_off_runtime_has_no_ddx_link": true,
+  "high_quality_finite_protocol_qualified": true,
+  "working_settings": {
+    "PCM": {
+      "source": "COULOMB",
+      "lmax": 16,
+      "nlebedev": 2030,
+      "nrad": 150,
+      "nang": 974
+    },
+    "COSMO": {
+      "source": "COULOMB",
+      "lmax": 12,
+      "nlebedev": 2030,
+      "nrad": 150,
+      "nang": 974
+    }
+  },
+  "retained_failures": {
+    "original_regular": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/continuum-convergence/assessment-v1.json",
+    "lower_order_source2_pcm": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/continuum-source-validation-v1/source2-practical-gpu-v1/report.json"
+  },
+  "gates_unchanged": {
+    "energy_hartree": 1e-05,
+    "max_gradient_hartree_per_bohr": 5e-05
+  },
+  "limitations": [
+    "Finite pairwise molecule-specific evidence, not an infinite-order limit.",
+    "Explicit source continuation is a different optional finite functional; REGULAR remains the default and is not qualified by source2 results.",
+    "No universal solvation accuracy or full PySCF-model equivalence claim.",
+    "No continuum BOMD or large-cluster transfer validation yet.",
+    "Timings are execution diagnostics rather than controlled performance measurements."
+  ],
+  "passed": true,
+  "artifact_root": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/continuum-source-validation-v1",
+  "assessment_sha256": "39986fe72361a40252e5a6fca5f0c6e2faa5022d47c4a193cdad57acba3f64a6",
+  "seal_sha256": "e5ea50d1e85d16701a01ffabb0a730d391f6c172363f74230addde31dfbde51e"
+}

@@ -108,6 +108,7 @@ contains
       if (any(cached_nuclear_charges /= quick_molspec%chg(1:natom))) return
       if (size(density,1) /= nbasis) return
       if (cached_method%ddx_model /= quick_method%ddx_model .or. &
+          cached_method%ddx_source /= quick_method%ddx_source .or. &
           cached_method%ddx_lmax /= quick_method%ddx_lmax .or. &
           cached_method%ddx_nlebedev /= quick_method%ddx_nlebedev .or. &
           cached_method%ddx_nrad /= quick_method%ddx_nrad .or. &
@@ -143,6 +144,7 @@ contains
             quick_molspec%chg, quick_method%ddx_epsilon, quick_method%ddx_lmax, &
             quick_method%ddx_nlebedev, quick_method%ddx_tolerance, ierr, message)
          if (ierr /= 0) call solvent_failure(ierr,message)
+         backend%source_mode = quick_method%ddx_source
          cavity = backend%cavity
          call record_phase(1,start)
          start = wall_time()
@@ -164,6 +166,8 @@ contains
             ' cavity points=',npoint,' volume points=',grid%npoints
          write(ioutfile,'(A,F14.7,A,ES12.4)') ' DDX dielectric=',quick_method%ddx_epsilon, &
             ' solver tolerance=',quick_method%ddx_tolerance
+         if (quick_method%ddx_source == 2) write(ioutfile,'(A)') &
+            ' DDX_SOURCE=COULOMB: all-space density with exterior Coulomb continuation on each parent sphere.'
          if (quick_method%external_efield) write(ioutfile,'(A)') &
             ' DDX_FIELD=SOLUTE: applied perturbation acts on the QM solute; dielectric responds to its density.'
       endif
@@ -299,6 +303,10 @@ contains
          enddo
       enddo
       ! Parent-following volume nodes make their solid harmonics constant.
+      ! The optional Coulomb continuation depends on the same fixed offsets
+      ! and element radii, so it also has no additional moving-node derivative.
+      ! Density, AO-center motion and partition derivatives below still use
+      ! the identical cached source kernel as the energy and Fock operator.
       start = wall_time()
       call solvation_local_gradient(grid%points,grid%parent,grid%weight*volume_potential,density,tmp,ierr)
       call record_phase(13,start)

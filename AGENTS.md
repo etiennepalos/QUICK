@@ -155,6 +155,15 @@ Implementation notes for this feature:
   caches before GPU job deletion. Combined fields require the explicit
   `DDX_FIELD=SOLUTE` convention. See
   `docs/gpu-electrostatics-bomd/applied-fields-and-ddx.md` for scope and controls.
+  `DDX_SOURCE=REGULAR` preserves the original all-space source projection and
+  remains the default. Explicit `DDX_SOURCE=COULOMB` uses a decaying exterior
+  continuation on each parent sphere, consistently in energy, Fock and force
+  terms. It is a distinct finite functional, with no density clipping. Include
+  the source mode in geometry/cache identity. The documented small HF water
+  dimer refinement is molecule-specific; see
+  `validation/solvation/continuum_convergence.md` and the separate source
+  acceptance record. Do not transfer its qualification to REGULAR or claim
+  full external-code model equivalence.
 - Regression coverage lives in the ESP/OEPROP subset of `test/testlist_full.txt`.
   The numerical EFG saved `.out` baseline may be ignored by `.gitignore`; use
   `git add -f test/saved/efg_grid_numerical_acetone_b3lyp_def2svp.out` when this

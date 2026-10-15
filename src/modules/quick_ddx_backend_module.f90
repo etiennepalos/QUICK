@@ -34,6 +34,9 @@ module quick_ddx_backend_module
 
    type, public :: quick_ddx_backend_type
       integer :: model = 0, nsph = 0, nlm = 0, ncav = 0, lmax = 0
+      ! 1 preserves the Psi4/ddX regular all-space projection. 2 explicitly
+      ! selects a Coulomb continuation outside each parent atomic sphere.
+      integer :: source_mode = 1
       double precision :: scaling = 1.0d0, tolerance = 1.0d-10
       logical :: initialized = .false.
       double precision, allocatable :: cavity(:, :), nuclear_psi(:, :)
@@ -169,6 +172,7 @@ contains
       ctx%nlm = 0
       ctx%ncav = 0
       ctx%lmax = 0
+      ctx%source_mode = 1
       ctx%scaling = 1.0d0
       ctx%tolerance = 1.0d-10
       ctx%initialized = .false.
@@ -177,6 +181,12 @@ contains
    ! B_lm^i(r) = [4*pi/(2*l+1)] (|r-R_i|/a_i)^l Y_lm(r-R_i).
    ! The host supplies its atom partition in the density integration; it
    ! is not included in B.  grad_ylm differentiates r with R_i held fixed.
+   ! Explicit source_mode=2 continues this kernel as
+   ! [4*pi/(2*l+1)] (a_i/|r-R_i|)^(l+1) Y_lm outside the parent sphere.
+   ! Density is retained over all space; no clipping or charge removal is
+   ! performed. Values are continuous at the sphere; radial derivatives have
+   ! distinct one-sided limits there (the interior limit is returned exactly
+   ! on the sphere). Mode 1 retains its original all-space arithmetic.
    subroutine ddx_backend_scaled_ylm(ctx, point, sphere, ylm, ierr, message, grad_ylm)
       implicit none
       type(quick_ddx_backend_type), intent(in) :: ctx
@@ -199,6 +209,10 @@ contains
       if (ierr /= 0) return
       if (.not. ctx%initialized) then
          call backend_error(ierr, message, 'The ddX model is not initialized.')
+         return
+      endif
+      if (ctx%source_mode /= 1 .and. ctx%source_mode /= 2) then
+         call backend_error(ierr, message, 'Invalid ddX density-source continuation mode.')
          return
       endif
       if (sphere < 1 .or. sphere > ctx%nsph .or. size(ylm) /= ctx%nlm) then
@@ -238,6 +252,20 @@ contains
          call ylmbas(delta, rho, ctheta, stheta, cphi, sphi, ctx%lmax, &
             ctx%data%constants%vscales(1:ctx%nlm), angular, vplm, vcos, vsin)
       endif
+      if (ctx%source_mode == 2 .and. radius > ctx%data%params%rsph(sphere)) then
+         ! Form the decaying radial power directly. Multiplying a large
+         ! regular solid harmonic by a tiny correction risks overflow.
+         do l = 0, ctx%lmax
+            ratio = ctx%data%constants%v4pi2lp1(l + 1) * &
+               (ctx%data%params%rsph(sphere) / radius)**(l + 1)
+            do m = -l, l
+               ind = l * (l + 1) + m + 1
+               ylm(ind) = ratio * angular(ind)
+               if (present(grad_ylm)) grad_ylm(:, ind) = ratio / radius * &
+                  (dangular(:, ind) - dble(l + 1) * angular(ind) * direction)
+            enddo
+         enddo
+      else
       do l = 0, ctx%lmax
          ratio = ctx%data%constants%v4pi2lp1(l + 1) * &
             (radius / ctx%data%params%rsph(sphere))**l
@@ -248,6 +276,7 @@ contains
                (dangular(:, ind) + dble(l) * angular(ind) * direction)
          enddo
       enddo
+      endif
       if (.not. all(ieee_is_finite(ylm))) &
          call backend_error(ierr, message, 'Non-finite ddX solid harmonics.')
       if (present(grad_ylm)) then
