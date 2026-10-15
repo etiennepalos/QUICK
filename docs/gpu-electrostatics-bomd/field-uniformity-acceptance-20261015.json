@@ -1,0 +1,76 @@
+{
+  "scope": "Direct frozen-density local-field analysis; small-water molecular acceptance and portable offline tools",
+  "passed": true,
+  "preparation_checks": 603,
+  "native_checks": 32,
+  "native_protocol": "Gas PBE0/STO-3G, XC100x434, MATRIXZERO1e-14, exact shared CPU/CUDA density",
+  "native_query_points": 675,
+  "sampled_centers": 3,
+  "directions_per_radius": 32,
+  "radii_bohr": [
+    0.005,
+    0.01,
+    0.02,
+    0.04,
+    0.08,
+    0.16,
+    0.32
+  ],
+  "native_setup_SCFs": 2,
+  "extra_property_SCFs": 0,
+  "same_D_max_error": {
+    "V": 1.4210854715202004e-14,
+    "E": 5.773159728050814e-15,
+    "G": 1.7763568394002505e-14,
+    "H": 5.684341886080802e-14
+  },
+  "independent_Poisson_max_residual": 1.906999940500488e-14,
+  "observed_Taylor_orders": {
+    "cpu": {
+      "probe-001": {
+        "constant": 1.0125092304609,
+        "linear": 2.0091711597259994,
+        "quadratic": 3.0086757655463194
+      },
+      "probe-002": {
+        "constant": 1.0102406076623136,
+        "linear": 1.9966159950944673,
+        "quadratic": 3.0077746834238357
+      },
+      "probe-003": {
+        "constant": 1.0054949699147049,
+        "linear": 2.0044638109355435,
+        "quadratic": 3.0039310325995943
+      }
+    },
+    "cuda": {
+      "probe-001": {
+        "constant": 1.0125092304609082,
+        "linear": 2.0091711597278574,
+        "quadratic": 3.0086757660686816
+      },
+      "probe-002": {
+        "constant": 1.0102406076622514,
+        "linear": 1.9966159950980604,
+        "quadratic": 3.0077746821442735
+      },
+      "probe-003": {
+        "constant": 1.005494969914574,
+        "linear": 2.0044638110982063,
+        "quadratic": 3.0039311153640575
+      }
+    }
+  },
+  "continuous_bound_claim": false,
+  "reports": {
+    "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/field-uniformity/preparation-report.json": "95fc624f7e73debe829294869c99e8d48df62f44b3e58812def5ab8d41810fd5",
+    "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/field-uniformity/native-small-water-v1/report.json": "133b3d4bf3e317733e6248a48eb39ac00b7876a9cb82692689fad79f00367280"
+  },
+  "artifact_root": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/field-uniformity",
+  "limitations": [
+    "Finite directions/radii at one fixed geometry and density, not a continuous sphere or ensemble bound",
+    "Prepared WATER20 v4 inputs are not results until native collection and independent analysis pass",
+    "Source-only observables exclude direct applied and explicit reaction backgrounds; density may be polarized",
+    "Center-H norm alone is not a finite-radius error bound"
+  ]
+}
