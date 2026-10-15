@@ -359,12 +359,15 @@ end subroutine kineticO
 
 subroutine externalEFieldO(IBAS)
 
-   !------------------------------------------------
-   ! This subroutine adds the one-electron operator
-   ! for a uniform external electric field,
-   !       h^F = F_x (x-x0) + F_y (y-y0) + F_z (z-z0)
-   ! to the lower triangle of the one-electron matrix.
-   !------------------------------------------------
+   !---------------------------------------------------------------------!
+   ! Uniform applied field: electronic Hamiltonian (CPU reference).      !
+   ! h_F = +F . (r-r0); H_mu,nu += <chi_mu|h_F|chi_nu>.                  !
+   ! F is in atomic units; coordinates and r0 are in bohr.               !
+   ! Use normalized Cartesian contractions and the Hcore cutoff.         !
+   ! Update lower-triangular AO pairs indexed by Ibas.                   !
+   ! Nuclear/point-charge energy is added separately in getEnergy;       !
+   ! get_external_efield_gradient supplies the matching derivatives.     !
+   !---------------------------------------------------------------------!
    use allmod
    use quick_overlap_module, only: opf
    implicit double precision(a-h,o-z)
@@ -432,6 +435,14 @@ subroutine externalEFieldO(IBAS)
 end subroutine externalEFieldO
 
 subroutine add_external_field_operator(distributed)
+   !---------------------------------------------------------------------!
+   ! Uniform applied field: CPU/CUDA Hamiltonian dispatch.               !
+   ! Add electronic h_F to the current lower-triangular o matrix.        !
+   ! With MPI active, distributed selects locally owned Ibas indices;   !
+   ! otherwise process all Ibas indices. CUDA uses the same ownership    !
+   ! mask, normalized Cartesian basis and primitive cutoff as CPU.       !
+   ! Classical charge-field energy is handled in getEnergy.              !
+   !---------------------------------------------------------------------!
    use quick_basis_module, only: quick_basis, nbasis, ncontract, itype, aexp, dcoeff
    use quick_calculated_module, only: quick_qm_struct
    use quick_method_module, only: quick_method
@@ -491,9 +502,18 @@ end subroutine add_external_field_operator
 
 subroutine get_external_efield_gradient()
 
-   ! Differentiate the same contracted moments and primitive screening used
-   ! by externalEFieldO. The field-polarized SCF orbitals already supply the
-   ! ordinary energy-weighted overlap (Pulay) contribution in the caller.
+   !---------------------------------------------------------------------!
+   ! Uniform applied field: analytic nuclear/point-charge gradients.     !
+   ! At fixed F and r0, add +dE/dR in Eh/bohr; forces = -dE/dR.          !
+   ! Differentiate h_F = +F . (r-r0) with the same contracted            !
+   ! moments and primitive screening used for the Hamiltonian.           !
+   ! Classical E_F = -sum_A q_A F . (R_A-r0) contributes -q_A F.         !
+   ! Classical terms occur once on master; MPI ranks distribute          !
+   ! AO pairs before the caller's shared gradient reduction.             !
+   ! CUDA evaluates the electronic contribution; classical terms         !
+   ! remain on the host. The ordinary Pulay contribution from            !
+   ! field-polarized SCF orbitals is included by the caller.             !
+   !---------------------------------------------------------------------!
    use quick_basis_module, only: quick_basis, nbasis, itype, ncontract, aexp, dcoeff
    use quick_calculated_module, only: quick_qm_struct
    use quick_method_module, only: quick_method

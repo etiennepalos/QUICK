@@ -163,9 +163,14 @@ subroutine getEnergy(isGuess, ierr)
          enddo
       endif
 
-      ! A uniform external electric field contributes the classical
-      ! charge-field term to Ecore.  The electronic counterpart is added
-      ! as a one-electron operator in quick_oei_module.
+      !---------------------------------------------------------------------!
+      ! Uniform applied field: classical contribution to Ecore.             !
+      ! E_F = -sum_A q_A F . (R_A-r0), including nuclei and                 !
+      ! external point charges. F is in a.u.; R_A and r0 are bohr.          !
+      ! The electronic term is added by quick_oei_module;                   !
+      ! get_external_efield_gradient supplies matching derivatives.         !
+      ! At fixed field and origin, dE_F/dR_A = -q_A F.                      !
+      !---------------------------------------------------------------------!
       if (quick_method%external_efield) then
          do I=1,natom
             field_dot_r = quick_method%external_efield_vector(1) &

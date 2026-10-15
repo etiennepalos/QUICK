@@ -1212,5 +1212,4 @@ module quick_oeproperties_module
   end do
 
  end subroutine print_efg
-
 end module quick_oeproperties_module
