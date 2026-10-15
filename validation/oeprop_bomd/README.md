@@ -21,6 +21,7 @@ The namelist is `quick_bomd`. Important fields are:
 | `keywd` | QUICK method and basis; `GRADIENT` is added if absent |
 | `nsteps`, `dt_fs` | Additional accepted steps and time step in fs |
 | `oeprop_stride` | Sample absolute steps divisible by this integer; default 1; 0 disables probe generation and properties |
+| `field_hessian` | Also sample analytic H_ijk=d2 E_i/dC_j dC_k; default `.false.`; uses the same stride |
 | `temperature_k` | Deterministic initial kinetic-energy scaling; no thermostat or thermal ensemble sampling |
 | `nfrozen`, `frozen_atoms` | Optional 1-based frozen atom indices |
 | `checkpoint_file` | Text checkpoint written after each accepted step |
@@ -64,6 +65,22 @@ density is present. Outputs are `<prefix>_energy.csv`, `<prefix>_trajectory.xyz`
 `<prefix>_oeprop.csv`, `<prefix>_summary.json`, `<prefix>_kernels.csv`, and the
 checkpoint. The property CSV includes all tensor components, trace, Frobenius
 norm, sorted eigenvalues, anisotropy, and a selected atom-pair distance.
+
+With `field_hessian=.true.`, sampled frames also write
+`<prefix>_field_hessian.csv`. This separate file contains the ten independent
+entries `(xxx,xxy,xxz,xyy,xyz,xzz,yyy,yyz,yzz,zzz)` of
+`H_ijk=d2 E_i/dC_j dC_k=-d3 V/dC_i dC_j dC_k`, in hartree/(e bohr^3).
+This spatial tensor is distinct from the nuclear energy Hessian. Components
+stay in laboratory Cartesian axes for every probe mode. The public
+`getQuickFieldHessian(npoints,points_bohr,H,ierr)` API returns the full
+`H(3,3,3,npoints)` array. It uses the retained density without another SCF;
+the summary records sample and primary native CUDA evaluation launch counts
+when enabled. The separate symmetry-expansion kernel is excluded from that
+dispatch counter.
+The default `.false.` preserves the existing property CSV layout and avoids
+field-Hessian work. These properties include the QM density, nuclei and
+enabled external charges; direct applied and ddX reaction fields are omitted.
+
 The per-rank kernel CSV records API energy/gradient evaluation counts, property/probe calls,
 actual ESP/EFIELD/EFG kernel launch deltas, and accumulated phase wall times
 in seconds. CPU launch counts are zero. Timed force calls include the API's

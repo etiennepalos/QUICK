@@ -15,6 +15,7 @@ subroutine getEnergy(isGuess, ierr)
    use quick_scf_module
    use quick_uscf_module, only: uscf
    use quick_overlap_module, only: fullx
+   use quick_oei_module, only: check_external_field_finite
    use quick_dftd3_module, only: calculateDFTD3 
    use quick_exception_module
 #ifdef CEW
@@ -29,7 +30,7 @@ subroutine getEnergy(isGuess, ierr)
    implicit none
 
    double precision :: distance
-   double precision :: field_dot_r
+   double precision :: field_dot_r, field_displacement(3)
    double precision, external :: rootSquare
    integer i,j
    logical, intent(in) :: isGuess
@@ -164,12 +165,14 @@ subroutine getEnergy(isGuess, ierr)
       endif
 
       !---------------------------------------------------------------------!
-      ! Uniform applied field: classical contribution to Ecore.             !
-      ! E_F = -sum_A q_A F . (R_A-r0), including nuclei and                 !
-      ! external point charges. F is in a.u.; R_A and r0 are bohr.          !
+      ! Static affine applied field: classical contribution to Ecore.      !
+      ! s_A = R_A-r0; E_F = -sum_A q_A*(F.s_A+s_A^T G s_A/2),             !
+      ! including nuclei and external point charges. F is in a.u.;         !
+      ! symmetric G = dE/dr is field/bohr; R_A and fixed r0 are in bohr.    !
       ! The electronic term is added by quick_oei_module;                   !
-      ! get_external_efield_gradient supplies matching derivatives.         !
-      ! At fixed field and origin, dE_F/dR_A = -q_A F.                      !
+      ! get_external_efield_gradient adds -q_A*(F+G*s_A) in Eh/bohr.        !
+      ! Forces have the opposite sign. The uniform-only arithmetic below   !
+      ! is preserved when G is zero.                                      !
       !---------------------------------------------------------------------!
       if (quick_method%external_efield) then
          do I=1,natom
@@ -179,7 +182,15 @@ subroutine getEnergy(isGuess, ierr)
                *(xyz(2,I)-quick_method%external_efield_origin(2)) &
                + quick_method%external_efield_vector(3) &
                *(xyz(3,I)-quick_method%external_efield_origin(3))
+            if (any(quick_method%external_efield_tensor /= 0.0d0)) then
+               field_displacement = xyz(:,I)-quick_method%external_efield_origin
+               field_dot_r = field_dot_r + 0.5d0*dot_product(field_displacement, &
+                  matmul(quick_method%external_efield_tensor,field_displacement))
+               call check_external_field_finite([field_dot_r],'affine-field classical potential')
+            endif
             quick_qm_struct%Ecore = quick_qm_struct%Ecore - quick_molspec%chg(I)*field_dot_r
+            if (any(quick_method%external_efield_tensor /= 0.0d0)) &
+               call check_external_field_finite([quick_qm_struct%Ecore],'affine-field classical energy')
          enddo
 
          do I=1,quick_molspec%nextatom
@@ -189,7 +200,15 @@ subroutine getEnergy(isGuess, ierr)
                *(quick_molspec%extxyz(2,I)-quick_method%external_efield_origin(2)) &
                + quick_method%external_efield_vector(3) &
                *(quick_molspec%extxyz(3,I)-quick_method%external_efield_origin(3))
+            if (any(quick_method%external_efield_tensor /= 0.0d0)) then
+               field_displacement = quick_molspec%extxyz(:,I)-quick_method%external_efield_origin
+               field_dot_r = field_dot_r + 0.5d0*dot_product(field_displacement, &
+                  matmul(quick_method%external_efield_tensor,field_displacement))
+               call check_external_field_finite([field_dot_r],'affine-field classical potential')
+            endif
             quick_qm_struct%Ecore = quick_qm_struct%Ecore - quick_molspec%extchg(I)*field_dot_r
+            if (any(quick_method%external_efield_tensor /= 0.0d0)) &
+               call check_external_field_finite([quick_qm_struct%Ecore],'affine-field classical energy')
          enddo
       endif
    endif

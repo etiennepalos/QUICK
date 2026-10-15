@@ -31,15 +31,15 @@ vpath %.cpp ..
 CXXOBJ=$(objfolder)/xc_redistribute.o
 
 CUDACOBJ=$(objfolder)/gpu_utils.o $(objfolder)/gpu.o $(objfolder)/gpu_type.o $(objfolder)/gpu_get2e.o $(objfolder)/gpu_lri.o $(objfolder)/gpu_oei.o \
-	$(objfolder)/gpu_oeprop.o $(objfolder)/gpu_external_field.o $(objfolder)/gpu_solvation.o \
+	$(objfolder)/gpu_oeprop.o $(objfolder)/gpu_external_field.o $(objfolder)/gpu_field_hessian.o $(objfolder)/gpu_solvation.o \
 	$(objfolder)/gpu_solvation_coulomb.o $(objfolder)/gpu_get2e_grad_ffff.o
 
 # These independent kernels use C++11 counters. Respect an explicitly
 # selected newer language mode and leave published objects' modes unchanged.
 ifeq ($(filter -std=% --std=%,$(CUDA_FLAGS)),)
-$(objfolder)/gpu_external_field.o $(objfolder)/gpu_solvation.o $(objfolder)/gpu_solvation_coulomb.o: CUDA_FLAGS += -std=c++11
+$(objfolder)/gpu_external_field.o $(objfolder)/gpu_field_hessian.o $(objfolder)/gpu_solvation.o $(objfolder)/gpu_solvation_coulomb.o: CUDA_FLAGS += -std=c++11
 endif
-$(objfolder)/gpu_external_field.o $(objfolder)/gpu_solvation.o $(objfolder)/gpu_solvation_coulomb.o: ../gpu_solvation_atomic.h
+$(objfolder)/gpu_external_field.o $(objfolder)/gpu_field_hessian.o $(objfolder)/gpu_solvation.o $(objfolder)/gpu_solvation_coulomb.o: ../gpu_solvation_atomic.h
 
 CUDAXCOBJ=$(objfolder)/gpu_getxc.o
 

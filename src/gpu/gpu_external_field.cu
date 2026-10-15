@@ -2,7 +2,7 @@
  * (C) Copyright 2026 QUICK contributors. All rights reserved.
  * This Source Code Form is subject to the Mozilla Public License, v. 2.0.
  *
- * Native FP64 uniform-field AO moments and electronic nuclear gradients.
+ * Native FP64 uniform/affine-field AO moments and electronic nuclear gradients.
  * Normalized Cartesian coefficients are supplied by the Fortran caller.
  * All coordinates/origins are bohr. Independent temporary storage leaves
  * the published ESP/XC/OEI simulation and density buffers unchanged.
@@ -167,6 +167,101 @@ __device__ __forceinline__ double field_moment(const double overlap[3][5],
     return value;
 }
 
+bool valid_tensor(const double *tensor, int *ierr) {
+    for (int index = 0; index < 9; ++index)
+        if (!std::isfinite(tensor[index])) { *ierr = error_code; return false; }
+    // Fortran column-major G(i,j)=dE_i/dr_j. An electrostatic field must
+    // have an exactly symmetric G; never silently discard its curl.
+    for (int j = 0; j < 3; ++j)
+        for (int i = 0; i < j; ++i)
+            if (tensor[i + 3 * j] != tensor[j + 3 * i]) { *ierr = error_code; return false; }
+    return true;
+}
+
+bool nonzero_tensor(const double *tensor) {
+    for (int index = 0; index < 9; ++index)
+        if (tensor[index] != 0.0) return true;
+    return false;
+}
+
+/*
+ * Affine applied field: E(r)=F+G*s, s=r-origin, G=transpose(G).
+ * The electronic operator is +F.s + 1/2*s^T*G*s, in atomic units.
+ * Its spatial origin and G are fixed while AO centers are differentiated.
+ *
+ * The second Cartesian moment follows Gaussian integration by parts:
+ * <s^2 f>=(po^2+t)<f>+2*po*t<f'>+t^2<f''>, t=1/(2*g).
+ * Only lower overlap powers are needed. In particular, an f AO nuclear
+ * derivative raises one power to four, never requiring a power-five/six
+ * overlap table or shifted-Gaussian renormalization.
+ * The uniform-field helpers/kernel above remain the original route.
+ */
+template <bool Gradient>
+__device__ __forceinline__ void tensor_axis_factors(int la, int lb, double pa, double pb,
+        double po, double inverse_two_g, double *overlap, double *moment, double *second) {
+    double table[max_power + 1][max_power + 1];
+    for (int a = 0; a <= max_power; ++a)
+        for (int b = 0; b <= max_power; ++b) table[a][b] = 0.0;
+    int amax = la + int(Gradient), bmax = lb + int(Gradient);
+    table[0][0] = 1.0;
+    for (int b = 1; b <= bmax; ++b)
+        table[0][b] = pb * table[0][b - 1] + (b > 1 ? (b - 1) * inverse_two_g * table[0][b - 2] : 0.0);
+    for (int a = 1; a <= amax; ++a)
+        for (int b = 0; b <= bmax; ++b)
+            table[a][b] = pa * table[a - 1][b]
+                + (a > 1 ? (a - 1) * inverse_two_g * table[a - 2][b] : 0.0)
+                + (b ? b * inverse_two_g * table[a - 1][b - 1] : 0.0);
+    for (int variant = 0; variant < (Gradient ? 5 : 1); ++variant) {
+        int a = la + int(variant == 1) - int(variant == 2);
+        int b = lb + int(variant == 3) - int(variant == 4);
+        overlap[variant] = 0.0;
+        moment[variant] = 0.0;
+        second[variant] = 0.0;
+        if (a < 0 || b < 0) continue;
+        // Keep even inactive lower-power addresses in bounds. In particular,
+        // optimized device code must never form table[-1][-1] for the mixed
+        // derivative when a or b is zero.
+        int am1 = a > 0 ? a - 1 : 0, bm1 = b > 0 ? b - 1 : 0;
+        int am2 = a > 1 ? a - 2 : 0, bm2 = b > 1 ? b - 2 : 0;
+        double first_derivative = (a ? a * table[am1][b] : 0.0)
+            + (b ? b * table[a][bm1] : 0.0);
+        double second_derivative = (a > 1 ? a * (a - 1) * table[am2][b] : 0.0)
+            + (a > 0 && b > 0 ? 2 * a * b * table[am1][bm1] : 0.0)
+            + (b > 1 ? b * (b - 1) * table[a][bm2] : 0.0);
+        overlap[variant] = table[a][b];
+        moment[variant] = po * table[a][b] + inverse_two_g * first_derivative;
+        second[variant] = (po * po + inverse_two_g) * table[a][b]
+            + 2.0 * po * inverse_two_g * first_derivative
+            + inverse_two_g * inverse_two_g * second_derivative;
+    }
+}
+
+__device__ __forceinline__ double tensor_field_moment(const double overlap[3][5],
+        const double moment[3][5], const double second[3][5], const double *field,
+        const double *tensor, int shifted_axis, int variant) {
+    double value = field_moment(overlap, moment, field, shifted_axis, variant);
+    for (int i = 0; i < 3; ++i) {
+        if (tensor[i + 3 * i] != 0.0) {
+            double term = 0.5 * tensor[i + 3 * i];
+            for (int axis = 0; axis < 3; ++axis) {
+                int selected = axis == shifted_axis ? variant : 0;
+                term *= axis == i ? second[axis][selected] : overlap[axis][selected];
+            }
+            value += term;
+        }
+        for (int j = 0; j < i; ++j) {
+            if (tensor[i + 3 * j] == 0.0) continue;
+            double term = tensor[i + 3 * j];
+            for (int axis = 0; axis < 3; ++axis) {
+                int selected = axis == shifted_axis ? variant : 0;
+                term *= (axis == i || axis == j) ? moment[axis][selected] : overlap[axis][selected];
+            }
+            value += term;
+        }
+    }
+    return value;
+}
+
 __device__ __forceinline__ void pair_indices(std::size_t pair, int &mu, int &nu) {
     nu = int((sqrt(8.0 * double(pair) + 1.0) - 1.0) * 0.5);
     while (std::size_t(nu) * (std::size_t(nu) + 1) / 2 > pair) --nu;
@@ -245,6 +340,78 @@ __global__ void external_field_kernel(Basis basis, const double *field, const do
     }
 }
 
+// Independent affine-field route; no changes to the uniform-only kernel.
+template <bool Gradient>
+__global__ void external_field_tensor_kernel(Basis basis, const double *field, const double *origin, const double *tensor,
+        double cutoff, const double *density, double *matrix, double *gradient, int *bad_result) {
+    std::size_t pairs = std::size_t(basis.nb) * (std::size_t(basis.nb) + 1) / 2;
+    for (std::size_t pair = std::size_t(blockIdx.x) * blockDim.x + threadIdx.x;
+            pair < pairs; pair += std::size_t(gridDim.x) * blockDim.x) {
+        int mu, nu;
+        pair_indices(pair, mu, nu);
+        if (!basis.owned[mu]) continue;
+        int ia = basis.center[mu] - 1, ja = basis.center[nu] - 1;
+        const int *la = basis.angular + 3 * mu, *lb = basis.angular + 3 * nu;
+        const double *a = basis.xyz + 3 * ia, *b = basis.xyz + 3 * ja;
+        double weight = 1.0;
+        if (Gradient) {
+            weight = density[nu + std::size_t(basis.nb) * mu];
+            if (mu != nu) weight *= 2.0;
+            if (weight == 0.0) continue;
+        }
+        double r2 = 0.0;
+        for (int axis = 0; axis < 3; ++axis) {
+            double distance = a[axis] - b[axis];
+            r2 += distance * distance;
+        }
+        double value = 0.0, da[3] = {0.0, 0.0, 0.0}, db[3] = {0.0, 0.0, 0.0};
+        for (int icon = 0; icon < basis.nc[mu]; ++icon)
+            for (int jcon = 0; jcon < basis.nc[nu]; ++jcon) {
+                std::size_t ai = icon + std::size_t(basis.mp) * mu;
+                std::size_t bi = jcon + std::size_t(basis.mp) * nu;
+                double alpha = basis.exponents[ai], beta = basis.exponents[bi], g = alpha + beta;
+                if (!isfinite(g) || g <= 0.0) { atomicExch(bad_result, 1); continue; }
+                double inverse_g = 1.0 / g;
+                // Identical primitive screening expression and threshold as CPU opf.
+                double prefactor = exp(-alpha * beta * r2 * inverse_g) * sqrt(pi * inverse_g)
+                    * pi * inverse_g * basis.coefficients[bi] * basis.coefficients[ai];
+                if (!isfinite(prefactor)) { atomicExch(bad_result, 1); continue; }
+                if (fabs(prefactor) <= cutoff) continue;
+                double overlap[3][5], moment[3][5], second[3][5];
+                for (int axis = 0; axis < 3; ++axis) {
+                    double distance = b[axis] - a[axis];
+                    double pa = beta * inverse_g * distance, pb = -alpha * inverse_g * distance;
+                    tensor_axis_factors<Gradient>(la[axis], lb[axis], pa, pb, a[axis] - origin[axis] + pa,
+                        0.5 * inverse_g, overlap[axis], moment[axis], second[axis]);
+                }
+                if (Gradient) for (int axis = 0; axis < 3; ++axis) {
+                    double left = 2.0 * alpha * tensor_field_moment(overlap, moment, second, field, tensor, axis, 1);
+                    if (la[axis]) left -= la[axis] * tensor_field_moment(overlap, moment, second, field, tensor, axis, 2);
+                    double right = 2.0 * beta * tensor_field_moment(overlap, moment, second, field, tensor, axis, 3);
+                    if (lb[axis]) right -= lb[axis] * tensor_field_moment(overlap, moment, second, field, tensor, axis, 4);
+                    da[axis] += prefactor * left;
+                    db[axis] += prefactor * right;
+                }
+                else value += prefactor * tensor_field_moment(overlap, moment, second, field, tensor, -1, 0);
+            }
+        if (Gradient) for (int axis = 0; axis < 3; ++axis) {
+            double left = weight * da[axis], right = weight * db[axis];
+            if (!isfinite(left) || !isfinite(right)) { atomicExch(bad_result, 1); continue; }
+            if (ia == ja) quick_atomic_add_fp64(gradient + 3 * ia + axis, left + right);
+            else {
+                quick_atomic_add_fp64(gradient + 3 * ia + axis, left);
+                quick_atomic_add_fp64(gradient + 3 * ja + axis, right);
+            }
+        }
+        else {
+            std::size_t index = nu + std::size_t(basis.nb) * mu;
+            double total = matrix[index] + value;
+            if (!isfinite(total)) { atomicExch(bad_result, 1); continue; }
+            matrix[index] = total;
+        }
+    }
+}
+
 int block_count(std::size_t total) {
     std::size_t blocks = total / 128 + (total % 128 != 0);
     return blocks > 65535 ? 65535 : int(blocks);
@@ -304,6 +471,68 @@ void evaluate(const int *nb, const int *na, const int *mp, const int *nc, const 
         if (!*ierr) std::copy(result.begin(), result.end(), output);
     } catch (const std::bad_alloc &) { *ierr = error_code; }
 }
+// Transactional additive interface, including pure gradients with F=(0,0,0).
+template <bool Gradient>
+void evaluate_tensor(const int *nb, const int *na, const int *mp, const int *nc, const int *angular,
+        const int *center, const double *exponents, const double *coefficients, const double *xyz,
+        const double *field, const double *origin, const double *tensor, const int *owned, const double *cutoff,
+        const double *density, double *output, int *ierr) {
+    *ierr = 0;
+    if (!valid_request(*nb, *na, *mp, nc, angular, center, exponents, coefficients,
+            xyz, field, origin, owned, *cutoff, ierr)) return;
+    if (!valid_tensor(tensor, ierr)) return;
+    if (!nonzero_tensor(tensor)) {
+        // An exactly zero tensor retains the original uniform-field arithmetic.
+        evaluate<Gradient>(nb, na, mp, nc, angular, center, exponents, coefficients, xyz,
+            field, origin, owned, cutoff, density, output, ierr);
+        return;
+    }
+    bool active_row = false;
+    for (int mu = 0; mu < *nb; ++mu) if (owned[mu]) { active_row = true; break; }
+    if (!active_row) return;
+    std::size_t matrix_size = std::size_t(*nb) * *nb;
+    std::size_t output_size = Gradient ? 3 * std::size_t(*na) : matrix_size;
+    for (std::size_t index = 0; index < output_size; ++index)
+        if (!std::isfinite(output[index])) { *ierr = error_code; return; }
+    if (Gradient) {
+        for (int mu = 0; mu < *nb; ++mu)
+            for (int nu = 0; nu <= mu; ++nu) {
+                double left = density[mu + std::size_t(*nb) * nu], right = density[nu + std::size_t(*nb) * mu];
+                if (!std::isfinite(left) || !std::isfinite(right) || fabs(left - right) > 1.0e-10) {
+                    *ierr = error_code; return;
+                }
+            }
+    }
+    try {
+        Arena arena;
+        Basis basis = upload_basis(arena, *nb, *na, *mp, nc, angular, center, exponents, coefficients, xyz, owned);
+        double *device_field = arena.upload(field, 3), *device_origin = arena.upload(origin, 3);
+        double *device_tensor = arena.upload(tensor, 9);
+        double *device_density = Gradient ? arena.upload(density, matrix_size) : NULL;
+        double *device_output = arena.upload(output, output_size);
+        int *device_bad = arena.allocate<int>(1), host_bad = 0;
+        if (!arena.error) arena.check(cudaMemset(device_bad, 0, sizeof(int)));
+        if (!arena.error) {
+            std::size_t pairs = std::size_t(*nb) * (std::size_t(*nb) + 1) / 2;
+            external_field_tensor_kernel<Gradient><<<block_count(pairs), 128>>>(basis, device_field, device_origin, device_tensor,
+                *cutoff, device_density, Gradient ? NULL : device_output, Gradient ? device_output : NULL, device_bad);
+            if (arena.check(cudaGetLastError())) {
+                if (Gradient) ++gradient_launches;
+                else ++matrix_launches;
+            }
+        }
+        std::vector<double> result(output_size);
+        if (!arena.error) arena.check(cudaMemcpy(&host_bad, device_bad, sizeof(int), cudaMemcpyDeviceToHost));
+        if (host_bad) arena.error = error_code;
+        if (!arena.error) arena.check(cudaMemcpy(result.data(), device_output, output_size * sizeof(double), cudaMemcpyDeviceToHost));
+        if (!arena.error)
+            for (std::size_t index = 0; index < output_size; ++index)
+                if (!std::isfinite(result[index])) { arena.error = error_code; break; }
+        arena.release();
+        *ierr = arena.error;
+        if (!*ierr) std::copy(result.begin(), result.end(), output);
+    } catch (const std::bad_alloc &) { *ierr = error_code; }
+}
 } // namespace
 
 extern "C" void gpu_external_field_matrix_(const int *nb, const int *na, const int *mp,
@@ -320,6 +549,22 @@ extern "C" void gpu_external_field_gradient_(const int *nb, const int *na, const
         const int *owned, const double *cutoff, const double *density, double *gradient, int *ierr) {
     evaluate<true>(nb, na, mp, nc, angular, center, exponents, coefficients, xyz,
         field, origin, owned, cutoff, density, gradient, ierr);
+}
+
+extern "C" void gpu_external_field_tensor_matrix_(const int *nb, const int *na, const int *mp,
+        const int *nc, const int *angular, const int *center, const double *exponents,
+        const double *coefficients, const double *xyz, const double *field, const double *origin,
+        const double *tensor, const int *owned, const double *cutoff, double *matrix, int *ierr) {
+    evaluate_tensor<false>(nb, na, mp, nc, angular, center, exponents, coefficients, xyz,
+        field, origin, tensor, owned, cutoff, NULL, matrix, ierr);
+}
+
+extern "C" void gpu_external_field_tensor_gradient_(const int *nb, const int *na, const int *mp,
+        const int *nc, const int *angular, const int *center, const double *exponents,
+        const double *coefficients, const double *xyz, const double *field, const double *origin,
+        const double *tensor, const int *owned, const double *cutoff, const double *density, double *gradient, int *ierr) {
+    evaluate_tensor<true>(nb, na, mp, nc, angular, center, exponents, coefficients, xyz,
+        field, origin, tensor, owned, cutoff, density, gradient, ierr);
 }
 
 extern "C" void gpu_external_field_launch_counts_(int *matrix, int *gradient) {

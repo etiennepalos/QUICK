@@ -38,7 +38,7 @@ modobj = $(objfolder)/quick_exception_module.o $(objfolder)/quick_input_parser_m
 	$(objfolder)/quick_eri_cshell_module.o $(objfolder)/quick_eri_oshell_module.o $(objfolder)/quick_lri_module.o \
 	$(objfolder)/quick_eri_grad_cshell_module.o $(objfolder)/quick_eri_grad_oshell_module.o \
 	$(objfolder)/quick_lri_grad_module.o $(objfolder)/quick_cew_module.o \
-	$(objfolder)/quick_oei_module.o $(objfolder)/quick_oeproperties_module.o \
+	$(objfolder)/quick_oei_module.o $(objfolder)/quick_oeproperties_module.o $(objfolder)/quick_field_hessian_module.o \
 	$(objfolder)/quick_solvation_grid_module.o $(objfolder)/quick_solvation_ao_module.o \
 	$(objfolder)/quick_solvation_coulomb_module.o $(objfolder)/quick_solvation_module.o $(objfolder)/quick_dft_module.o \
 	$(objfolder)/quick_grad_cshell_module.o $(objfolder)/quick_grad_oshell_module.o \
@@ -52,6 +52,10 @@ apimodobj = $(objfolder)/quick_api_test_module.o $(objfolder)/quick_api_module.o
 # The ddX-disabled backend has no external dependency. Native ddX-enabled
 # builds use CMake (QUICK_DDX); legacy builds retain the default disabled mode.
 $(objfolder)/quick_method_module.o: $(objfolder)/quick_ddx_backend_module.o
+$(objfolder)/quick_field_hessian_module.o: $(objfolder)/quick_basis_module.o \
+    $(objfolder)/quick_molspec_module.o $(objfolder)/quick_method_module.o \
+    $(objfolder)/quick_calculated_module.o $(objfolder)/quick_mpi_module.o
+$(objfolder)/quick_api_module.o: $(objfolder)/quick_field_hessian_module.o
 $(objfolder)/quick_solvation_grid_module.o: $(objfolder)/quick_gridpoints_module.o
 $(objfolder)/quick_solvation_ao_module.o $(objfolder)/quick_solvation_coulomb_module.o: \
     $(objfolder)/quick_basis_module.o $(objfolder)/quick_molspec_module.o $(objfolder)/quick_method_module.o

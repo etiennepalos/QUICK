@@ -1,4 +1,57 @@
-# Uniform external-field validation
+# Applied-field validation
+
+## Controlled spatial gradients
+
+`quick_spatial_gradient_api_driver.f90` and `validate_spatial_gradient.py`
+validate the static affine field `E(r)=F+G*(r-r0)`. Build the client with the
+same Fortran compiler and installed module files as the library under test;
+link `libquick` for CPU or `libquick_cuda` for CUDA. Optional ddX builds also
+need their installed ddX shared-library directory in the linker/runtime
+search paths. Do not mix modules or runtime libraries from different builds.
+
+```sh
+python3 validation/external_field/validate_spatial_gradient.py \
+    --cpu-driver /path/to/cpu/spatial-gradient-api \
+    --cpu-basis /path/to/cpu/install/basis \
+    --cuda-driver /path/to/cuda/spatial-gradient-api \
+    --cuda-basis /path/to/cuda/install/basis \
+    --pyscf-python /path/to/pyscf-environment/bin/python \
+    --workdir /path/to/new/spatial-gradient-validation
+```
+
+The independent oracle reconstructs the exact installed Cartesian Gaussian
+basis and maps AO order and normalization explicitly. It compares the full
+affine operator, all six unit tensor operators, fixed-density contractions,
+SCF energies, and analytic nuclear forces against independent integrals and
+SCF-energy differences. Additional checks cover two displacement sizes,
+charged-system origin covariance, simultaneous coordinate/origin translations,
+signed external charges, pure gradients, nonzero trace, and Cartesian f shells.
+Nuclear force fixtures must explicitly request `GRADIENT`; the API entry-point
+name alone does not activate gradients. The client rejects an inactive
+analytic-gradient route. Input cards are checked against the API's existing
+256-character limit and use the documented compact aliases.
+
+`validate_spatial_gradient_cuda_kernel.py` directly tests the installed native
+CUDA entry points using NumPy Gaussian quadrature, all Cartesian s/p/d/f
+monomials on two centers, two-step force differences, AO-row masks, screening,
+invalid requests and transactional error handling. It can be run under NVIDIA
+Compute Sanitizer; pass `--tool memcheck --error-exitcode 86` to the sanitizer
+and use a separate fresh work directory for each run.
+
+`validate_spatial_gradient_coupled.py` checks PCM/COSMO and PBE0 compatibility,
+PCM force differences, and short sampled/unsampled BOMD controls including
+Hamiltonian-compatible restart. It requires NumPy, the API clients above,
+and matching BOMD clients. Its force-history client is an instrumented copy
+of the existing driver that only exports already-computed gradients; retain
+the instrumentation diff with the evidence. Short trajectories establish
+software and force consistency, not production sampling or convergence.
+
+Every campaign writes to a fresh directory. Preserve failed attempts and
+record exact source, client, runtime and reference identities with the final
+acceptance report. Existing uniform-field and published property regressions
+remain independent preservation controls.
+
+## Uniform fields
 
 `validate_external_field.py` runs one CLI backend per invocation. The smoke
 suite evaluates water HF/STO-3G in a field with three nonzero components;

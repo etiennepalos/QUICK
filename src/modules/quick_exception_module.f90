@@ -180,6 +180,12 @@ contains
     case(54)
       msg='Invalid QUICK solvent electronic-integral request.'
 
+    case(55)
+      msg='Invalid QUICK field-Hessian input or unsupported angular momentum.'
+
+    case(56)
+      msg='QUICK field-Hessian allocation, backend, or communication failure.'
+
     case default
       msg='Unknown error.'
 

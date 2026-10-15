@@ -34,7 +34,7 @@ set(QUICK_MODULES_SOURCES
         quick_cew_module.f90 quick_lri_module.f90 quick_lri_grad_module.f90
 	quick_eri_oshell_module.f90 quick_eri_grad_oshell_module.f90 quick_molsurface_module.f90
 	quick_grad_oshell_module.f90 quick_dftd3_module.f90 quick_molden_module.f90
-	quick_oeproperties_module.f90 quick_ddx_backend_module.f90 quick_solvation_grid_module.f90
+	quick_oeproperties_module.f90 quick_field_hessian_module.f90 quick_ddx_backend_module.f90 quick_solvation_grid_module.f90
     quick_solvation_coulomb_module.f90 quick_solvation_ao_module.f90 quick_solvation_module.f90)
 
 set(QUICK_SUBS_FORTRAN_SOURCES Angles.f90 copyDMat.f90 copySym.f90

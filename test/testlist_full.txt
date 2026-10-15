@@ -4,6 +4,7 @@ ene_BH3_rhf_sto3g                       #BH3: RHF energy test: STO-3G basis set
 ene_CaCl2_rhf_sto3g                     #CaCl2: RHF energy test: STO-3G basis set
 ene_CH4_rhf_sto3g                       #CH4: RHF energy test: STO-3G basis set
 ene_H2O_rhf_sto3g                       #H2O: RHF energy test: STO-3G basis set
+grad_H2O_spatial_efield_rhf_sto3g        #H2O: RHF analytic gradient with a static spatial field gradient: STO-3G
 ene_H2O_external_efield_rhf_sto3g       #H2O: RHF finite external electric field energy test: STO-3G basis set
 ene_He_extcharge_rhf_sto3g              #He: RHF energy with one external point charge: STO-3G basis set
 ene_HBr_rhf_sto3g                       #HBr: RHF energy test: STO-3G basis set

@@ -26,6 +26,7 @@ module quick_oei_module
   public :: get1eEnergy, get1e, attrashellopt, ekinetic, kineticO, attrashell
   public :: get_external_efield_gradient
   public :: add_external_field_operator, get_external_field_gpu_counts
+  public :: check_external_field_finite
   public :: bCalc1e
 
   logical :: bCalc1e = .false.
@@ -50,6 +51,24 @@ module quick_oei_module
         double precision, intent(inout) :: gradient(3,na)
         integer, intent(out) :: ierr
      end subroutine gpu_external_field_gradient
+     subroutine gpu_external_field_tensor_matrix(nb,na,maxprim,nc,ang,centers,expo,coeff,atoms, &
+        field,origin,tensor,owned,cutoff,matrix,ierr)
+        implicit none
+        integer, intent(in) :: nb, na, maxprim, nc(nb), ang(3,nb), centers(nb), owned(nb)
+        double precision, intent(in) :: expo(maxprim,nb), coeff(maxprim,nb), atoms(3,na)
+        double precision, intent(in) :: field(3), origin(3), tensor(3,3), cutoff
+        double precision, intent(inout) :: matrix(nb,nb)
+        integer, intent(out) :: ierr
+     end subroutine gpu_external_field_tensor_matrix
+     subroutine gpu_external_field_tensor_gradient(nb,na,maxprim,nc,ang,centers,expo,coeff,atoms, &
+        field,origin,tensor,owned,cutoff,density,gradient,ierr)
+        implicit none
+        integer, intent(in) :: nb, na, maxprim, nc(nb), ang(3,nb), centers(nb), owned(nb)
+        double precision, intent(in) :: expo(maxprim,nb), coeff(maxprim,nb), atoms(3,na)
+        double precision, intent(in) :: field(3), origin(3), tensor(3,3), cutoff, density(nb,nb)
+        double precision, intent(inout) :: gradient(3,na)
+        integer, intent(out) :: ierr
+     end subroutine gpu_external_field_tensor_gradient
      subroutine gpu_external_field_launch_counts(matrix,gradient)
         implicit none
         integer, intent(out) :: matrix, gradient
@@ -165,7 +184,7 @@ subroutine get1e(deltaO)
          RECORD_TIME(timer_end%T1eV)
 
          ! The external electric field is a one-electron perturbation,
-         ! h^F = F . (r-r0), added to Hcore after the usual T+V terms.
+         ! h^F = F.s + s^T G s/2, s = r-r0, added after the usual T+V terms.
          if (quick_method%external_efield) then
             call add_external_field_operator(.false.)
          endif
@@ -377,6 +396,12 @@ subroutine externalEFieldO(IBAS)
    double precision :: field_x, field_y, field_z
    double precision :: origin_x, origin_y, origin_z
 
+   ! Keep every arithmetic operation in the uniform-only reference path.
+   if (any(quick_method%external_efield_tensor /= 0.0d0)) then
+      call external_efield_tensor_o(ibas)
+      return
+   endif
+
    field_x = quick_method%external_efield_vector(1)
    field_y = quick_method%external_efield_vector(2)
    field_z = quick_method%external_efield_vector(3)
@@ -434,9 +459,57 @@ subroutine externalEFieldO(IBAS)
 
 end subroutine externalEFieldO
 
+subroutine external_efield_tensor_o(ibas)
+   !---------------------------------------------------------------------!
+   ! Static affine applied field: electronic Hamiltonian, CPU reference. !
+   ! s = r-r0; E(s) = F+G*s; phi(s) = -F.s - (s^T G s)/2.              !
+   ! For an electron, h = -phi = F.s + (s^T G s)/2.                    !
+   ! G_ij = dE_i/dr_j is symmetric, in a.u. of field/bohr; F is in a.u. !
+   ! Coordinates and the fixed laboratory origin r0 are in bohr.         !
+   ! Contract first and second Cartesian moments with the same original !
+   ! normalized primitive coefficients and Hcore screening as F alone.   !
+   ! For symmetric G, each off-diagonal moment has coefficient G_ij;     !
+   ! each diagonal second moment has coefficient G_ii/2.                !
+   !---------------------------------------------------------------------!
+   use quick_basis_module, only: quick_basis, nbasis, ncontract, itype, aexp, dcoeff
+   use quick_calculated_module, only: quick_qm_struct
+   use quick_method_module, only: quick_method
+   use quick_molspec_module, only: xyz
+   use quick_overlap_module, only: opf
+   implicit none
+   integer, intent(in) :: ibas
+   integer :: jbas, icon, jcon, angular_i(3), angular_j(3)
+   double precision :: ai, aj, coef, prefactor, value
+   double precision :: center_i(3), center_j(3)
+
+   angular_i = itype(:,ibas)
+   center_i = xyz(:,quick_basis%ncenter(ibas))
+   do jbas=ibas,nbasis
+      angular_j = itype(:,jbas)
+      center_j = xyz(:,quick_basis%ncenter(jbas))
+      value = 0.0d0
+      do icon=1,ncontract(ibas)
+         ai = aexp(icon,ibas)
+         do jcon=1,ncontract(jbas)
+            aj = aexp(jcon,jbas)
+            coef = dcoeff(jcon,jbas)*dcoeff(icon,ibas)
+            prefactor = opf(ai,aj,dcoeff(jcon,jbas),dcoeff(icon,ibas), &
+               center_i(1),center_i(2),center_i(3),center_j(1),center_j(2),center_j(3))
+            if (abs(prefactor) <= quick_method%coreIntegralCutoff) cycle
+            value = value + coef*external_efield_primitive_moment(aj,ai,angular_j,angular_i, &
+               center_j,center_i,quick_method%external_efield_vector, &
+               quick_method%external_efield_origin,quick_method%external_efield_tensor)
+         enddo
+      enddo
+      call check_external_field_finite([value],'affine-field contracted AO moment')
+      quick_qm_struct%o(jbas,ibas) = quick_qm_struct%o(jbas,ibas) + value
+      call check_external_field_finite([quick_qm_struct%o(jbas,ibas)],'affine-field AO matrix')
+   enddo
+end subroutine external_efield_tensor_o
+
 subroutine add_external_field_operator(distributed)
    !---------------------------------------------------------------------!
-   ! Uniform applied field: CPU/CUDA Hamiltonian dispatch.               !
+   ! Static applied field: CPU/CUDA Hamiltonian dispatch.                !
    ! Add electronic h_F to the current lower-triangular o matrix.        !
    ! With MPI active, distributed selects locally owned Ibas indices;   !
    ! otherwise process all Ibas indices. CUDA uses the same ownership    !
@@ -478,10 +551,16 @@ subroutine add_external_field_operator(distributed)
          enddo
       endif
 #endif
-      call gpu_external_field_matrix(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
-         aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
-         owned,quick_method%coreIntegralCutoff,quick_qm_struct%o,ierr)
-      call external_field_gpu_failure(ierr,'uniform-field AO matrix')
+      if (any(quick_method%external_efield_tensor /= 0.0d0)) then
+         call gpu_external_field_tensor_matrix(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
+            aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
+            quick_method%external_efield_tensor,owned,quick_method%coreIntegralCutoff,quick_qm_struct%o,ierr)
+      else
+         call gpu_external_field_matrix(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
+            aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
+            owned,quick_method%coreIntegralCutoff,quick_qm_struct%o,ierr)
+      endif
+      call external_field_gpu_failure(ierr,'applied-field AO matrix')
       return
    endif
 #endif
@@ -503,11 +582,12 @@ end subroutine add_external_field_operator
 subroutine get_external_efield_gradient()
 
    !---------------------------------------------------------------------!
-   ! Uniform applied field: analytic nuclear/point-charge gradients.     !
-   ! At fixed F and r0, add +dE/dR in Eh/bohr; forces = -dE/dR.          !
-   ! Differentiate h_F = +F . (r-r0) with the same contracted            !
-   ! moments and primitive screening used for the Hamiltonian.           !
-   ! Classical E_F = -sum_A q_A F . (R_A-r0) contributes -q_A F.         !
+   ! Static affine applied field: analytic nuclear/point-charge gradients.!
+   ! At fixed F, symmetric G and r0, add +dE/dR; forces = -dE/dR.        !
+   ! h = +F.s + (s^T G s)/2, s = r-r0, uses contracted first/second      !
+   ! moments and the Hamiltonian primitive screening. F is in a.u.;      !
+   ! G = dE/dr is in a.u. of field/bohr; coordinates/r0 are in bohr.     !
+   ! Classical energy -q*(F.s+s^T G s/2) gives -q*(F+G*s) in Eh/bohr.   !
    ! Classical terms occur once on master; MPI ranks distribute          !
    ! AO pairs before the caller's shared gradient reduction.             !
    ! CUDA evaluates the electronic contribution; classical terms         !
@@ -529,25 +609,46 @@ subroutine get_external_efield_gradient()
    integer :: ibas, jbas, icon, jcon, irow, nrows, ia, ja, axis
    integer :: angular_i(3), angular_j(3), shifted(3)
    double precision :: ai, aj, coef, density, prefactor
-   double precision :: field(3), origin(3), center_i(3), center_j(3)
-   double precision :: derivative_i(3), derivative_j(3), value_i, value_j
+   double precision :: field(3), origin(3), tensor(3,3), center_i(3), center_j(3)
+   double precision :: derivative_i(3), derivative_j(3), value_i, value_j, classical_field(3)
+   logical :: has_tensor
 
    if (.not. quick_method%external_efield) return
    field = quick_method%external_efield_vector
-   if (all(field == 0.0d0)) return
+   tensor = quick_method%external_efield_tensor
+   has_tensor = any(tensor /= 0.0d0)
+   if (all(field == 0.0d0) .and. .not.has_tensor) return
    origin = quick_method%external_efield_origin
 
    ! Classical terms occur once before the caller's MPI sum. Point charges
    ! have the same field coupling as the corresponding term in Ecore.
    if (master) then
-      do ia=1,natom
-         quick_qm_struct%gradient(3*ia-2:3*ia) = quick_qm_struct%gradient(3*ia-2:3*ia) &
-            - quick_molspec%chg(ia)*field
-      enddo
-      do ia=1,quick_molspec%nextatom
-         quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) = quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) &
-            - quick_molspec%extchg(ia)*field
-      enddo
+      if (has_tensor) then
+         do ia=1,natom
+            classical_field = field + matmul(tensor,xyz(:,ia)-origin)
+            call check_external_field_finite(classical_field,'affine field at a nucleus')
+            quick_qm_struct%gradient(3*ia-2:3*ia) = quick_qm_struct%gradient(3*ia-2:3*ia) &
+               - quick_molspec%chg(ia)*classical_field
+            call check_external_field_finite(quick_qm_struct%gradient(3*ia-2:3*ia),'affine-field nuclear gradient')
+         enddo
+         do ia=1,quick_molspec%nextatom
+            classical_field = field + matmul(tensor,quick_molspec%extxyz(:,ia)-origin)
+            call check_external_field_finite(classical_field,'affine field at an external point charge')
+            quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) = quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) &
+               - quick_molspec%extchg(ia)*classical_field
+            call check_external_field_finite(quick_qm_struct%ptchg_gradient(3*ia-2:3*ia), &
+               'affine-field external-charge gradient')
+         enddo
+      else
+         do ia=1,natom
+            quick_qm_struct%gradient(3*ia-2:3*ia) = quick_qm_struct%gradient(3*ia-2:3*ia) &
+               - quick_molspec%chg(ia)*field
+         enddo
+         do ia=1,quick_molspec%nextatom
+            quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) = quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) &
+               - quick_molspec%extchg(ia)*field
+         enddo
+      endif
    endif
 
 #if defined(CUDA) || defined(CUDA_MPIV)
@@ -595,33 +696,65 @@ subroutine get_external_efield_gradient()
                   shifted = angular_i
                   shifted(axis) = shifted(axis) + 1
                   value_i = 2.0d0*ai*external_efield_primitive_moment(aj,ai,angular_j,shifted, &
-                     center_j,center_i,field,origin)
+                     center_j,center_i,field,origin,tensor)
                   if (angular_i(axis) > 0) then
                      shifted(axis) = shifted(axis) - 2
                      value_i = value_i - dble(angular_i(axis))*external_efield_primitive_moment(aj,ai, &
-                        angular_j,shifted,center_j,center_i,field,origin)
+                        angular_j,shifted,center_j,center_i,field,origin,tensor)
                   endif
 
                   shifted = angular_j
                   shifted(axis) = shifted(axis) + 1
                   value_j = 2.0d0*aj*external_efield_primitive_moment(aj,ai,shifted,angular_i, &
-                     center_j,center_i,field,origin)
+                     center_j,center_i,field,origin,tensor)
                   if (angular_j(axis) > 0) then
                      shifted(axis) = shifted(axis) - 2
                      value_j = value_j - dble(angular_j(axis))*external_efield_primitive_moment(aj,ai, &
-                        shifted,angular_i,center_j,center_i,field,origin)
+                        shifted,angular_i,center_j,center_i,field,origin,tensor)
                   endif
                   derivative_i(axis) = derivative_i(axis) + coef*value_i
                   derivative_j(axis) = derivative_j(axis) + coef*value_j
                enddo
             enddo
          enddo
+         if (has_tensor) then
+            call check_external_field_finite(derivative_i,'affine-field first AO-center derivative')
+            call check_external_field_finite(derivative_j,'affine-field second AO-center derivative')
+         endif
          quick_qm_struct%gradient(3*ia-2:3*ia) = quick_qm_struct%gradient(3*ia-2:3*ia) + density*derivative_i
          quick_qm_struct%gradient(3*ja-2:3*ja) = quick_qm_struct%gradient(3*ja-2:3*ja) + density*derivative_j
+         if (has_tensor) then
+            call check_external_field_finite(quick_qm_struct%gradient(3*ia-2:3*ia),'affine-field electronic gradient')
+            call check_external_field_finite(quick_qm_struct%gradient(3*ja-2:3*ja),'affine-field electronic gradient')
+         endif
       enddo
    enddo
 
 end subroutine get_external_efield_gradient
+
+subroutine check_external_field_finite(values,operation)
+   ! A finite affine-field input can still overflow after multiplication by
+   ! coordinates or moments. Abort the job communicator before a rank-local
+   ! failure can leave other ranks waiting in an energy/gradient collective.
+   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+   use quick_files_module, only: ioutfile
+#ifdef MPIV
+   use mpi
+   use quick_mpi_module, only: bMPI, quick_comm, quick_mpi_error
+#endif
+   implicit none
+   double precision, intent(in) :: values(:)
+   character(len=*), intent(in) :: operation
+   integer :: status
+
+   if (all(ieee_is_finite(values))) return
+   status = 53
+   write(ioutfile,'(A,1X,A)') 'Nonfinite applied-field result:',trim(operation)
+#ifdef MPIV
+   if (bMPI) call MPI_ABORT(quick_comm,status,quick_mpi_error)
+#endif
+   call quick_exit(ioutfile,status)
+end subroutine check_external_field_finite
 
 #if defined(CUDA) || defined(CUDA_MPIV)
 subroutine add_external_field_gpu_gradient()
@@ -657,10 +790,16 @@ subroutine add_external_field_gpu_gradient()
    ! Keep the cheap classical terms on the host, exactly once on master.
    ! The kernel adds only the electronic contribution before MPI reduction.
    gradient = reshape(quick_qm_struct%gradient,[3,natom])
-   call gpu_external_field_gradient(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
-      aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
-      owned,quick_method%coreIntegralCutoff,density,gradient,ierr)
-   call external_field_gpu_failure(ierr,'uniform-field electronic nuclear gradient')
+   if (any(quick_method%external_efield_tensor /= 0.0d0)) then
+      call gpu_external_field_tensor_gradient(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
+         aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
+         quick_method%external_efield_tensor,owned,quick_method%coreIntegralCutoff,density,gradient,ierr)
+   else
+      call gpu_external_field_gradient(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
+         aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
+         owned,quick_method%coreIntegralCutoff,density,gradient,ierr)
+   endif
+   call external_field_gpu_failure(ierr,'applied-field electronic nuclear gradient')
    quick_qm_struct%gradient = reshape(gradient,[3*natom])
 end subroutine add_external_field_gpu_gradient
 
@@ -693,14 +832,15 @@ subroutine get_external_field_gpu_counts(matrix,gradient)
 #endif
 end subroutine get_external_field_gpu_counts
 
-function external_efield_primitive_moment(a,b,angular_a,angular_b,center_a,center_b,field,origin) result(moment)
+function external_efield_primitive_moment(a,b,angular_a,angular_b,center_a,center_b,field,origin,tensor) result(moment)
    implicit none
 
    double precision, intent(in) :: a, b, center_a(3), center_b(3), field(3), origin(3)
+   double precision, optional, intent(in) :: tensor(3,3)
    integer, intent(in) :: angular_a(3), angular_b(3)
    double precision, external :: xmoment
-   double precision :: moment
-   integer :: component, power(3)
+   double precision :: moment, coefficient
+   integer :: component, other, power(3)
 
    moment = 0.0d0
    do component=1,3
@@ -710,6 +850,25 @@ function external_efield_primitive_moment(a,b,angular_a,angular_b,center_a,cente
       moment = moment + field(component)*xmoment(a,b,angular_a(1),angular_a(2),angular_a(3), &
          angular_b(1),angular_b(2),angular_b(3),power(1),power(2),power(3), &
          center_a(1),center_a(2),center_a(3),center_b(1),center_b(2),center_b(3),origin(1),origin(2),origin(3))
+   enddo
+
+   ! Six independent Cartesian second moments. The symmetric tensor is
+   ! defined in the laboratory frame, with no trace-free constraint.
+   ! Return directly for uniform fields so their arithmetic is unchanged.
+   if (.not.present(tensor)) return
+   if (all(tensor == 0.0d0)) return
+   do component=1,3
+      do other=component,3
+         coefficient = tensor(component,other)
+         if (component == other) coefficient = 0.5d0*coefficient
+         if (coefficient == 0.0d0) cycle
+         power = 0
+         power(component) = power(component) + 1
+         power(other) = power(other) + 1
+         moment = moment + coefficient*xmoment(a,b,angular_a(1),angular_a(2),angular_a(3), &
+            angular_b(1),angular_b(2),angular_b(3),power(1),power(2),power(3), &
+            center_a(1),center_a(2),center_a(3),center_b(1),center_b(2),center_b(3),origin(1),origin(2),origin(3))
+      enddo
    enddo
 
 end function external_efield_primitive_moment

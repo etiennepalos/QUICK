@@ -19,6 +19,7 @@ module quick_api_module
   public :: quick_api
   public :: setQuickJob, getQuickEnergy, getQuickEnergyGradients, deleteQuickJob
   public :: getQuickOEPROP, getQuickDensitySurface
+  public :: getQuickFieldHessian
 
 #ifdef MPIV
   public :: setQuickMPI
@@ -122,6 +123,10 @@ module quick_api_module
 
   interface getQuickDensitySurface
     module procedure get_quick_density_surface
+  end interface
+
+  interface getQuickFieldHessian
+    module procedure get_quick_field_hessian
   end interface
 
   interface deleteQuickJob
@@ -529,6 +534,63 @@ subroutine get_quick_oeprop(npoints, probe_xyz_bohr, ierr, esp, efield, efg)
 #endif
 
 end subroutine get_quick_oeprop
+
+
+!---------------------------------------------------------------------!
+! Observation-point field Hessian from the retained SCF density.        !
+! H_ijk(C)=d2 E_i/dC_j dC_k=-d3 V/dC_i dC_j dC_k, in atomic units.      !
+! This is a spatial electrostatic tensor, not a nuclear energy Hessian. !
+! The full symmetric tensor is returned as (3,3,3,npoints). Sources are !
+! the QM density, nuclei and enabled MM charges; direct applied/solvent  !
+! reaction fields are excluded, consistently with getQuickOEPROP.       !
+! No SCF or change to published ESP/EFIELD/EFG evaluators is required.   !
+! MPI calls are collective on the job communicator, with the same      !
+! probe coordinates on every rank; successful outputs are broadcast.   !
+!---------------------------------------------------------------------!
+subroutine get_quick_field_hessian(npoints,probe_xyz_bohr,field_hessian,ierr)
+
+  use ieee_arithmetic, only: ieee_is_finite
+  use quick_field_hessian_module, only: compute_field_hessian_values
+#ifdef MPIV
+  use quick_mpi_module, only: quick_comm, quick_mpi_error
+  use mpi
+#endif
+  implicit none
+
+  integer, intent(in) :: npoints
+  double precision, intent(in) :: probe_xyz_bohr(:,:)
+  double precision, intent(inout) :: field_hessian(:,:,:,:)
+  integer, intent(out) :: ierr
+#ifdef MPIV
+  integer :: global_error,min_points,max_points
+#endif
+
+  ierr=0
+  if (npoints <= 0 .or. npoints > huge(npoints)/27) then
+    ierr=46
+  else if (any(shape(probe_xyz_bohr) /= [3,npoints]) .or. &
+           any(shape(field_hessian) /= [3,3,3,npoints])) then
+    ierr=46
+  else if (.not. quick_api%density_ready) then
+    ierr=47
+  else if (.not. all(ieee_is_finite(probe_xyz_bohr))) then
+    ierr=55
+  endif
+#ifdef MPIV
+  call MPI_ALLREDUCE(npoints,min_points,1,MPI_INTEGER,MPI_MIN,quick_comm,quick_mpi_error)
+  call MPI_ALLREDUCE(npoints,max_points,1,MPI_INTEGER,MPI_MAX,quick_comm,quick_mpi_error)
+  if (min_points /= max_points) ierr=46
+  call MPI_ALLREDUCE(ierr,global_error,1,MPI_INTEGER,MPI_MAX,quick_comm,quick_mpi_error)
+  ierr=global_error
+#endif
+  if (ierr /= 0) return
+
+  call compute_field_hessian_values(npoints,probe_xyz_bohr,field_hessian,ierr)
+#ifdef MPIV
+  if (ierr == 0) call MPI_BCAST(field_hessian,27*npoints,MPI_DOUBLE_PRECISION,0,quick_comm,quick_mpi_error)
+#endif
+
+end subroutine get_quick_field_hessian
 
 
 ! Generates an electron-density isosurface from the current converged

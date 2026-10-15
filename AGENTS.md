@@ -28,11 +28,23 @@ Current external-grid property keywords:
 | `DENSITY_SURFACE_MAX_RADIUS` | Maximum atom-centered ray length in Angstrom; default `10.0` |
 | `EXTERNAL_EFIELD_X/Y/Z` | Uniform external electric-field components in a.u. |
 | `FINITE_FIELD_X/Y/Z` | Alias for the uniform external electric-field components |
+| `EXTERNAL_EFIELD_GRADIENT_XX/YY/ZZ/XY/XZ/YZ` | Six symmetric components G_ij=dE_i/dr_j of a static spatial field gradient |
+| `EFIELD_GXX/GYY/GZZ/GXY/GXZ/GYZ` | Compact spatial-gradient aliases |
+| `EFIELD_FX/FY/FZ`, `EFIELD_OX/OY/OZ` | Compact field-vector and fixed-origin aliases |
 
 Implementation notes for this feature:
 
 - `EFG_GRID` is the default analytic route. `EFG_GRID_NUMERICAL` is retained as a
   regression/reference path.
+- `getQuickFieldHessian(npoints,points_bohr,H,ierr)` returns the full
+  `H(3,3,3,npoints)=d2 E_i/dC_j dC_k=-d3 V/dC_i dC_j dC_k` through the
+  independent `quick_field_hessian_module` CPU/native-CUDA evaluators.
+  Preserve the published ESP/EFIELD/EFG entry points and arithmetic. The raw
+  Hessian contraction uses the upper density triangle and higher AO index
+  ownership; compute ten symmetric components and expand to all 27.
+  This is an observation-point tensor, not a nuclear energy Hessian. It is
+  source-only, uses retained spin-summed density, and has no trace projection.
+  BOMD enables it separately with `field_hessian=.true.` (default false).
 - The printed tensor follows the QUICK field-gradient convention
   `G_ij(C) = d E_i(C) / d C_j`, i.e. the negative of the electrostatic-potential
   Hessian convention sometimes denoted EFG in quantum-chemistry texts.
@@ -114,6 +126,14 @@ Implementation notes for this feature:
   `gpu_external_field.cu` FP64 operator and derivative kernels; CPU remains the
   moment-integral reference. Retain MPI AO-row ownership and master-only
   classical terms before the shared gradient reduction.
+- A nonzero `external_efield_tensor` selects independent CPU/CUDA quadratic
+  moment paths for `h=F.s+s.G.s/2`, with matching classical energy and analytic
+  forces. Preserve the old uniform-field arithmetic when G is exactly zero.
+  Use six symmetric components; do not accept an antisymmetric electrostatic
+  gradient or silently remove its trace. Source-free applied fields require
+  trace(G)=0; general symmetric tensors represent prescribed charge density.
+  The tensor is fixed in the laboratory frame, in Eh/(e bohr^2). Nuclear
+  energy derivatives and this spatial field gradient are different quantities.
 - Optional CMake `QUICK_DDX=ON` enables independent continuous-density ddCOSMO
   and ddPCM modules. Do not move the solvent operator ahead of the ordinary
   `oSave` assignment/MPI reduction or apply it to delta density. Keep solvent

@@ -1,0 +1,209 @@
+{
+  "artifact_root": "/home/epalos/software/quick_ep/field-hessian-20261015",
+  "base_commit": "6eb101f4088defab9ee93e7a136ca606baa1b64a",
+  "branch": "feature/gpu-electrostatics-bomd",
+  "checks": {
+    "MPI": 19,
+    "PCM_field_BOMD_boundary": 100,
+    "default_off": 9,
+    "legacy_CPU": 30,
+    "legacy_CUDA": 30,
+    "main": 674,
+    "main_API_raw_runs": 50,
+    "main_failed": 0,
+    "main_includes_independent_oracle_checks": 97,
+    "sanitizer": 14
+  },
+  "definition": {
+    "classical": "q*(15*r_i*r_j*r_k/r^7 - 3*(delta_ij*r_k+delta_ik*r_j+delta_jk*r_i)/r^5)",
+    "shape": "(3,3,3,npoints), Fortran component-first; all27 entries",
+    "tensor": "H_ijk(C)=d2E_i/dC_jdC_k=-d3V/dC_idC_jdC_k",
+    "unique_components": [
+      "xxx",
+      "xxy",
+      "xxz",
+      "xyy",
+      "xyz",
+      "xzz",
+      "yyy",
+      "yyz",
+      "yzz",
+      "zzz"
+    ],
+    "units": "hartree/(e bohr^3); probe coordinates bohr"
+  },
+  "finished_utc": "2026-10-15T09:36:45.290747+00:00",
+  "interfaces": {
+    "api": "getQuickFieldHessian(npoints,points_bohr,H,ierr)",
+    "bomd": "field_hessian=.true.; same oeprop_stride; separate prefix_field_hessian.csv",
+    "default": "BOMD false; existing getQuickOEPROP signature and paths unchanged",
+    "errors": {
+      "46": "dimensions",
+      "47": "retained density unavailable",
+      "55": "invalid numerical input",
+      "56": "allocation/backend/communication"
+    },
+    "mpi": "Collective on quick_comm with identical probe coordinates; success broadcast to all ranks",
+    "raw_contract": "Transactional additive electronic output; upper D(nu,mu) triangle with higher-index mu>=nu AO ownership"
+  },
+  "limitations": [
+    "H is the source-only observation-point tensor d2E/dC2=-d3V/dC3, not a nuclear energy Hessian or a new force model.",
+    "Direct imposed and ddX reaction potentials/fields remain excluded from public properties; the density includes their self-consistent polarization.",
+    "Native CUDA electronic work was tested on one RTX PRO 5000 72GB Blackwell. Classical nuclear/point-charge additions run on the host. No HIP or CUDA-MPI acceptance claim.",
+    "Cartesian s/p/d/f through total primitive angular momentum three are supported. Molecular UHF sampling was tested with an s/p basis; existing unsupported GPU UHF/f nuclear-gradient restrictions remain.",
+    "The main 0.1 fs BOMD and supplemental 0.05 fs PCM+F+G smoke establish software consistency only, not production statistics, long-time stability or quadrature convergence.",
+    "No constant-potential, time-dependent, periodic or complete polarizable QM/MM model is introduced; OpenMMPol/MBX integration remains separate.",
+    "Old/new QUICK ESP grids and unrestrained fitted charges were tested. External Amber RESP/rwRESP fitting programs were not run.",
+    "The implementation uses independent analytic Coulomb recurrences. Timings retained in tests are diagnostics, not a scaling study or published speedup benchmark."
+  ],
+  "metrics": {
+    "maximum_CPU_CUDA_same_density_molecular_H_difference_au": 3.219646771412954e-15,
+    "maximum_EFG_finite_difference_error_h0p0005_au": 7.601060586504005e-08,
+    "maximum_EFG_finite_difference_error_h0p001_au": 3.0404215090040765e-07,
+    "maximum_Poisson_density_gradient_trace_error_au": 2.067790383364354e-15,
+    "maximum_molecular_H_error_vs_independent_analytic_integrals_au": 3.477773624638303e-14,
+    "selected_BOMD_checks": [
+      {
+        "error": 0.0,
+        "name": "cpu:BOMD:H_enabled:preserves_forces",
+        "passed": true,
+        "tolerance": 1e-08
+      },
+      {
+        "error": 1.3322676295501878e-15,
+        "name": "cuda:BOMD:H_enabled:preserves_forces",
+        "passed": true,
+        "tolerance": 1e-08
+      },
+      {
+        "error": 1.7354295778204687e-10,
+        "name": "BOMD:CPU_CUDA:energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 7.0000671925640745e-12,
+        "name": "BOMD:CPU_CUDA:trajectory",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.823502584514692e-09,
+        "name": "BOMD:CPU_CUDA:forces",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 3.46436074272205e-09,
+        "name": "BOMD:CPU_CUDA:H",
+        "passed": true,
+        "tolerance": 2e-08
+      }
+    ],
+    "selected_PCM_field_boundary_checks": [
+      {
+        "error": 6.047429224054213e-10,
+        "name": "CPU_CUDA:energies",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.0000667788622195e-12,
+        "name": "CPU_CUDA:trajectory",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.5969528749669735e-09,
+        "name": "CPU_CUDA:forces",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 3.3242796848576006e-09,
+        "name": "CPU_CUDA:H",
+        "passed": true,
+        "tolerance": 2e-08
+      }
+    ]
+  },
+  "new_source_sha256": {
+    "src/CMakeLists.txt": "a1ab36855d45bae8846f70507ad4826d9ce53ed5b597e67ad9c8754a901cd146",
+    "src/getEnergy.f90": "8d0dd3df2addfd1b2ea46c2467f2113f55c343344cbf6feed12b9a4650c22df5",
+    "src/gpu/cuda/CMakeLists.txt": "708fca7f8b82c0e911b32370818eb505527bbfed7f53566373dbe7c8c101d367",
+    "src/gpu/cuda/Makefile": "1607713259fc2ed9ec7a856561246d8382f5103f8e86528cd8a3665b987ea730",
+    "src/gpu/gpu_external_field.cu": "31c55900e1c90f495621ea7ea086fc0c84fbff231c4577274a6b7a67bdd95c34",
+    "src/gpu/gpu_field_hessian.cu": "4600f6709396045bcb29c30ae77b3e8511b3a62d5102f8365997b1dbf8e9059c",
+    "src/modules/Makefile": "c6ac2d0e66460cc5d3d9325413895e4a4727d6566500c2c7b09a80a83fed16e7",
+    "src/modules/quick_api_module.f90": "5241b69a0ff2c4dd6b916528e1c63ac1216c6c78ac49504e0d6c2b1e502e6d8c",
+    "src/modules/quick_exception_module.f90": "8b2866dddf0aa26ef608d058989c9691a9e38b9692ac43ee89486a8bc72985b0",
+    "src/modules/quick_field_hessian_module.f90": "df60d44b481be51c6e083cb77133c334edc82f4ab7a7a32858a52dc96a09dbd0",
+    "src/modules/quick_method_module.f90": "906f5574b29c94f0babb94e56b4bf5fa54d30eff866b79e034a1462f13005f63",
+    "src/modules/quick_oei_module.f90": "c99af701dc993d67af5e0b6f6ac53ace8a24847364177fe4a24af02e016ad25a"
+  },
+  "passed": true,
+  "preserved_property_and_field_source_sha256": {
+    "src/gpu/gpu_external_field.cu": "31c55900e1c90f495621ea7ea086fc0c84fbff231c4577274a6b7a67bdd95c34",
+    "src/gpu/gpu_oeprop.cu": "5dff1d4fc4eeabf9ff5f1ee3b4205118ee3dfa1be93dc7e0abbe76b33ef20937",
+    "src/gpu/gpu_oeprop.h": "cac5eb1a443561fb99b640185cef51318c8781a0e2608533b3c4884622dad913",
+    "src/gpu/gpu_oeprop_hermite.h": "429f90430f8f73de52f32cc2553f26433aa119e1082f5f3f4e26ba3fc0d925ec",
+    "src/modules/include/attrashell.fh": "4d7133b0f67a85bdf9ceb331d9a592e3f38d8b0764db23180ff1c45ca4537482",
+    "src/modules/include/nuclearattra.fh": "f06ab2a3f798c065ebdf46b39cef3f51bd53bdfafb1e9ee5beb0a97383ad4fdd",
+    "src/modules/quick_method_module.f90": "906f5574b29c94f0babb94e56b4bf5fa54d30eff866b79e034a1462f13005f63",
+    "src/modules/quick_oei_module.f90": "c99af701dc993d67af5e0b6f6ac53ace8a24847364177fe4a24af02e016ad25a",
+    "src/modules/quick_oeproperties_module.f90": "77dc27d80ffe8727a7db9916bcf213fdd6b021756e1ffec993bdf08af5f3cbfe",
+    "src/modules/quick_solvation_module.f90": "5dfafc0f2f6b08968571cb0e5f91a332c9d1f2d211857e8697f0a07c75c0a97b"
+  },
+  "previous_spatial_gradient_acceptance": {
+    "path": "/home/epalos/software/quick_ep/spatial-gradient-20261015/acceptance-report.json",
+    "sha256": "bcefbaf61374e484e4aa51352befa125b55ab13a4b5d7ed87a08fdeb85f2bc12"
+  },
+  "previous_validated_runtimes_unchanged": true,
+  "production_source_matches_tested_snapshot": true,
+  "reports": [
+    {
+      "path": "validation-v1/report.json",
+      "sha256": "67451e506ac58cd2175c71b737376502b88b9cbdf076541f5159a8549d4a92d2"
+    },
+    {
+      "path": "validation-v1/oracle-report.json",
+      "sha256": "bb2b6668dbe35b8f82db57b86d05ca4610be26a538358a840f2827053ae3de47"
+    },
+    {
+      "path": "mpi-validation/acceptance-report.json",
+      "sha256": "47cbfd29eac9f897d594adcd274f3b65ef3b0a9615f14d8fa2a8d2ca6e6f6ab2"
+    },
+    {
+      "path": "default-off-validation/acceptance-report.json",
+      "sha256": "2851c3aa2d98c2f97b6efef05a6560dbc0c28aea09edd4f0eb88783dd365d81a"
+    },
+    {
+      "path": "preservation-v1/cpu/report.json",
+      "sha256": "fd7a886e17b14b5ff94127e1193ead2ae3133b2e806fa53a8474c24a927821a9"
+    },
+    {
+      "path": "preservation-v1/cuda/report.json",
+      "sha256": "7d51e81685f2c4f1d0b72fb31334e89d7a91585a9a1c15e923f9600a17d32b9d"
+    },
+    {
+      "path": "memcheck-v2/report.json",
+      "sha256": "b1c3633ae952f485519d7be3c4e648dec9367513838e1d1d68b9722efe9f62f2"
+    },
+    {
+      "path": "coupled-smoke-v1/report.json",
+      "sha256": "9c7d057e5a15d76a1404dd71649d625a29429d32be0b018720ff1a966398eece"
+    }
+  ],
+  "repository": "/home/epalos/software/quick_ep/worktrees/gpu-electrostatics-bomd",
+  "retained_candidate": "cuda-before-density-triangle-alignment contains the earlier library/source hashes; final campaign uses the corrected runtime.",
+  "retained_sanitizer_protocol_diagnostic": "memcheck-v1 retains Compute Sanitizer exit255 for an invalid-input-only process that correctly made no CUDA calls. Accepted memcheck-v2 warms up CUDA before testing rejection and reuses the exact zero-error raw40/f64 logs.",
+  "review": "Independent CPU/CUDA review found no remaining material issue. Upper/lower density-triangle choice was aligned before accepted full campaign and has a near-symmetric regression.",
+  "revision_state": "Local uncommitted extension; no new commit or push",
+  "runtime_sha256": {
+    "cpu-mpi/install/lib/libquick_mpi.so": "6bccc3c98286ad27e8e6d7eb8a7e092535a899a5614aaf85550ed9aa7d12e542",
+    "cpu/install/lib/libquick.so": "128b1f7763f47c1baaafc2a0107fc318dc38e99521ab29ce82da4f8d99eb53a7",
+    "cuda/install/lib/libquick_cuda.so": "2b5655994a34faaf42bc4bac501e8d090303dec828fd5f64cdc3c753b0c79ecd",
+    "default-off/install/lib/libquick.so": "5bf53fc8aa4450dcc7e19da860b413d5fefa9caf540102737e7fad12abd43f0a"
+  },
+  "schema": "quick-field-hessian-acceptance-1"
+}

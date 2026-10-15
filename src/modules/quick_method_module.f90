@@ -78,11 +78,13 @@ module quick_method_module
                                        ! Approximate surface point spacing in Angstroms
         double precision :: density_surface_max_radius = 10.0d0
                                        ! Maximum ray length in Angstroms
-        logical :: external_efield = .false. ! Uniform external electric field
+        logical :: external_efield = .false. ! Static applied electric field
         double precision :: external_efield_vector(3) = (/0.0d0,0.0d0,0.0d0/)
                                        ! External electric field vector in a.u.
         double precision :: external_efield_origin(3) = (/0.0d0,0.0d0,0.0d0/)
-                                       ! Origin for the finite-field dipole operator
+                                       ! Fixed origin for the applied-field potential
+        double precision :: external_efield_tensor(3,3) = 0.0d0
+                                       ! Symmetric spatial gradient dE_i/dr_j in a.u.
         logical :: diisOpt =  .false.  ! DIIS Optimization
         logical :: core =  .false.     ! Add core
         logical :: annil =  .false.    ! Annil Spin Contamination
@@ -283,6 +285,7 @@ module quick_method_module
             call MPI_BCAST(self%external_efield,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%external_efield_vector,3,mpi_double_precision,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%external_efield_origin,3,mpi_double_precision,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%external_efield_tensor,9,mpi_double_precision,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%diisOpt,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%core,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%annil,1,mpi_logical,0,quick_comm,quick_mpi_error)
@@ -363,7 +366,7 @@ module quick_method_module
             type(xc_f90_pointer_t) :: xc_func
             type(xc_f90_pointer_t) :: xc_info
             character(len=120) :: f_name, f_kind, f_family
-            integer :: vmajor, vminor, vmicro, f_id
+            integer :: vmajor, vminor, vmicro, f_id, i
 
             if (io.ne.0) then
             write(io,'(" ============== JOB CARD =============")')
@@ -563,6 +566,15 @@ module quick_method_module
              write(io,'(" EXTERNAL ELECTRIC FIELD ORIGIN = ",3(ES14.6,1x)," BOHR")') &
                self%external_efield_origin(1), self%external_efield_origin(2), &
                self%external_efield_origin(3)
+             if (any(self%external_efield_tensor /= 0.d0)) then
+               write(io,'(" APPLIED SPATIAL FIELD GRADIENT G_IJ = dE_I/dr_J (A.U.):")')
+               do i=1,3
+                 write(io,'(3(ES14.6,1x))') self%external_efield_tensor(i,:)
+               enddo
+               write(io,'(" STATIC FIELD E(r) = F + G*(r-r0); POTENTIAL = -F.s - s.G.s/2")')
+               write(io,'(" TRACE(G) = ",ES14.6,"; A SOURCE-FREE APPLIED FIELD REQUIRES TRACE(G)=0")') &
+                 self%external_efield_tensor(1,1)+self%external_efield_tensor(2,2)+self%external_efield_tensor(3,3)
+             endif
            endif
 
             if (self%DIVCON) then
@@ -1009,6 +1021,7 @@ module quick_method_module
                if (found_keyword(keyWD,'FINITE_FIELD_ORIGIN_Z')) &
                  call read(keywd,'FINITE_FIELD_ORIGIN_Z', self%external_efield_origin(3))
            endif
+           call read_applied_field_tensor(self,keywd,ierr)
            if (found_keyword(keyWD,'DDX') .or. found_keyword(keyWD,'DDX_MODEL')) then
                self%ddx = .true.
                tempstring = 'COSMO'
@@ -1056,6 +1069,81 @@ module quick_method_module
            self%consistent_optimizer_state = self%consistent_optimizer_state .or. &
                self%efield_grid .or. self%efg_grid .or. self%density_surface .or. self%ddx .or. self%external_efield
         end subroutine read_quick_method
+
+        !---------------------------------------------------------------------!
+        ! Static applied field E(r)=F+G*(r-r0), G_ij=dE_i/dr_j.                !
+        ! Six independent tensor components enforce a conservative field.    !
+        ! G is in Eh/(e bohr**2); F is in Eh/(e bohr); r0 is in bohr.         !
+        ! A nonzero trace represents an imposed charge density; no trace      !
+        ! projection is performed. Compact aliases fit the existing API      !
+        ! keyword limit. Existing uniform-field keywords retain their path. !
+        !---------------------------------------------------------------------!
+        subroutine read_applied_field_tensor(self,keywd,ierr)
+            implicit none
+            type(quick_method_type), intent(inout) :: self
+            character(len=*), intent(in) :: keywd
+            integer, intent(inout) :: ierr
+            character(len=1), parameter :: axes(3) = [character(len=1) :: 'X','Y','Z']
+            character(len=2), parameter :: pairs(6) = [character(len=2) :: 'XX','YY','ZZ','XY','XZ','YZ']
+            character(len=2), parameter :: reversed(3) = [character(len=2) :: 'YX','ZX','ZY']
+            integer, parameter :: row(6) = [1,2,3,1,1,2], col(6) = [1,2,3,2,3,3]
+            integer :: axis, component
+            double precision :: value, alternate
+            logical :: has_long, has_short
+            character(len=40) :: long_key, short_key
+
+            do axis=1,3
+                short_key = 'EFIELD_F'//axes(axis)
+                if (found_keyword(keywd,trim(short_key))) then
+                    value = self%external_efield_vector(axis)
+                    call read(keywd,trim(short_key),value)
+                    if (found_keyword(keywd,'EXTERNAL_EFIELD_'//axes(axis)) .or. &
+                        found_keyword(keywd,'FINITE_FIELD_'//axes(axis))) then
+                        if (value /= self%external_efield_vector(axis)) ierr = 53
+                    endif
+                    self%external_efield_vector(axis) = value
+                    self%external_efield = .true.
+                endif
+                short_key = 'EFIELD_O'//axes(axis)
+                if (found_keyword(keywd,trim(short_key))) then
+                    value = self%external_efield_origin(axis)
+                    call read(keywd,trim(short_key),value)
+                    if (found_keyword(keywd,'EXTERNAL_EFIELD_ORIGIN_'//axes(axis)) .or. &
+                        found_keyword(keywd,'FINITE_FIELD_ORIGIN_'//axes(axis))) then
+                        if (value /= self%external_efield_origin(axis)) ierr = 53
+                    endif
+                    self%external_efield_origin(axis) = value
+                    self%external_efield = .true.
+                endif
+            enddo
+
+            do component=1,6
+                long_key = 'EXTERNAL_EFIELD_GRADIENT_'//pairs(component)
+                short_key = 'EFIELD_G'//pairs(component)
+                has_long = found_keyword(keywd,trim(long_key))
+                has_short = found_keyword(keywd,trim(short_key))
+                if (.not.(has_long .or. has_short)) cycle
+                value = self%external_efield_tensor(row(component),col(component))
+                if (has_long) call read(keywd,trim(long_key),value)
+                if (has_short) then
+                    alternate = value
+                    call read(keywd,trim(short_key),alternate)
+                    if (has_long .and. value /= alternate) ierr = 53
+                    value = alternate
+                endif
+                self%external_efield_tensor(row(component),col(component)) = value
+                self%external_efield_tensor(col(component),row(component)) = value
+                self%external_efield = .true.
+            enddo
+            do component=1,3
+                if (found_keyword(keywd,'EXTERNAL_EFIELD_GRADIENT_'//reversed(component)) .or. &
+                    found_keyword(keywd,'EFIELD_G'//reversed(component))) then
+                    call PrtErr(OUTFILEHANDLE,'Use the six symmetric field-gradient components XX YY ZZ XY XZ YZ.')
+                    ierr = 53
+                endif
+            enddo
+            if (ierr /= 0) call PrtErr(OUTFILEHANDLE,'Invalid or conflicting applied-field component keywords.')
+        end subroutine read_applied_field_tensor
 
 
         !------------------------
@@ -1123,9 +1211,10 @@ module quick_method_module
             self%ddx_epsilon = 78.3553d0
             self%ddx_radius_scale = 1.1d0
             self%ddx_tolerance = 1.0d-10
-            self%external_efield = .false. ! Uniform external electric field
+            self%external_efield = .false. ! Static applied electric field
             self%external_efield_vector(:) = 0.0d0
             self%external_efield_origin(:) = 0.0d0
+            self%external_efield_tensor(:,:) = 0.0d0
 
             self%LShift_cycle = 3     ! After what cycle allow Level shifting
             self%LShift_err = 0.1d0   ! Minimum error for allowing Level shifting
@@ -1220,8 +1309,14 @@ module quick_method_module
 
             if (self%external_efield) then
                 if (.not.all(ieee_is_finite(self%external_efield_vector)) .or. &
-                    .not.all(ieee_is_finite(self%external_efield_origin))) then
-                    call PrtErr(io,'Applied electric fields and their origins must be finite.')
+                    .not.all(ieee_is_finite(self%external_efield_origin)) .or. &
+                    .not.all(ieee_is_finite(self%external_efield_tensor))) then
+                    call PrtErr(io,'Applied electric fields, spatial gradients and origins must be finite.')
+                    ierr = 53
+                    return
+                endif
+                if (any(self%external_efield_tensor /= transpose(self%external_efield_tensor))) then
+                    call PrtErr(io,'A static applied spatial field gradient must be symmetric (curl-free).')
                     ierr = 53
                     return
                 endif

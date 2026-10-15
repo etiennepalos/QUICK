@@ -14,6 +14,44 @@ The [2026-10-15 engineering acceptance report](fields-ddx-acceptance-20261015.md
 and [evidence manifest](fields-ddx-acceptance-20261015.json) record the applied-field
 and ddX implementation, GPU validation, optimizations and remaining accuracy limits.
 
+## Field Hessian
+
+The independent CPU/native-CUDA evaluator supplies
+`H_ijk(C)=d2 E_i/dC_j dC_k=-d3 V/dC_i dC_j dC_k` from the retained density:
+
+```fortran
+use quick_api_module, only: getQuickFieldHessian
+! points_bohr(3,npoints), H(3,3,3,npoints)
+call getQuickFieldHessian(npoints,points_bohr,H,ierr)
+```
+
+Coordinates are bohr and H is in hartree/(e bohr^3). The full tensor is
+symmetric in its three spatial indices; its ten independent entries are
+`xxx,xxy,xxz,xyy,xyz,xzz,yyy,yyz,yzz,zzz`. Its traces can be nonzero within
+electronic density. This is distinct from the nuclear energy Hessian and
+the existing rank-two EFG. Cartesian s/p/d/f functions use analytic Gaussian
+Coulomb derivatives through auxiliary order nine.
+
+The API adds no SCF and leaves existing ESP/EFIELD/EFG calls unchanged.
+It includes QM electrons, nuclei and enabled external point charges;
+direct applied and continuum-reaction fields are excluded. A probe at a
+charged classical source is rejected; the electronic Gaussian contribution
+is finite at its center. Invalid dimensions, nonfinite values and unavailable
+density return an error while preserving the caller's output. MPI callers
+provide identical probe coordinates on the job communicator; successful
+arrays are returned on all ranks.
+
+The BOMD namelist option `field_hessian=.true.` samples this tensor at the
+ordinary property stride into a separate `_field_hessian.csv` file. The
+default is false. See the [BOMD controls](../../validation/oeprop_bomd/README.md)
+and [field-Hessian validation](../../validation/field_hessian/README.md).
+This evaluator supplies a building block for multipolar embedding; a full
+OpenMMPol or MBX interface remains separate work.
+
+The [field-Hessian acceptance record](field-hessian-acceptance-20261015.json)
+pins source/runtime identities, independent numerical references, native CUDA
+memory checks, preservation controls and the bounded BOMD test scope.
+
 ## Master integration, 2026-10-14
 
 The feature includes upstream master

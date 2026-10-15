@@ -13,10 +13,11 @@ program quick_oeprop_bomd_driver
   use iso_fortran_env, only: int64
   use ieee_arithmetic, only: ieee_is_finite
   use quick_api_module, only: setQuickJob, getQuickEnergyGradients, &
-    getQuickOEPROP, getQuickDensitySurface, deleteQuickJob, quick_api
+    getQuickOEPROP, getQuickFieldHessian, getQuickDensitySurface, deleteQuickJob, quick_api
   use quick_constants_module, only: BOHRS_TO_A
   use quick_input_parser_module, only: found_keyword
   use quick_oei_module, only: get_external_field_gpu_counts
+  use quick_field_hessian_module, only: get_field_hessian_gpu_count
 #ifdef MPIV
   use mpi
   use quick_api_module, only: setQuickMPI
@@ -37,18 +38,21 @@ program quick_oeprop_bomd_driver
   integer :: anchor_atoms(3), coordinate_atoms(2)
   double precision :: dt_fs, temperature_k
   double precision :: density_isovalue, density_spacing_ang, density_max_radius_ang
+  logical :: field_hessian
   namelist /quick_bomd/ geometry_file,probe_file,output_prefix,checkpoint_file, &
     restart_file,keywd,probe_mode,nsteps,oeprop_stride,dt_fs,temperature_k,nfrozen,frozen_atoms, &
-    anchor_atoms,coordinate_atoms,density_isovalue,density_spacing_ang,density_max_radius_ang
+    anchor_atoms,coordinate_atoms,density_isovalue,density_spacing_ang,density_max_radius_ang,field_hessian
 
   integer :: ierr, argc, unit, ios, natom, npoints, start_step, step, local_step
   integer :: energy_unit, xyz_unit, oeprop_unit, active_dof
+  integer :: field_hessian_unit,field_hessian_calls,hessian_launches_before,hessian_launches_after
   integer, allocatable :: atomic_numbers(:), probe_atoms(:)
   logical, allocatable :: frozen(:)
   double precision, allocatable :: coords(:,:), velocities(:,:), accelerations(:,:)
   double precision, allocatable :: gradients(:,:), previous_gradients(:,:), masses(:)
   double precision, allocatable :: probe_reference(:,:), probes_ang(:,:), probes_bohr(:,:)
   double precision, allocatable :: esp(:), efield(:,:), efg(:,:,:)
+  double precision, allocatable :: hessian_values(:,:,:,:)
   double precision :: ptchg(4,0), ptchg_grad(3,0)
   double precision :: potential, kinetic, total, total0, drift, dt_au
   double precision :: max_drift, force_change, max_force_change, max_gradient
@@ -73,6 +77,9 @@ program quick_oeprop_bomd_driver
   probe_mode='fixed'
   nsteps=10
   oeprop_stride=1
+  field_hessian=.false.
+  field_hessian_unit=-1
+  field_hessian_calls=0
   dt_fs=0.05d0
   temperature_k=50.0d0
   nfrozen=0
@@ -185,6 +192,7 @@ program quick_oeprop_bomd_driver
   call setQuickJob(job_name,keywd,natom,atomic_numbers,.true.,ierr)
   call stop_on_error(ierr,'setQuickJob')
   call get_external_field_gpu_counts(field_before(1),field_before(2))
+  call get_field_hessian_gpu_count(hessian_launches_before)
 #if defined(GPU) || defined(MPIV_GPU)
   call gpu_oeprop_launch_counts(launches_before(1),launches_before(2),launches_before(3))
 #endif
@@ -201,6 +209,18 @@ program quick_oeprop_bomd_driver
   kernels_file=trim(output_prefix)//'_kernels.csv'
   call open_outputs(energy_file,xyz_file,oeprop_file,energy_unit,xyz_unit,oeprop_unit,ierr)
   call stop_on_error(ierr,'open outputs')
+  if (field_hessian) then
+    if (is_master) then
+      open(newunit=field_hessian_unit,file=trim(output_prefix)//'_field_hessian.csv', &
+        status='replace',action='write',iostat=ierr)
+      if (ierr == 0) write(field_hessian_unit,'(A)') &
+        'step,time_fs,probe,x_ang,y_ang,z_ang,h_xxx,h_xxy,h_xxz,h_xyy,h_xyz,h_xzz,h_yyy,h_yyz,h_yzz,h_zzz'
+    endif
+#ifdef MPIV
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
+#endif
+    call stop_on_error(ierr,'open field Hessian output')
+  endif
 
   max_drift=abs(total-total0)
   max_force_change=0.0d0
@@ -247,12 +267,14 @@ program quick_oeprop_bomd_driver
     close(energy_unit)
     close(xyz_unit)
     close(oeprop_unit)
+    if (field_hessian) close(field_hessian_unit)
   endif
 #if defined(GPU) || defined(MPIV_GPU)
   call gpu_oeprop_launch_counts(launches_after(1),launches_after(2),launches_after(3))
 #endif
   launch_deltas=launches_after-launches_before
   call get_external_field_gpu_counts(field_after(1),field_after(2))
+  call get_field_hessian_gpu_count(hessian_launches_after)
   field_deltas=field_after-field_before
   call write_kernel_counts(kernels_file,ierr)
   call stop_on_error(ierr,'write launch counts')
@@ -352,6 +374,16 @@ contains
     before_step=quick_api%step
     begin_time=wall_time_seconds()
     call evaluate_properties(npoints,probes_bohr,esp,efield,efg,ierr)
+    call stop_on_error(ierr,'on-the-fly OEPROP')
+    if (field_hessian) then
+      if (allocated(hessian_values)) deallocate(hessian_values)
+      allocate(hessian_values(3,3,3,npoints),stat=ierr)
+      call stop_on_error(ierr,'allocate field Hessian output')
+      call getQuickFieldHessian(npoints,probes_bohr,hessian_values,ierr)
+      call stop_on_error(ierr,'on-the-fly field Hessian')
+      field_hessian_calls=field_hessian_calls+1
+      if (.not. all(ieee_is_finite(hessian_values))) call stop_on_error(45,'nonfinite field Hessian')
+    endif
     oeprop_wall_seconds=oeprop_wall_seconds+wall_time_seconds()-begin_time
     call stop_on_error(ierr,'on-the-fly OEPROP')
     property_calls=property_calls+1
@@ -362,7 +394,24 @@ contains
         .not. all(ieee_is_finite(efg))) call stop_on_error(45,'nonfinite OEPROP')
     call write_property_frame(oeprop_unit,frame_step,dt_fs,probe_mode,probes_ang, &
       reaction_coordinate,esp,efield,efg)
+    if (field_hessian) call write_field_hessian_frame(frame_step)
   end subroutine sample_properties
+
+  ! Ten independent entries of H_ijk=d2 E_i/dC_j dC_k=-d3 V/dC_i dC_j dC_k.
+  ! Components stay in laboratory Cartesian axes, including moving probes.
+  subroutine write_field_hessian_frame(frame_step)
+    implicit none
+    integer, intent(in) :: frame_step
+    integer :: p
+    if (.not. is_master) return
+    do p=1,npoints
+      write(field_hessian_unit,'(I0,",",ES24.16,",",I0,13(",",ES24.16))') &
+        frame_step,dble(frame_step)*dt_fs,p,probes_ang(:,p), &
+        hessian_values(1,1,1,p),hessian_values(1,1,2,p),hessian_values(1,1,3,p), &
+        hessian_values(1,2,2,p),hessian_values(1,2,3,p),hessian_values(1,3,3,p), &
+        hessian_values(2,2,2,p),hessian_values(2,2,3,p),hessian_values(2,3,3,p),hessian_values(3,3,3,p)
+    enddo
+  end subroutine write_field_hessian_frame
 
   subroutine write_kernel_counts(file,ierr)
     implicit none
@@ -909,6 +958,13 @@ contains
         write(unit,'(A,I0,A)') '  "property_calls": ',property_calls,','
         write(unit,'(A,I0,A)') '  "probe_generation_calls": ',probe_generation_calls,','
         write(unit,'(A,I0,A)') '  "properties_extra_api_calls": ',properties_extra_api_calls,','
+        if (field_hessian) then
+          write(unit,'(A,I0,A)') '  "field_hessian_calls": ',field_hessian_calls,','
+          write(unit,'(A,I0,A)') '  "field_hessian_master_gpu_launches": ', &
+            hessian_launches_after-hessian_launches_before,','
+          write(unit,'(A)') '  "field_hessian_convention": "H_ijk=d2 E_i/dC_j dC_k=-d3 V/dC_i dC_j dC_k",'
+          write(unit,'(A)') '  "field_hessian_units": "hartree/(e bohr^3); laboratory Cartesian axes",'
+        endif
         write(unit,'(A,ES24.16,A)') '  "force_wall_seconds": ',force_wall_seconds,','
         write(unit,'(A,ES24.16,A)') '  "probe_wall_seconds": ',probe_wall_seconds,','
         write(unit,'(A,ES24.16,A)') '  "oeprop_wall_seconds": ',oeprop_wall_seconds,','

@@ -1,7 +1,7 @@
 # Applied electric fields and equilibrium continuum solvation
 
-This feature adds analytic nuclear forces for static, uniform applied electric
-fields and an optional continuous-density interface to ddX's electrostatic
+This feature adds analytic nuclear forces for static applied electric fields,
+including a controlled spatial gradient, and an optional continuous-density interface to ddX's electrostatic
 ddCOSMO and ddPCM models. They can be used through the QUICK energy/gradient
 API and the existing velocity-Verlet BOMD driver, together with ESP, EFIELD
 and EFG sampling. These are finite-molecule models.
@@ -55,6 +55,82 @@ field and periodic field boundary conditions are separate models and are
 not provided by these keywords. The energy of a charged system depends on
 the chosen origin; translating it in a fixed applied field changes the
 energy by the corresponding classical total-charge term.
+
+## Controlled spatial field gradients
+
+Six independent components define a constant, symmetric spatial gradient
+`G_ij = dE_i/dr_j`. The applied field varies linearly with position:
+
+```text
+s = r-r0
+E_applied(r) = F + G*s
+phi_applied(r) = -F.s - 0.5*s.G.s
+h_applied(mu,nu) = <chi_mu | F.s + 0.5*s.G.s | chi_nu>
+E_classical = -sum_A q_A * (F.s_A + 0.5*s_A.G.s_A)
+dE_classical/dR_A = -q_A * (F + G*s_A)
+```
+
+The tensor is an electric-field gradient, **not** the potential Hessian and
+not a nuclear energy gradient. Its units are hartree/(e bohr^2). The existing
+field vector `F` is the field at the fixed origin `r0` (in bohr). Both
+electronic and classical quadratic terms are included in the SCF energy and
+analytic nuclear forces. Off-diagonal components occur once in the quadratic
+polynomial: `Gxy*sx*sy`, not `Gxy*sx*sy/2`.
+
+| Long keyword | Compact alias |
+|---|---|
+| `EXTERNAL_EFIELD_GRADIENT_XX` | `EFIELD_GXX` |
+| `EXTERNAL_EFIELD_GRADIENT_YY` | `EFIELD_GYY` |
+| `EXTERNAL_EFIELD_GRADIENT_ZZ` | `EFIELD_GZZ` |
+| `EXTERNAL_EFIELD_GRADIENT_XY` | `EFIELD_GXY` |
+| `EXTERNAL_EFIELD_GRADIENT_XZ` | `EFIELD_GXZ` |
+| `EXTERNAL_EFIELD_GRADIENT_YZ` | `EFIELD_GYZ` |
+
+Components default to zero. Each off-diagonal input sets both symmetric
+entries; reversed `YX`, `ZX` and `ZY` keywords are rejected. Finite values
+and exact symmetry are checked, including direct method-state requests.
+Conflicting long/compact aliases are rejected. A symmetric gradient gives a
+curl-free field. In a source-free region it must also satisfy `trace(G)=0`.
+QUICK accepts a general symmetric tensor and prints its trace; a nonzero
+trace represents an imposed charge density under Poisson's equation. No
+automatic trace removal or symmetrization is performed.
+
+Compact `EFIELD_FX/FY/FZ` and `EFIELD_OX/OY/OZ` aliases specify the existing
+field vector and origin. They allow combined vector, tensor and solvent
+requests within the public API's existing 256-character keyword limit.
+For example, a traceless gradient with an off-diagonal component is:
+
+```text
+HF BASIS=DEF2-TZVPD GRADIENT EFIELD_FX=2D-4 EFIELD_GXX=1D-5 EFIELD_GYY=-1D-5 EFIELD_GXY=2D-5
+```
+
+A pure gradient (`F=0`) is supported. An exactly zero tensor retains the
+established uniform-field evaluator. The nonzero-tensor route uses analytic
+Gaussian second moments and their center derivatives; CUDA uses independent
+FP64 kernels with Cartesian s/p/d/f support, while CPU is the moment-integral
+reference. Existing angular-momentum restrictions in other QUICK methods
+still apply. Numerical failures in the new operator are rejected explicitly.
+
+The vector, tensor and origin remain fixed in the laboratory frame during
+BOMD. No waveform or molecule-following gradient is implied. A neutral
+molecule can have a nonzero net force in an inhomogeneous field, so a
+zero-net-force criterion is inappropriate. Use weak perturbations suitable
+for the molecular region and check basis/SCF convergence; this polynomial
+potential does not model electrodes or periodic boundary conditions.
+
+For an origin change `r0' = r0+d`, the *same physical field* requires
+`F' = F+G*d`. This changes the potential by the constant
+`c = F.d + 0.5*d.G.d`. The total energy changes by `Q_total*c`, while
+forces are invariant. Moving the origin while holding `F` fixed changes
+the physical field when `G` is nonzero.
+
+The existing `DDX_FIELD=SOLUTE` convention also applies to spatial gradients:
+the perturbation acts on the QM solute, and the continuum responds to that
+solute. It does not impose a spatially varying macroscopic dielectric
+boundary condition. The existing property-grid convention is retained:
+direct applied contributions are excluded. To obtain them analytically at a
+probe, use `phi_applied`, `F+G*s` and `G`, respectively; explicit continuum
+reaction properties remain separate from the public grid outputs.
 
 ## Optional ddX dependency
 
@@ -241,3 +317,8 @@ gates. A separate control with XCCUTOFF=1D-12 and BASISCUTOFF=1D-12 passed
 the 0.1/0.05/0.025 fs comparison. Use tight SCF/integral/DFT screening and
 independently converge the XC grid, continuum grids and trajectory protocol.
 These are short software/force checks, not production ensemble validation.
+
+The [spatial-gradient acceptance record](spatial-gradient-acceptance-20261015.json)
+pins the tested working-tree source and CPU/CUDA libraries, report hashes,
+independent reference comparisons, retained development failures and scope
+limits for the static affine-field extension.

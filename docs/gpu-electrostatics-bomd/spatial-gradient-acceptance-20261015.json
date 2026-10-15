@@ -1,0 +1,284 @@
+{
+  "accuracy": {
+    "CPU_MPI": {
+      "max_cpu_mpi_energy_difference_hartree": 3.268496584496461e-13,
+      "max_cpu_mpi_mm_gradient_difference_hartree_per_bohr": 4.3747557659790104e-17,
+      "max_cpu_mpi_qm_gradient_difference_hartree_per_bohr": 2.906008766956347e-14
+    },
+    "maximum_full_AO_affine_operator_error": 4.0736196713623456e-18,
+    "maximum_independent_HF_energy_error_hartree": 1.0452993137732847e-08,
+    "selected_coupled_checks": [
+      {
+        "error": 6.016875886416528e-10,
+        "name": "PCM:CPU_CUDA_energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.5969575517814647e-09,
+        "name": "PCM:CPU_CUDA_full_nuclear_gradient",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 6.051550371921621e-10,
+        "name": "COSMO:CPU_CUDA_energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.5934635966562425e-09,
+        "name": "COSMO:CPU_CUDA_full_nuclear_gradient",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 6.194114291618869e-08,
+        "finite_difference": [
+          -0.04562198733992773,
+          0.0004994221569631918,
+          0.032151887012332736,
+          -0.024924625535049927,
+          -0.0002456961141206193,
+          -0.08347685765386359,
+          0.07053609566298746,
+          -0.0002698937180412031,
+          0.05132496876569803
+        ],
+        "name": "PCM:CUDA_all_nuclear_gradient_vs_energy_FD",
+        "passed": true,
+        "step_bohr": 0.0005,
+        "tolerance": 1e-05
+      },
+      {
+        "error": 1.619102363292768e-08,
+        "name": "PBE0:CPU_CUDA_energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 1.215048619357395e-08,
+        "name": "PBE0:CPU_CUDA_full_nuclear_gradient",
+        "passed": true,
+        "tolerance": 1e-06
+      },
+      {
+        "error": 0.0,
+        "name": "cpu:BOMD_sampling_preserves_all_forces",
+        "passed": true,
+        "tolerance": 1e-08
+      },
+      {
+        "error": 2.67841304690819e-15,
+        "name": "cuda:BOMD_sampling_preserves_all_forces",
+        "passed": true,
+        "tolerance": 1e-08
+      },
+      {
+        "error": 6.097025107010268e-10,
+        "name": "BOMD:CPU_CUDA_energies",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 5.9999782919817335e-12,
+        "name": "BOMD:CPU_CUDA_geometry",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.5969578432150087e-09,
+        "name": "BOMD:CPU_CUDA_full_force_history",
+        "passed": true,
+        "tolerance": 1e-07
+      }
+    ],
+    "selected_main_checks": [
+      {
+        "error": 1.638227331568487e-10,
+        "name": "CPU_CUDA:mixed_energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 2.8466259766046775e-09,
+        "name": "CPU_CUDA:mixed_full_nuclear_gradient",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 1.184616849059239e-10,
+        "name": "CPU_CUDA:MM_energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 3.6765040734021426e-09,
+        "name": "CPU_CUDA:MM_qm_gradient",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 8.941954446860245e-11,
+        "name": "CPU_CUDA:MM_charge_gradient",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 0.0,
+        "name": "CPU_CUDA:f64_energy",
+        "passed": true,
+        "tolerance": 1e-07
+      },
+      {
+        "error": 3.731647851834552e-09,
+        "name": "CPU_CUDA:f64_full_nuclear_gradient",
+        "passed": true,
+        "tolerance": 1e-07
+      }
+    ]
+  },
+  "artifact_root": "/home/epalos/software/quick_ep/spatial-gradient-20261015",
+  "base_commit": "6eb101f4088defab9ee93e7a136ca606baa1b64a",
+  "branch": "feature/gpu-electrostatics-bomd",
+  "changed_source_sha256": {
+    "src/getEnergy.f90": "8d0dd3df2addfd1b2ea46c2467f2113f55c343344cbf6feed12b9a4650c22df5",
+    "src/gpu/gpu_external_field.cu": "31c55900e1c90f495621ea7ea086fc0c84fbff231c4577274a6b7a67bdd95c34",
+    "src/modules/quick_method_module.f90": "906f5574b29c94f0babb94e56b4bf5fa54d30eff866b79e034a1462f13005f63",
+    "src/modules/quick_oei_module.f90": "c99af701dc993d67af5e0b6f6ac53ace8a24847364177fe4a24af02e016ad25a"
+  },
+  "checks": {
+    "compute_sanitizer_errors": 0,
+    "coupled": 387,
+    "coupled_API_calls": 24,
+    "coupled_failed": 0,
+    "default_off": 11,
+    "independent_PySCF_SCFs": 44,
+    "main": 963,
+    "main_QUICK_SCFs": 104,
+    "main_failed": 0,
+    "open_shell": 7,
+    "raw_CUDA": 99
+  },
+  "failure_ledger": [
+    {
+      "description": "Compute Sanitizer exposed out-of-bounds/misaligned lower-overlap reads in the new tensor helper. All inactive lower indices are now bounded; accepted full runtime passes 99 raw checks and memcheck with zero errors. Old uniform helpers and kernels were retained.",
+      "kind": "production candidate defect repaired",
+      "path": "failed-cuda-v1/manifest.json"
+    },
+    {
+      "description": "Initial API fixture omitted GRADIENT. Campaign was interrupted; explicit GRADIENT/EXTCHARGES and gradient-activation assertions were added. Accepted v2 uses actual gradients. Cartesian-f SCF uses DENSERMS=1e-10 and SCF=400 to avoid the legacy 1e-11 noise floor; physical gates were retained.",
+      "kind": "fixture setup corrected",
+      "path": "validation-v1/interruption.json"
+    },
+    {
+      "description": "Earlier MPI fixture keyword, one-AO assertion and SCF setup diagnostics are retained. Accepted v4 parity and explicit broadcast/overflow checks pass.",
+      "kind": "diagnostic attempts retained",
+      "path": "cpu-mpi/acceptance-report.json"
+    },
+    {
+      "description": "Initial dacdif invocation lacked QUICK_HOME and was invalid. Independent parsed comparisons passed; rerun with QUICK_HOME reports PASSED. The initial diagnostic file is retained outside the source tree.",
+      "kind": "comparison environment corrected",
+      "path": "cli-regression-v1/report.json"
+    },
+    {
+      "description": "OH UHF SCF did not converge and is not evidence of accepted behavior. Water-cation UHF s/p/d parity and force checks passed; unsupported UHF f-gradient rejection was preserved.",
+      "kind": "excluded convergence diagnostic",
+      "path": "open-shell-v1/acceptance-report.json"
+    }
+  ],
+  "finished_utc": "2026-10-15T09:00:10.545077+00:00",
+  "gpu": "NVIDIA RTX PRO 5000 72GB Blackwell, GPU-e70942dc-0d55-1e1d-16d9-606c2df76c87, 595.91.07",
+  "input": {
+    "origin_compact": "EFIELD_O{X,Y,Z}",
+    "tensor_compact": "EFIELD_G{XX,YY,ZZ,XY,XZ,YZ}",
+    "tensor_long": "EXTERNAL_EFIELD_GRADIENT_{XX,YY,ZZ,XY,XZ,YZ}",
+    "vector_compact": "EFIELD_F{X,Y,Z}"
+  },
+  "limitations": [
+    "Static conservative affine fields about a fixed laboratory-frame origin; no time dependence, electrodes, constant-potential model or periodic QUICK embedding.",
+    "A symmetric prescribed tensor is accepted. Nonzero trace represents an imposed source density; a source-free field requires zero trace.",
+    "One NVIDIA RTX PRO 5000 72GB Blackwell GPU was tested; CPU serial/MPI and native CUDA were tested. No HIP or CUDA-MPI acceptance claim.",
+    "Independent absolute accuracy checks use HF with exact matched Cartesian basis functions. PBE0/6-31G** is a backend-parity smoke test and does not resolve earlier XC-grid accuracy questions.",
+    "Short coupled BOMD is four 0.025 fs steps, totaling 0.1 fs. It establishes software/force consistency, not production sampling, long-time drift or thermodynamic convergence.",
+    "The tested ddX discretization is finite (LMAX=6, cavity Lebedev=302, volume 75x302); this campaign does not establish universal continuum-grid/order convergence.",
+    "DDX_FIELD=SOLUTE couples the imposed potential to the solute and allows the continuum to respond to the solute; no macroscopic solvent applied-field boundary condition is established.",
+    "Public ESP/EFIELD/EFG outputs retain the electronic+nuclear+enabled-MM source convention. Direct imposed and direct ddX reaction potentials/fields are omitted.",
+    "Simultaneous ddX and external MM charges remain unsupported. The existing GPU UHF/Cartesian-f gradient guard remains in place; an OH SCF nonconvergence diagnostic was excluded explicitly.",
+    "QUICK ESP grids and unrestrained ESP fitted charges were compared against the old runtime. External Amber RESP/rwRESP fitting programs were not run.",
+    "No OpenMMPol/MBX integration code or library was changed; their Paper 2 assessment is read-only and does not establish a working polarizable QM/MM interface."
+  ],
+  "model": {
+    "electron_operator": "+F.s + 0.5*s^T*G*s",
+    "field": "F + G*(r-origin)",
+    "potential": "-F.s - 0.5*s^T*G*s",
+    "tensor_convention": "G_ij=dE_i/dr_j=-d2(phi)/dr_i dr_j; symmetric, trace unconstrained",
+    "units": "F: Eh/(e bohr); G: Eh/(e bohr^2); origin: bohr"
+  },
+  "new_runtime_sha256": {
+    "cpu-mpi/install/lib/libquick_mpi.so": "c3edee8f0df1624e3d3669451c6be5aa9a7e836b0598d9affdd36b8ed09a2b28",
+    "cpu/install/lib/libquick.so": "7f753f15ddeea3facf68deb3f7088e1b32c9ca8e6feef30ae481de22f720e7c1",
+    "cuda/install/lib/libquick_cuda.so": "ea18cf2e235eebb67e89d30036cb5c644b69b1670d99f7d3705d9ec7e82f2861",
+    "default-off/install/lib/libquick.so": "bfd2fb42214705a3118c2b7060ddbfb222920b78994205606f7360f778e76253"
+  },
+  "old_runtime_sha256_unchanged": {
+    "cpu/install/lib/libquick.so": "70d362ac5552960f3a1e62e89fe908d9d8ba80d4f6951d554625aa62a3b664ad",
+    "cuda/install/lib/libquick_cuda.so": "83e45a6de4107f1db19277b1893b00794ddbea36f1f12444cbd4be3dfc9758f5"
+  },
+  "passed": true,
+  "production_sources_match_tested_snapshot": true,
+  "reports": [
+    {
+      "path": "validation-v2/report.json",
+      "sha256": "2ee3bfc01b7421371d3236cd27338229df839fb8c1312044eced34f091b85547"
+    },
+    {
+      "path": "validation-v2/oracle-report.json",
+      "sha256": "d84ee6cf565acc4d9395b09c7c98dd95d61c7853b060bb1278210f071ccdd3a2"
+    },
+    {
+      "path": "raw-kernel-v2/report.json",
+      "sha256": "d7551ed05eafd39c848f56449f3cf26d8369eb1bbcb032066aca3f1faee80146"
+    },
+    {
+      "path": "raw-kernel-memcheck-v2/report.json",
+      "sha256": "3cbb4c5e41861d1b57c6aba7d9565090c769bdd0dc28050f2681f94eb4017d3e"
+    },
+    {
+      "path": "cpu-mpi/acceptance-report.json",
+      "sha256": "9823d873660ec20b1c2d95ac6edd81bbefb6fafa648a087181c66c5e104c88e3"
+    },
+    {
+      "path": "default-off/acceptance-report.json",
+      "sha256": "17044e0a7f90995039e0740907ebdeae07a128822e968281b5ec7967953c9995"
+    },
+    {
+      "path": "open-shell-v1/acceptance-report.json",
+      "sha256": "f29ccd4c8dfb094c96cf5a7867dd03dd1c38560ec364b3e9279e37b029d13461"
+    },
+    {
+      "path": "preservation-v1/cpu/report.json",
+      "sha256": "e564b7eb87db0048c837d8019d95817ba82e068c1d6b0e7db20a483f774370b1"
+    },
+    {
+      "path": "preservation-v1/cuda/report.json",
+      "sha256": "7222e662f6be5db34c37f6c91d12c457dc80d42c85c6e13b770bba81aef4c3c0"
+    },
+    {
+      "path": "cli-regression-v1/report.json",
+      "sha256": "7d81ab26dc6545a1fadf90b9ddde311e1b34a76873ef29779d3b6224ca2d7f22"
+    },
+    {
+      "path": "cli-regression-v1/packaging-check.json",
+      "sha256": "d9b9e04dd0373e39cf2875743ea7230595e42b45802e0350bf4e80fff942576a"
+    },
+    {
+      "path": "coupled-v1/validation/report.json",
+      "sha256": "06d19c3cd2078a3941a1b49df7a906ad941b702b626febe1d07506929257aa9c"
+    }
+  ],
+  "repository": "/home/epalos/software/quick_ep/worktrees/gpu-electrostatics-bomd",
+  "review": "Independent final read-only review found no remaining material production-code issue; saved baseline included and generated diagnostic excluded.",
+  "revision_state": "uncommitted working-tree extension; no new commit or push",
+  "schema": "quick-spatial-gradient-acceptance-1"
+}
