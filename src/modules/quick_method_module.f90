@@ -40,6 +40,12 @@ module quick_method_module
         logical :: DFTD3MBJ= .false.   ! Modified D3 correction with BJ damping
 
         logical :: PBSOL = .false.     ! PB Solvent
+        ! Optional self-consistent ddX continuum electrostatics.
+        logical :: ddx = .false., ddx_field_solute = .false.
+        integer :: ddx_model = 1, ddx_lmax = 6, ddx_nlebedev = 302
+        integer :: ddx_nrad = 75, ddx_nang = 302
+        double precision :: ddx_epsilon = 78.3553d0, ddx_radius_scale = 1.1d0
+        double precision :: ddx_tolerance = 1.0d-10
         logical :: UNRST =  .false.    ! Unrestricted
 
         ! the second section includes some advanced option
@@ -264,6 +270,16 @@ module quick_method_module
             call MPI_BCAST(self%density_surface_value,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%density_surface_spacing,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%density_surface_max_radius,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx,1,mpi_logical,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_field_solute,1,mpi_logical,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_model,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_lmax,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_nlebedev,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_nrad,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_nang,1,mpi_integer,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_epsilon,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_radius_scale,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
+            call MPI_BCAST(self%ddx_tolerance,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%external_efield,1,mpi_logical,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%external_efield_vector,3,mpi_double_precision,0,quick_comm,quick_mpi_error)
             call MPI_BCAST(self%external_efield_origin,3,mpi_double_precision,0,quick_comm,quick_mpi_error)
@@ -993,6 +1009,33 @@ module quick_method_module
                if (found_keyword(keyWD,'FINITE_FIELD_ORIGIN_Z')) &
                  call read(keywd,'FINITE_FIELD_ORIGIN_Z', self%external_efield_origin(3))
            endif
+           if (found_keyword(keyWD,'DDX') .or. found_keyword(keyWD,'DDX_MODEL')) then
+               self%ddx = .true.
+               tempstring = 'COSMO'
+               if (found_keyword(keyWD,'DDX')) call read(keywd,'DDX',tempstring)
+               if (found_keyword(keyWD,'DDX_MODEL')) call read(keywd,'DDX_MODEL',tempstring)
+               select case(trim(tempstring))
+               case('COSMO','DDCOSMO','')
+                   self%ddx_model = 1
+               case('PCM','DDPCM')
+                   self%ddx_model = 2
+               case default
+                   ierr = 53
+               end select
+           endif
+           if (found_keyword(keyWD,'DDX_EPS')) call read(keywd,'DDX_EPS',self%ddx_epsilon)
+           if (found_keyword(keyWD,'DDX_LMAX')) call read(keywd,'DDX_LMAX',self%ddx_lmax)
+           if (found_keyword(keyWD,'DDX_NLEBEDEV')) call read(keywd,'DDX_NLEBEDEV',self%ddx_nlebedev)
+           if (found_keyword(keyWD,'DDX_NRAD')) call read(keywd,'DDX_NRAD',self%ddx_nrad)
+           if (found_keyword(keyWD,'DDX_NANG')) call read(keywd,'DDX_NANG',self%ddx_nang)
+           if (found_keyword(keyWD,'DDX_RADIUS_SCALE')) call read(keywd,'DDX_RADIUS_SCALE',self%ddx_radius_scale)
+           if (found_keyword(keyWD,'DDX_TOL')) call read(keywd,'DDX_TOL',self%ddx_tolerance)
+           if (found_keyword(keyWD,'DDX_FIELD')) then
+               tempstring = ''
+               call read(keywd,'DDX_FIELD',tempstring)
+               self%ddx_field_solute = trim(tempstring) == 'SOLUTE'
+               if (.not.self%ddx_field_solute) ierr = 53
+           endif
            if (found_keyword(keyWD,'LSHIFT_CYCLE')) then
                call read(keywd,'LSHIFT_CYCLE', self%LShift_cycle)
            endif
@@ -1011,7 +1054,7 @@ module quick_method_module
            ! Legacy ESP-only CLI jobs keep established optimization behavior.
            ! API callers enable this before keyword parsing, for any property.
            self%consistent_optimizer_state = self%consistent_optimizer_state .or. &
-               self%efield_grid .or. self%efg_grid .or. self%density_surface
+               self%efield_grid .or. self%efg_grid .or. self%density_surface .or. self%ddx .or. self%external_efield
         end subroutine read_quick_method
 
 
@@ -1070,6 +1113,16 @@ module quick_method_module
             self%density_surface_value = 1.0d-3
             self%density_surface_spacing = 0.50d0
             self%density_surface_max_radius = 10.0d0
+            self%ddx = .false.
+            self%ddx_field_solute = .false.
+            self%ddx_model = 1
+            self%ddx_lmax = 6
+            self%ddx_nlebedev = 302
+            self%ddx_nrad = 75
+            self%ddx_nang = 302
+            self%ddx_epsilon = 78.3553d0
+            self%ddx_radius_scale = 1.1d0
+            self%ddx_tolerance = 1.0d-10
             self%external_efield = .false. ! Uniform external electric field
             self%external_efield_vector(:) = 0.0d0
             self%external_efield_origin(:) = 0.0d0
@@ -1158,10 +1211,52 @@ module quick_method_module
         !------------------------
         subroutine check_quick_method(self,io,ierr)
             use quick_exception_module
+            use quick_ddx_backend_module, only: quick_ddx_available
+            use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
             implicit none
             type(quick_method_type) self
             integer io
             integer, intent(inout) :: ierr
+
+            if (self%external_efield) then
+                if (.not.all(ieee_is_finite(self%external_efield_vector)) .or. &
+                    .not.all(ieee_is_finite(self%external_efield_origin))) then
+                    call PrtErr(io,'Applied electric fields and their origins must be finite.')
+                    ierr = 53
+                    return
+                endif
+            endif
+
+            if (self%ddx) then
+                if (.not.quick_ddx_available) then
+                    call PrtErr(io,'DDX requires a build configured with QUICK_DDX=ON.')
+                    ierr = 53
+                    return
+                endif
+                ! ECP initialization replaces nuclear charges by effective
+                ! charges. The initial all-electron cavity interface must
+                ! not interpret those values as Bondi element identifiers.
+                if (self%ecp) then
+                    call PrtErr(io,'DDX currently requires an all-electron calculation; ECP cavities are not implemented.')
+                    ierr = 53
+                    return
+                endif
+                if (self%MP2 .or. self%PBSOL .or. self%ddx_lmax < 0 .or. self%ddx_lmax > 20 .or. &
+                    self%ddx_nrad < 1 .or. self%ddx_nang < 6 .or. self%ddx_nlebedev < 6 .or. &
+                    .not.ieee_is_finite(self%ddx_epsilon) .or. self%ddx_epsilon < 1.d0 .or. &
+                    .not.ieee_is_finite(self%ddx_radius_scale) .or. self%ddx_radius_scale <= 0.d0 .or. &
+                    .not.ieee_is_finite(self%ddx_tolerance) .or. self%ddx_tolerance <= 0.d0 .or. &
+                    self%ddx_tolerance >= 1.d0) then
+                    ierr = 53
+                    return
+                endif
+                if (self%external_efield .and. .not.self%ddx_field_solute) then
+                    call PrtErr(io,'Combined DDX and applied fields require DDX_FIELD=SOLUTE.')
+                    call PrtErr(io,'This defines a solute Hamiltonian perturbation; the dielectric responds to the solute.')
+                    ierr = 53
+                    return
+                endif
+            endif
 
             ! If MP2, then set HF as default
             if (self%MP2) then
@@ -1201,12 +1296,6 @@ module quick_method_module
             if(self%DFT.and. self%OPT .and. (.not. (self%BLYP .or. self%B3LYP) .and. .not.(self%uselibxc)))then
                 call PrtWrn(io,"GEOMETRY OPTIMIZATION is only available with HF, DFT/BLYP, DFT/B3LYP" )
                 self%OPT = .false.
-            endif
-
-            if (self%external_efield .and. self%grad) then
-                call PrtErr(io,"EXTERNAL_EFIELD currently supports SCF energies and properties only.")
-                call PrtErr(io,"Analytic finite-field gradients are not implemented.")
-                call quick_exit(io,1)
             endif
 
             if (self%density_surface .and. &

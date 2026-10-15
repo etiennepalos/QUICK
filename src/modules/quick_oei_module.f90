@@ -24,9 +24,38 @@ module quick_oei_module
   private
 
   public :: get1eEnergy, get1e, attrashellopt, ekinetic, kineticO, attrashell
+  public :: get_external_efield_gradient
+  public :: add_external_field_operator, get_external_field_gpu_counts
   public :: bCalc1e
 
   logical :: bCalc1e = .false.
+
+#if defined(CUDA) || defined(CUDA_MPIV)
+  interface
+     subroutine gpu_external_field_matrix(nb,na,maxprim,nc,ang,centers,expo,coeff,atoms, &
+        field,origin,owned,cutoff,matrix,ierr)
+        implicit none
+        integer, intent(in) :: nb, na, maxprim, nc(nb), ang(3,nb), centers(nb), owned(nb)
+        double precision, intent(in) :: expo(maxprim,nb), coeff(maxprim,nb), atoms(3,na)
+        double precision, intent(in) :: field(3), origin(3), cutoff
+        double precision, intent(inout) :: matrix(nb,nb)
+        integer, intent(out) :: ierr
+     end subroutine gpu_external_field_matrix
+     subroutine gpu_external_field_gradient(nb,na,maxprim,nc,ang,centers,expo,coeff,atoms, &
+        field,origin,owned,cutoff,density,gradient,ierr)
+        implicit none
+        integer, intent(in) :: nb, na, maxprim, nc(nb), ang(3,nb), centers(nb), owned(nb)
+        double precision, intent(in) :: expo(maxprim,nb), coeff(maxprim,nb), atoms(3,na)
+        double precision, intent(in) :: field(3), origin(3), cutoff, density(nb,nb)
+        double precision, intent(inout) :: gradient(3,na)
+        integer, intent(out) :: ierr
+     end subroutine gpu_external_field_gradient
+     subroutine gpu_external_field_launch_counts(matrix,gradient)
+        implicit none
+        integer, intent(out) :: matrix, gradient
+     end subroutine gpu_external_field_launch_counts
+  end interface
+#endif
 
 contains
 
@@ -138,9 +167,7 @@ subroutine get1e(deltaO)
          ! The external electric field is a one-electron perturbation,
          ! h^F = F . (r-r0), added to Hcore after the usual T+V terms.
          if (quick_method%external_efield) then
-            do Ibas=1,nbasis
-               call externalEFieldO(Ibas)
-            enddo
+            call add_external_field_operator(.false.)
          endif
 
          timer_cumer%T1eT=timer_cumer%T1eT+timer_end%T1eT-timer_begin%T1eT
@@ -232,10 +259,7 @@ subroutine get1e(deltaO)
       ! Each MPI rank contributes only its owned basis-function rows to the
       ! finite-field one-electron operator; the normal reductions then apply.
       if (quick_method%external_efield) then
-         do i=1,mpi_nbasisn(quick_comm_rank)
-            Ibas=mpi_nbasis(quick_comm_rank,i)
-            call externalEFieldO(Ibas)
-         enddo
+         call add_external_field_operator(.true.)
       endif
 
 #ifdef CEW
@@ -406,6 +430,269 @@ subroutine externalEFieldO(IBAS)
    enddo
 
 end subroutine externalEFieldO
+
+subroutine add_external_field_operator(distributed)
+   use quick_basis_module, only: quick_basis, nbasis, ncontract, itype, aexp, dcoeff
+   use quick_calculated_module, only: quick_qm_struct
+   use quick_method_module, only: quick_method
+   use quick_molspec_module, only: natom, xyz
+#ifdef MPIV
+   use quick_basis_module, only: mpi_nbasisn, mpi_nbasis
+   use quick_mpi_module, only: bMPI, quick_comm_rank
+#endif
+   implicit none
+   logical, intent(in) :: distributed
+   integer :: ibas
+#ifdef MPIV
+   integer :: irow
+#endif
+#if defined(CUDA) || defined(CUDA_MPIV)
+   integer, allocatable :: owned(:)
+   integer :: ierr
+#endif
+
+   if (.not.quick_method%external_efield) return
+#if defined(CUDA) || defined(CUDA_MPIV)
+   if (quick_method%bGPU) then
+      ! Small MPI Hcore jobs call this on the master with every AO row;
+      ! the distributed branch owns exactly the same Ibas rows as the CPU.
+      allocate(owned(nbasis),stat=ierr)
+      call external_field_gpu_failure(ierr,'allocate Hcore row ownership')
+      owned = 1
+#ifdef MPIV
+      if (distributed .and. bMPI) then
+         owned = 0
+         do irow=1,mpi_nbasisn(quick_comm_rank)
+            owned(mpi_nbasis(quick_comm_rank,irow)) = 1
+         enddo
+      endif
+#endif
+      call gpu_external_field_matrix(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
+         aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
+         owned,quick_method%coreIntegralCutoff,quick_qm_struct%o,ierr)
+      call external_field_gpu_failure(ierr,'uniform-field AO matrix')
+      return
+   endif
+#endif
+   ! Preserve the established CPU integral evaluator and accumulation order.
+#ifdef MPIV
+   if (distributed .and. bMPI) then
+      do irow=1,mpi_nbasisn(quick_comm_rank)
+         ibas = mpi_nbasis(quick_comm_rank,irow)
+         call externalEFieldO(ibas)
+      enddo
+      return
+   endif
+#endif
+   do ibas=1,nbasis
+      call externalEFieldO(ibas)
+   enddo
+end subroutine add_external_field_operator
+
+subroutine get_external_efield_gradient()
+
+   ! Differentiate the same contracted moments and primitive screening used
+   ! by externalEFieldO. The field-polarized SCF orbitals already supply the
+   ! ordinary energy-weighted overlap (Pulay) contribution in the caller.
+   use quick_basis_module, only: quick_basis, nbasis, itype, ncontract, aexp, dcoeff
+   use quick_calculated_module, only: quick_qm_struct
+   use quick_method_module, only: quick_method
+   use quick_molspec_module, only: quick_molspec, natom, xyz
+   use quick_overlap_module, only: opf
+   use quick_mpi_module, only: master
+#ifdef MPIV
+   use quick_basis_module, only: mpi_nbasisn, mpi_nbasis
+   use quick_mpi_module, only: bMPI, quick_comm_rank
+#endif
+   implicit none
+
+   integer :: ibas, jbas, icon, jcon, irow, nrows, ia, ja, axis
+   integer :: angular_i(3), angular_j(3), shifted(3)
+   double precision :: ai, aj, coef, density, prefactor
+   double precision :: field(3), origin(3), center_i(3), center_j(3)
+   double precision :: derivative_i(3), derivative_j(3), value_i, value_j
+
+   if (.not. quick_method%external_efield) return
+   field = quick_method%external_efield_vector
+   if (all(field == 0.0d0)) return
+   origin = quick_method%external_efield_origin
+
+   ! Classical terms occur once before the caller's MPI sum. Point charges
+   ! have the same field coupling as the corresponding term in Ecore.
+   if (master) then
+      do ia=1,natom
+         quick_qm_struct%gradient(3*ia-2:3*ia) = quick_qm_struct%gradient(3*ia-2:3*ia) &
+            - quick_molspec%chg(ia)*field
+      enddo
+      do ia=1,quick_molspec%nextatom
+         quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) = quick_qm_struct%ptchg_gradient(3*ia-2:3*ia) &
+            - quick_molspec%extchg(ia)*field
+      enddo
+   endif
+
+#if defined(CUDA) || defined(CUDA_MPIV)
+   if (quick_method%bGPU) then
+      call add_external_field_gpu_gradient()
+      return
+   endif
+#endif
+
+   nrows = nbasis
+#ifdef MPIV
+   if (bMPI) nrows = mpi_nbasisn(quick_comm_rank)
+#endif
+   do irow=1,nrows
+      ibas = irow
+#ifdef MPIV
+      if (bMPI) ibas = mpi_nbasis(quick_comm_rank,irow)
+#endif
+      ia = quick_basis%ncenter(ibas)
+      angular_i = itype(:,ibas)
+      center_i = xyz(:,ia)
+      do jbas=ibas,nbasis
+         ja = quick_basis%ncenter(jbas)
+         angular_j = itype(:,jbas)
+         center_j = xyz(:,ja)
+         density = quick_qm_struct%dense(jbas,ibas)
+         if (quick_method%unrst) density = density + quick_qm_struct%denseb(jbas,ibas)
+         if (ibas /= jbas) density = 2.0d0*density
+         if (density == 0.0d0) cycle
+         derivative_i = 0.0d0
+         derivative_j = 0.0d0
+         do icon=1,ncontract(ibas)
+            ai = aexp(icon,ibas)
+            do jcon=1,ncontract(jbas)
+               aj = aexp(jcon,jbas)
+               coef = dcoeff(jcon,jbas)*dcoeff(icon,ibas)
+               prefactor = opf(ai,aj,dcoeff(jcon,jbas),dcoeff(icon,ibas), &
+                  center_i(1),center_i(2),center_i(3),center_j(1),center_j(2),center_j(3))
+               if (abs(prefactor) <= quick_method%coreIntegralCutoff) cycle
+
+               ! d chi_l / d A_k = 2 alpha chi_(l+e_k) - l_k chi_(l-e_k).
+               ! Keep original normalization coefficients for both shifted
+               ! polynomials. Same-center pairs also contribute in a field.
+               do axis=1,3
+                  shifted = angular_i
+                  shifted(axis) = shifted(axis) + 1
+                  value_i = 2.0d0*ai*external_efield_primitive_moment(aj,ai,angular_j,shifted, &
+                     center_j,center_i,field,origin)
+                  if (angular_i(axis) > 0) then
+                     shifted(axis) = shifted(axis) - 2
+                     value_i = value_i - dble(angular_i(axis))*external_efield_primitive_moment(aj,ai, &
+                        angular_j,shifted,center_j,center_i,field,origin)
+                  endif
+
+                  shifted = angular_j
+                  shifted(axis) = shifted(axis) + 1
+                  value_j = 2.0d0*aj*external_efield_primitive_moment(aj,ai,shifted,angular_i, &
+                     center_j,center_i,field,origin)
+                  if (angular_j(axis) > 0) then
+                     shifted(axis) = shifted(axis) - 2
+                     value_j = value_j - dble(angular_j(axis))*external_efield_primitive_moment(aj,ai, &
+                        shifted,angular_i,center_j,center_i,field,origin)
+                  endif
+                  derivative_i(axis) = derivative_i(axis) + coef*value_i
+                  derivative_j(axis) = derivative_j(axis) + coef*value_j
+               enddo
+            enddo
+         enddo
+         quick_qm_struct%gradient(3*ia-2:3*ia) = quick_qm_struct%gradient(3*ia-2:3*ia) + density*derivative_i
+         quick_qm_struct%gradient(3*ja-2:3*ja) = quick_qm_struct%gradient(3*ja-2:3*ja) + density*derivative_j
+      enddo
+   enddo
+
+end subroutine get_external_efield_gradient
+
+#if defined(CUDA) || defined(CUDA_MPIV)
+subroutine add_external_field_gpu_gradient()
+   use quick_basis_module, only: quick_basis, nbasis, ncontract, itype, aexp, dcoeff
+   use quick_calculated_module, only: quick_qm_struct
+   use quick_method_module, only: quick_method
+   use quick_molspec_module, only: natom, xyz
+#ifdef MPIV
+   use quick_basis_module, only: mpi_nbasisn, mpi_nbasis
+   use quick_mpi_module, only: bMPI, quick_comm_rank
+#endif
+   implicit none
+   integer, allocatable :: owned(:)
+   double precision, allocatable :: density(:,:), gradient(:,:)
+   integer :: ierr
+#ifdef MPIV
+   integer :: irow
+#endif
+
+   allocate(owned(nbasis),density(nbasis,nbasis),gradient(3,natom),stat=ierr)
+   call external_field_gpu_failure(ierr,'allocate electronic field-gradient workspace')
+   owned = 1
+#ifdef MPIV
+   if (bMPI) then
+      owned = 0
+      do irow=1,mpi_nbasisn(quick_comm_rank)
+         owned(mpi_nbasis(quick_comm_rank,irow)) = 1
+      enddo
+   endif
+#endif
+   density = quick_qm_struct%dense
+   if (quick_method%unrst) density = density + quick_qm_struct%denseb
+   ! Keep the cheap classical terms on the host, exactly once on master.
+   ! The kernel adds only the electronic contribution before MPI reduction.
+   gradient = reshape(quick_qm_struct%gradient,[3,natom])
+   call gpu_external_field_gradient(nbasis,natom,size(aexp,1),ncontract,itype,quick_basis%ncenter, &
+      aexp,dcoeff,xyz,quick_method%external_efield_vector,quick_method%external_efield_origin, &
+      owned,quick_method%coreIntegralCutoff,density,gradient,ierr)
+   call external_field_gpu_failure(ierr,'uniform-field electronic nuclear gradient')
+   quick_qm_struct%gradient = reshape(gradient,[3*natom])
+end subroutine add_external_field_gpu_gradient
+
+subroutine external_field_gpu_failure(status,operation)
+   use quick_files_module, only: ioutfile
+   use quick_mpi_module, only: master
+#ifdef MPIV
+   use mpi
+   use quick_mpi_module, only: bMPI, quick_comm, quick_mpi_error
+#endif
+   implicit none
+   integer, intent(inout) :: status
+   character(len=*), intent(in) :: operation
+   if (status == 0) return
+   if (master) write(ioutfile,'(A,1X,A)') 'External-field CUDA failure:',trim(operation)
+#ifdef MPIV
+   if (bMPI) call MPI_ABORT(quick_comm,status,quick_mpi_error)
+#endif
+   call quick_exit(ioutfile,status)
+end subroutine external_field_gpu_failure
+#endif
+
+subroutine get_external_field_gpu_counts(matrix,gradient)
+   implicit none
+   integer, intent(out) :: matrix, gradient
+   matrix = 0
+   gradient = 0
+#if defined(CUDA) || defined(CUDA_MPIV)
+   call gpu_external_field_launch_counts(matrix,gradient)
+#endif
+end subroutine get_external_field_gpu_counts
+
+function external_efield_primitive_moment(a,b,angular_a,angular_b,center_a,center_b,field,origin) result(moment)
+   implicit none
+
+   double precision, intent(in) :: a, b, center_a(3), center_b(3), field(3), origin(3)
+   integer, intent(in) :: angular_a(3), angular_b(3)
+   double precision, external :: xmoment
+   double precision :: moment
+   integer :: component, power(3)
+
+   moment = 0.0d0
+   do component=1,3
+      if (field(component) == 0.0d0) cycle
+      power = 0
+      power(component) = 1
+      moment = moment + field(component)*xmoment(a,b,angular_a(1),angular_a(2),angular_a(3), &
+         angular_b(1),angular_b(2),angular_b(3),power(1),power(2),power(3), &
+         center_a(1),center_a(2),center_a(3),center_b(1),center_b(2),center_b(3),origin(1),origin(2),origin(3))
+   enddo
+
+end function external_efield_primitive_moment
 
 double precision function ekinetic(a,b,i,j,k,ii,jj,kk,Ax,Ay,Az,Bx,By,Bz,Px,Py,Pz,g_table)
    use quick_overlap_module, only: overlap_core

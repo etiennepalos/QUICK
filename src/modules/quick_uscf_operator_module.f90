@@ -33,6 +33,7 @@ contains
   !  This code now also does all the HF energy calculation. Ed.
   !-------------------------------------------------------
      use allmod
+     use quick_solvation_module, only: add_solvation_operator
      use quick_cutoff_module, only: oshell_density_cutoff
      use quick_eri_oshell_module, only: getOshellEri, getOshellEriEnergy 
      use quick_oei_module, only: get1eEnergy, get1e
@@ -251,7 +252,9 @@ contains
   
 #endif
   
-    return
+    call add_solvation_operator()
+
+  return
   
   end subroutine uscf_operator
   

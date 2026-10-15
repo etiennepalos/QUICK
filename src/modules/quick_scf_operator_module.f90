@@ -34,6 +34,7 @@ contains
   !  This code now also does all the HF energy calculation. Ed.
   !-------------------------------------------------------
      use allmod
+     use quick_solvation_module, only: add_solvation_operator
      use quick_cutoff_module, only: cshell_density_cutoff
      use quick_eri_cshell_module, only: getCshellEri, getCshellEriEnergy 
      use quick_oei_module, only:get1eEnergy,get1e
@@ -246,6 +247,8 @@ contains
      timer_cumer%TEred=timer_cumer%TEred+timer_end%TEred-timer_begin%TEred
   
 #endif
+
+  call add_solvation_operator()
 
   return
   

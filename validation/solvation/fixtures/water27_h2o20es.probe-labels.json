@@ -1,0 +1,362 @@
+[
+  {
+    "xyz_angstrom": [
+      1.1849087155229752,
+      -2.717405247809111,
+      2.807834357100264
+    ],
+    "nearest_nucleus_atom_index_1based": 1,
+    "minimum_nuclear_distance_angstrom": 1.5000000000000002,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 1,
+    "oxygen_atom_index_1based": 1,
+    "hydrogen_atom_indices_1based": [
+      2,
+      3
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      2.5230300777680488,
+      -3.4773892404957625,
+      -1.4577839833853612
+    ],
+    "nearest_nucleus_atom_index_1based": 4,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 2,
+    "oxygen_atom_index_1based": 4,
+    "hydrogen_atom_indices_1based": [
+      5,
+      6
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      0.23021721599368303,
+      -0.33767127445061607,
+      2.8429079757084645
+    ],
+    "nearest_nucleus_atom_index_1based": 7,
+    "minimum_nuclear_distance_angstrom": 1.5000000000000002,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 3,
+    "oxygen_atom_index_1based": 7,
+    "hydrogen_atom_indices_1based": [
+      8,
+      9
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -4.178594223171194,
+      0.33652186994514055,
+      1.4249602094979499
+    ],
+    "nearest_nucleus_atom_index_1based": 10,
+    "minimum_nuclear_distance_angstrom": 1.5000000000000004,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 4,
+    "oxygen_atom_index_1based": 10,
+    "hydrogen_atom_indices_1based": [
+      11,
+      12
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      3.150277480906902,
+      1.558738408237271,
+      -2.6610327371491964
+    ],
+    "nearest_nucleus_atom_index_1based": 13,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 5,
+    "oxygen_atom_index_1based": 13,
+    "hydrogen_atom_indices_1based": [
+      14,
+      15
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -0.4710043750809694,
+      3.5044356876576073,
+      2.7025109098461915
+    ],
+    "nearest_nucleus_atom_index_1based": 16,
+    "minimum_nuclear_distance_angstrom": 1.5000000000000002,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 6,
+    "oxygen_atom_index_1based": 16,
+    "hydrogen_atom_indices_1based": [
+      17,
+      18
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -2.7882712474405595,
+      1.8954626095788902,
+      -2.697887920265983
+    ],
+    "nearest_nucleus_atom_index_1based": 35,
+    "minimum_nuclear_distance_angstrom": 1.4844303119172748,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 7,
+    "oxygen_atom_index_1based": 19,
+    "hydrogen_atom_indices_1based": [
+      20,
+      21
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -0.5189618352648661,
+      0.9513223943754102,
+      -2.293072926857237
+    ],
+    "nearest_nucleus_atom_index_1based": 22,
+    "minimum_nuclear_distance_angstrom": 1.5,
+    "frame_direction": "minus_bisector",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 8,
+    "oxygen_atom_index_1based": 22,
+    "hydrogen_atom_indices_1based": [
+      23,
+      24
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      1.1104823873772491,
+      2.699952777605901,
+      -2.867229070668056
+    ],
+    "nearest_nucleus_atom_index_1based": 25,
+    "minimum_nuclear_distance_angstrom": 1.5,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 9,
+    "oxygen_atom_index_1based": 25,
+    "hydrogen_atom_indices_1based": [
+      26,
+      27
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      3.1485015116734227,
+      -1.4191078034078317,
+      2.676703473763224
+    ],
+    "nearest_nucleus_atom_index_1based": 3,
+    "minimum_nuclear_distance_angstrom": 1.491315317381992,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 10,
+    "oxygen_atom_index_1based": 28,
+    "hydrogen_atom_indices_1based": [
+      29,
+      30
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -0.22439720323805012,
+      5.4081811175450225,
+      -1.719760213481247
+    ],
+    "nearest_nucleus_atom_index_1based": 31,
+    "minimum_nuclear_distance_angstrom": 1.5,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 11,
+    "oxygen_atom_index_1based": 31,
+    "hydrogen_atom_indices_1based": [
+      32,
+      33
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -2.8849500325965995,
+      -0.4712653440562087,
+      -2.8508768857297984
+    ],
+    "nearest_nucleus_atom_index_1based": 34,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 12,
+    "oxygen_atom_index_1based": 34,
+    "hydrogen_atom_indices_1based": [
+      35,
+      36
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -4.604675476359137,
+      -2.904510029080796,
+      -1.599309691797913
+    ],
+    "nearest_nucleus_atom_index_1based": 37,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 13,
+    "oxygen_atom_index_1based": 37,
+    "hydrogen_atom_indices_1based": [
+      38,
+      39
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      2.3346105520406564,
+      3.482350949739862,
+      1.453390160359068
+    ],
+    "nearest_nucleus_atom_index_1based": 40,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 14,
+    "oxygen_atom_index_1based": 40,
+    "hydrogen_atom_indices_1based": [
+      41,
+      42
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -0.3274521609481609,
+      -3.4958878760598164,
+      -2.736737617291387
+    ],
+    "nearest_nucleus_atom_index_1based": 43,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "plus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 15,
+    "oxygen_atom_index_1based": 43,
+    "hydrogen_atom_indices_1based": [
+      44,
+      45
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -4.722470755037964,
+      2.7345518081519096,
+      1.6327604681381098
+    ],
+    "nearest_nucleus_atom_index_1based": 46,
+    "minimum_nuclear_distance_angstrom": 1.5,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 16,
+    "oxygen_atom_index_1based": 46,
+    "hydrogen_atom_indices_1based": [
+      47,
+      48
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      4.86778266757652,
+      -2.437968222894616,
+      -1.7045461068100813
+    ],
+    "nearest_nucleus_atom_index_1based": 49,
+    "minimum_nuclear_distance_angstrom": 1.5,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 17,
+    "oxygen_atom_index_1based": 49,
+    "hydrogen_atom_indices_1based": [
+      50,
+      51
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      -2.687147967057924,
+      -2.0488495454335123,
+      2.7430631855062897
+    ],
+    "nearest_nucleus_atom_index_1based": 52,
+    "minimum_nuclear_distance_angstrom": 1.5,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 18,
+    "oxygen_atom_index_1based": 52,
+    "hydrogen_atom_indices_1based": [
+      53,
+      54
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      0.0061901635550239975,
+      -5.437455432052366,
+      1.6638145898816004
+    ],
+    "nearest_nucleus_atom_index_1based": 55,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 19,
+    "oxygen_atom_index_1based": 55,
+    "hydrogen_atom_indices_1based": [
+      56,
+      57
+    ]
+  },
+  {
+    "xyz_angstrom": [
+      4.644078319156851,
+      2.677251399674261,
+      1.7739643990229048
+    ],
+    "nearest_nucleus_atom_index_1based": 58,
+    "minimum_nuclear_distance_angstrom": 1.4999999999999998,
+    "frame_direction": "minus_normal",
+    "offset_from_oxygen_angstrom": 1.5,
+    "passes_0p8_angstrom_nuclear_clearance": true,
+    "molecule_index_1based": 20,
+    "oxygen_atom_index_1based": 58,
+    "hydrogen_atom_indices_1based": [
+      59,
+      60
+    ]
+  }
+]

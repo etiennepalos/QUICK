@@ -5,6 +5,10 @@
 
 include(CMakeFindDependencyMacro)
 
+if(@QUICK_DDX@)
+    find_dependency(ddX 1.0 CONFIG)
+endif()
+
 # find QUICK's dependency, MPI, if it was enabled in the build
 if(@MPI@)
 	find_dependency(MPI REQUIRED COMPONENTS C Fortran)

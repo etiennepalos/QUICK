@@ -34,7 +34,8 @@ set(QUICK_MODULES_SOURCES
         quick_cew_module.f90 quick_lri_module.f90 quick_lri_grad_module.f90
 	quick_eri_oshell_module.f90 quick_eri_grad_oshell_module.f90 quick_molsurface_module.f90
 	quick_grad_oshell_module.f90 quick_dftd3_module.f90 quick_molden_module.f90
-	quick_oeproperties_module.f90)
+	quick_oeproperties_module.f90 quick_ddx_backend_module.f90 quick_solvation_grid_module.f90
+    quick_solvation_coulomb_module.f90 quick_solvation_ao_module.f90 quick_solvation_module.f90)
 
 set(QUICK_SUBS_FORTRAN_SOURCES Angles.f90 copyDMat.f90 copySym.f90
 	degen.f90 denspt.f90 dipole.f90 EffChar.f90
@@ -133,6 +134,12 @@ target_compile_options(libquick PRIVATE
 	"$<$<COMPILE_LANGUAGE:Fortran>:${OPT_FFLAGS}>"
 	"$<$<COMPILE_LANGUAGE:C>:${OPT_CFLAGS}>"
 	"$<$<COMPILE_LANGUAGE:CXX>:${OPT_CXXFLAGS}>")
+if(QUICK_DDX)
+    target_compile_definitions(libquick PRIVATE QUICK_DDX)
+    # Public because the optional backend module contains native ddX types;
+    # consumers need the matching Fortran module include directory as well.
+    target_link_libraries(libquick PUBLIC ddx::ddx)
+endif()
 if(HDF5)
 	target_compile_definitions(libquick PRIVATE
 		"$<$<COMPILE_LANGUAGE:Fortran>:${HDF5_Fortran_DEFINITIONS}>" "RESTART_HDF5")

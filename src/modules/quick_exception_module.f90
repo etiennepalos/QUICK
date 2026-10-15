@@ -174,6 +174,12 @@ contains
    case(52)
       msg='Unsupported element symbol in QUICK OEPROP trajectory file.'
 
+    case(53)
+      msg='Invalid or unavailable QUICK ddX continuum-solvation request.'
+
+    case(54)
+      msg='Invalid QUICK solvent electronic-integral request.'
+
     case default
       msg='Unknown error.'
 

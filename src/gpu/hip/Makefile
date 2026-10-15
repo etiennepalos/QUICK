@@ -24,10 +24,14 @@ include $(MAKEIN)
 
 LIBXC_HIP_FLAGS = -I$(libxcfolder)
 
+# Backend-independent kernels and redistribution code live one level up.
+vpath %.cu ..
+vpath %.cpp ..
+
 CXXOBJ=$(objfolder)/xc_redistribute.o
 
-HIPCOBJ=$(objfolder)/gpu.o $(objfolder)/gpu_type.o $(objfolder)/gpu_get2e.o $(objfolder)/gpu_lri.o $(objfolder)/gpu_oei.o \
-	$(objfolder)/gpu_get2e_grad_ffff.o
+HIPCOBJ=$(objfolder)/gpu_utils.o $(objfolder)/gpu.o $(objfolder)/gpu_type.o $(objfolder)/gpu_get2e.o $(objfolder)/gpu_lri.o $(objfolder)/gpu_oei.o \
+	$(objfolder)/gpu_oeprop.o $(objfolder)/gpu_get2e_grad_ffff.o
 
 HIPXCOBJ=$(objfolder)/gpu_getxc.o
 

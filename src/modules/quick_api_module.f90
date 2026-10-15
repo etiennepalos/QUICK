@@ -968,6 +968,8 @@ subroutine broadcast_quick_mpi_results(self,ierr)
 
   call MPI_BCAST(self%tot_ene,1,mpi_double_precision,0,quick_comm,quick_mpi_error)
   call MPI_BCAST(self%gradient,3*self%natoms,mpi_double_precision,0,quick_comm,quick_mpi_error)
+  ! Energy-only calls do not allocate external-charge gradient storage.
+  if (allocated(self%ptchg_grad)) &
   call MPI_BCAST(self%ptchg_grad,3*self%nxt_ptchg,mpi_double_precision,0,quick_comm,quick_mpi_error)
 end subroutine
 #endif
@@ -975,6 +977,7 @@ end subroutine
 
 ! fialize quick and deallocate memory of quick_api internal arrays
 subroutine delete_quick_job(ierr)
+  use quick_solvation_module, only: finalize_solvation
   use quick_files_module, only: iOutFile
   use quick_exception_module
   use quick_method_module
@@ -984,6 +987,7 @@ subroutine delete_quick_job(ierr)
   integer, intent(out) :: ierr
   ierr=0
 
+  call finalize_solvation()
   quick_api%density_ready = .false.
 #if defined(GPU) || defined(MPIV_GPU)
   if (quick_api%gpu_molspecs_ready) call gpu_cleanup()

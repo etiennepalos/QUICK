@@ -1,0 +1,17 @@
+&coulomb_benchmark
+ geometry_file='geometry.xyz'
+ output_prefix='coulomb-cache-production-pcm'
+ repetitions=3
+ cavity_model=2
+ cavity_lmax=6
+ cavity_nlebedev=302
+ volume_nrad=75
+ volume_nang=302
+ dielectric=78.3553
+ radius_scale=1.1
+ solver_tolerance=1.0d-10
+ max_cavity_points=0
+ cache_limit_bytes=8589934592
+ controlled_direct=.true.
+ repeat_gradients=.false.
+/

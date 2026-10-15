@@ -47,6 +47,16 @@ endif()
 
 option(ENABLEF "Enables the support for f functions in the ERI code." FALSE)
 
+# ddX remains an external, optional CPU continuum solver.  The package must
+# supply native Fortran modules built with a compatible Fortran compiler.
+option(QUICK_DDX "Enable continuum solvation through the external ddX library." OFF)
+if(QUICK_DDX)
+    find_package(ddX 1.0 CONFIG REQUIRED)
+    if(NOT TARGET ddx::ddx)
+        message(FATAL_ERROR "The ddX package does not provide the ddx::ddx library target.")
+    endif()
+endif()
+
 # Compiler flags
 # These should really go into cmake/CompilerFlags.cmake but with the
 # current setup in Amber the Amber compilation flags will take
@@ -449,6 +459,8 @@ else()
 
 	# install modules
 	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/amber-modules/ DESTINATION ./include)
+	# Match exported target paths while preserving the historical module layout.
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/amber-modules DESTINATION ./include)
 
 	# install data in basis dir
 	install(DIRECTORY basis DESTINATION . USE_SOURCE_PERMISSIONS)

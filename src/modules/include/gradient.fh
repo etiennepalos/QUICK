@@ -182,6 +182,7 @@ contains
   subroutine scf_gradient
 #endif
     use allmod
+    use quick_solvation_module, only: add_solvation_gradient
 #ifdef CEW
     use quick_cew_module
 #endif
@@ -345,6 +346,8 @@ contains
   endif
 #endif
   
+  call add_solvation_gradient()
+
 #ifdef MPIV
   
      call MPI_BARRIER(quick_comm,quick_mpi_error)
@@ -527,7 +530,7 @@ contains
   subroutine get_cshell_oneen_grad
 #endif  
     use allmod
-    use quick_oei_module, only:attrashellopt
+    use quick_oei_module, only:attrashellopt, get_external_efield_gradient
 #ifdef OSHELL
     use quick_cutoff_module, only: oshell_density_cutoff
 #else
@@ -654,6 +657,11 @@ contains
   
      RECORD_TIME(timer_end%T1eVGrad)
      timer_cumer%T1eVGrad=timer_cumer%T1eVGrad+timer_end%T1eVGrad-timer_begin%T1eVGrad
+
+     ! GPU attraction gradients are downloaded additively before this
+     ! field term. Each MPI rank owns its field AO pairs; the existing total
+     ! gradient reduction below the one-electron path sums them once.
+     if (quick_method%external_efield) call get_external_efield_gradient()
   
 #ifdef MPIV
      call MPI_BARRIER(quick_comm,quick_mpi_error)

@@ -15,6 +15,8 @@ program quick_oeprop_bomd_driver
   use quick_api_module, only: setQuickJob, getQuickEnergyGradients, &
     getQuickOEPROP, getQuickDensitySurface, deleteQuickJob, quick_api
   use quick_constants_module, only: BOHRS_TO_A
+  use quick_input_parser_module, only: found_keyword
+  use quick_oei_module, only: get_external_field_gpu_counts
 #ifdef MPIV
   use mpi
   use quick_api_module, only: setQuickMPI
@@ -58,6 +60,7 @@ program quick_oeprop_bomd_driver
   integer :: rank_id, rank_count, force_calls, api_energy_gradient_calls
   integer :: property_calls, probe_generation_calls, properties_extra_api_calls
   integer :: launches_before(3), launches_after(3), launch_deltas(3)
+  integer :: field_before(2), field_after(2), field_deltas(2)
   double precision :: force_wall_seconds, probe_wall_seconds, oeprop_wall_seconds
   logical :: is_master
 
@@ -126,12 +129,18 @@ program quick_oeprop_bomd_driver
     call stop_on_error(45,'nonfinite controls')
   if (nsteps < 0 .or. oeprop_stride < 0 .or. dt_fs <= 0.0d0 .or. temperature_k < 0.0d0) &
     call stop_on_error(45,'invalid controls')
-  if (index(uppercase(keywd),'OPT') /= 0) call stop_on_error(45,'optimizer keyword in BOMD')
-  if (index(uppercase(keywd),'MP2') /= 0) call stop_on_error(45,'MP2 unavailable in energy-gradient API')
-  if (index(uppercase(keywd),'ESP') /= 0 .or. index(uppercase(keywd),'RESP') /= 0 .or. &
-      index(uppercase(keywd),'EFIELD') /= 0 .or. index(uppercase(keywd),'EFG') /= 0) &
+  keywd=uppercase(keywd)
+  if (found_keyword(keywd,'OPT') .or. found_keyword(keywd,'OPTIMIZE')) &
+    call stop_on_error(45,'optimizer keyword in BOMD')
+  if (found_keyword(keywd,'MP2')) call stop_on_error(45,'MP2 unavailable in energy-gradient API')
+  if (found_keyword(keywd,'ESP') .or. found_keyword(keywd,'RESP') .or. &
+      found_keyword(keywd,'ESP_CHARGE') .or. found_keyword(keywd,'ESP_GRID') .or. &
+      found_keyword(keywd,'ESP_SURFACE') .or. found_keyword(keywd,'EFIELD') .or. &
+      found_keyword(keywd,'EFIELD_GRID') .or. found_keyword(keywd,'EFIELD_SURFACE') .or. &
+      found_keyword(keywd,'EFG') .or. found_keyword(keywd,'EFG_GRID') .or. &
+      found_keyword(keywd,'EFG_GRID_NUMERICAL') .or. found_keyword(keywd,'EFG_SURFACE')) &
     call stop_on_error(45,'property keywords belong in BOMD probe controls')
-  if (index(uppercase(keywd),'GRADIENT') == 0) then
+  if (.not. found_keyword(keywd,'GRADIENT')) then
     if (len_trim(keywd)+9 > len(keywd)) call stop_on_error(45,'keyword length')
     keywd=trim(keywd)//' GRADIENT'
   endif
@@ -175,6 +184,7 @@ program quick_oeprop_bomd_driver
   job_name='quick_oeprop_bomd'
   call setQuickJob(job_name,keywd,natom,atomic_numbers,.true.,ierr)
   call stop_on_error(ierr,'setQuickJob')
+  call get_external_field_gpu_counts(field_before(1),field_before(2))
 #if defined(GPU) || defined(MPIV_GPU)
   call gpu_oeprop_launch_counts(launches_before(1),launches_before(2),launches_before(3))
 #endif
@@ -242,6 +252,8 @@ program quick_oeprop_bomd_driver
   call gpu_oeprop_launch_counts(launches_after(1),launches_after(2),launches_after(3))
 #endif
   launch_deltas=launches_after-launches_before
+  call get_external_field_gpu_counts(field_after(1),field_after(2))
+  field_deltas=field_after-field_before
   call write_kernel_counts(kernels_file,ierr)
   call stop_on_error(ierr,'write launch counts')
   call write_summary(summary_file,start_step+nsteps,nsteps,dt_fs,total0,total,max_drift, &
@@ -277,8 +289,12 @@ contains
   end function wall_time_seconds
 
   subroutine evaluate_forces()
+    use quick_method_module, only: quick_method
     implicit none
-    integer :: before_step,delta
+    integer :: before_step,delta,convergence_status
+#ifdef MPIV
+    integer :: global_convergence_status
+#endif
     double precision :: begin_time
 
     before_step=quick_api%step
@@ -286,6 +302,18 @@ contains
     call getQuickEnergyGradients(coords,0,ptchg,potential,gradients,ptchg_grad,ierr)
     force_wall_seconds=force_wall_seconds+wall_time_seconds()-begin_time
     call stop_on_error(ierr,'energy and gradient')
+    convergence_status=0
+    if (quick_method%unrst) then
+      if (.not.quick_method%uscf_conv) convergence_status=53
+    else
+      if (.not.quick_method%scf_conv) convergence_status=53
+    endif
+#ifdef MPIV
+    call MPI_ALLREDUCE(convergence_status,global_convergence_status,1,MPI_INTEGER,MPI_MAX,quick_comm,quick_mpi_error)
+    call stop_on_error(quick_mpi_error,'check SCF convergence across job ranks')
+    convergence_status=global_convergence_status
+#endif
+    call stop_on_error(convergence_status,'unconverged SCF in force evaluation')
     delta=quick_api%step-before_step
     force_calls=force_calls+1
     api_energy_gradient_calls=api_energy_gradient_calls+delta
@@ -852,12 +880,18 @@ contains
 
   subroutine write_summary(file,final_step,steps_run,dt_fs,total0,total,max_drift,max_force_change, &
       max_net_gradient,mode,ierr)
+    use iso_c_binding, only: c_int64_t
+    use quick_method_module, only: quick_method
+    use quick_solvation_module, only: solvation_updates, solvation_wall_seconds, solvation_timing_labels, &
+      solvation_gpu_volume_density, solvation_gpu_volume_matrix, solvation_gpu_volume_gradient
+    use quick_solvation_coulomb_module, only: solvation_coulomb_cache_info
     implicit none
     character(len=*), intent(in) :: file,mode
     integer, intent(in) :: final_step,steps_run
     double precision, intent(in) :: dt_fs,total0,total,max_drift,max_force_change,max_net_gradient
     integer, intent(out) :: ierr
-    integer :: unit
+    integer :: unit, phase
+    integer(c_int64_t) :: cache_data(7)
 
     ierr=0
     if (is_master) then
@@ -892,6 +926,25 @@ contains
         write(unit,'(A,ES24.16,A)') '  "final_total_au": ',total,','
         write(unit,'(A,ES24.16,A)') '  "max_abs_drift_au": ',max_drift,','
         write(unit,'(A,ES24.16,A)') '  "max_gradient_change_au_per_bohr": ',max_force_change,','
+        if (quick_method%external_efield) then
+          write(unit,'(A,I0,A,I0,A)') '  "applied_field_master_gpu_calls": [',field_deltas(1),',',field_deltas(2),'],'
+        endif
+        if (quick_method%ddx) then
+          call solvation_coulomb_cache_info(cache_data(1),cache_data(2),cache_data(3), &
+            cache_data(4),cache_data(5),cache_data(6),cache_data(7))
+          write(unit,'(A,I0,6(A,I0),A)') '  "solvation_gpu_coulomb_cache": [', &
+            cache_data(1),',',cache_data(2),',',cache_data(3),',',cache_data(4),',',cache_data(5), &
+            ',',cache_data(6),',',cache_data(7),'],'
+          write(unit,'(A,I0,A)') '  "solvation_updates": ',solvation_updates,','
+          write(unit,'(A,I0,A,I0,A,I0,A)') '  "solvation_gpu_volume_calls": [', &
+            solvation_gpu_volume_density,',',solvation_gpu_volume_matrix,',',solvation_gpu_volume_gradient,'],'
+          write(unit,'(A)') '  "solvation_master_phase_seconds": {'
+          do phase=1,size(solvation_wall_seconds)
+            write(unit,'(3A,ES24.16,A)') '    "',trim(solvation_timing_labels(phase)),'": ', &
+              solvation_wall_seconds(phase),merge(',', ' ',phase < size(solvation_wall_seconds))
+          enddo
+          write(unit,'(A)') '  },'
+        endif
         write(unit,'(A,ES24.16)') '  "max_net_gradient_au_per_bohr": ',max_net_gradient
         write(unit,'(A)') '}'
         close(unit)

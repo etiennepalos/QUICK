@@ -109,9 +109,18 @@ Implementation notes for this feature:
 - `EXTERNAL_EFIELD_ORIGIN_X/Y/Z` and `FINITE_FIELD_ORIGIN_X/Y/Z` set the
   finite-field origin in bohr.  The default is the Cartesian origin; charged
   systems are origin-dependent.
-- Finite external fields currently support SCF energies and post-SCF
-  properties.  Analytic gradients under finite fields are intentionally blocked
-  until moment-integral derivative terms are implemented.
+- Finite external fields include analytic contracted-moment nuclear derivatives
+  and classical nucleus/point-charge forces. CUDA builds use the independent
+  `gpu_external_field.cu` FP64 operator and derivative kernels; CPU remains the
+  moment-integral reference. Retain MPI AO-row ownership and master-only
+  classical terms before the shared gradient reduction.
+- Optional CMake `QUICK_DDX=ON` enables independent continuous-density ddCOSMO
+  and ddPCM modules. Do not move the solvent operator ahead of the ordinary
+  `oSave` assignment/MPI reduction or apply it to delta density. Keep solvent
+  gradients before the shared gradient reduction and release geometry/GPU
+  caches before GPU job deletion. Combined fields require the explicit
+  `DDX_FIELD=SOLUTE` convention. See
+  `docs/gpu-electrostatics-bomd/applied-fields-and-ddx.md` for scope and controls.
 - Regression coverage lives in the ESP/OEPROP subset of `test/testlist_full.txt`.
   The numerical EFG saved `.out` baseline may be ignored by `.gitignore`; use
   `git add -f test/saved/efg_grid_numerical_acetone_b3lyp_def2svp.out` when this

@@ -1,0 +1,29 @@
+{
+  "dataset": "WATER27",
+  "structure_id": "H2O20es",
+  "geometry_file": "water27_h2o20es.xyz",
+  "geometry_sha256": "2043d27a9ca2cc7c79a23a005d68b59a076bce575bca4452efb1a4a06b775982",
+  "geometry_copy": "Byte-identical user-supplied WATER27/H2O20es.xyz; no coordinate transformation or optimization.",
+  "units": "angstrom",
+  "charge": 0,
+  "spin": 0,
+  "waters": 20,
+  "atoms": 60,
+  "probe_file": "water27_h2o20es.probe",
+  "probe_sha256": "dad131c19aa5385905874ac619ddd42734f6f59e74aa64de38084f29dea9d273",
+  "probe_labels": "water27_h2o20es.probe-labels.json",
+  "probe_construction": "One initial fixed Cartesian probe per water, offset 1.5 Angstrom from O. Select largest nuclear clearance among minus OH bisector, plus normal and minus normal; preserve atom-labelled selection.",
+  "trajectory_probe_mode": "fixed; coordinates remain fixed during trajectory, not reconstructed molecular frames",
+  "minimum_initial_probe_nuclear_distance_angstrom": 1.4844303119172748,
+  "geometric_exclusion_angstrom": 0.8,
+  "probe_scope": "Forward total-QM ESP/EFIELD/EFG using solvent-polarized density; no environment-only field or property-accuracy bound from geometric clearance.",
+  "original_dataset_filename": "H2O20es.xyz",
+  "original_atom_order_preserved": true,
+  "measured_transfer_evidence": {
+    "archive_relative_report": "water20-coupled-cuda-v2/report.json",
+    "report_sha256": "edec1a8afd951cd5a49c44e1f1073683993db9cdeb6e4143a8ba1d985d349f56",
+    "dt_fs": 0.025,
+    "steps": 2,
+    "scope": "Previously accepted finite-cluster software/force transfer check; no new calculation for this metadata amendment."
+  }
+}

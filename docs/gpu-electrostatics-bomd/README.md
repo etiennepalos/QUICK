@@ -1,5 +1,19 @@
 # QUICK GPU electrostatics and BOMD
 
+## Applied fields and optional equilibrium solvation
+
+The working branch adds uniform-field analytic gradients and optional
+continuous-density ddCOSMO/ddPCM with CPU/CUDA operators and live-density
+ESP/EFIELD/EFG sampling. See the [interface, model conventions and accuracy
+controls](applied-fields-and-ddx.md). The archived checkpoints below
+predate the new per-force SCF-convergence guard; their evidence and limits
+remain historical. Current release acceptance uses separately pinned
+source/runtime reports and retains failed convergence checks.
+
+The [2026-10-15 engineering acceptance report](fields-ddx-acceptance-20261015.md)
+and [evidence manifest](fields-ddx-acceptance-20261015.json) record the applied-field
+and ddX implementation, GPU validation, optimizations and remaining accuracy limits.
+
 ## Master integration, 2026-10-14
 
 The feature includes upstream master
@@ -73,8 +87,8 @@ distribution. Their claims and tables require reconciliation with this evidence.
 QUICK prints `G_ij = dE_i/dC_j`, the negative electrostatic-potential Hessian.
 Standalone BOMD uses finite molecules without PBC or a thermostat. Current
 probe modes do not independently rotate a local frame for each water, and the
-driver needs an explicit per-force-evaluation SCF-convergence guard before
-production sampling. This checkpoint does not establish periodic or
+current driver rejects unconverged SCF results before accepting a force
+evaluation; historical checkpoints predate this guard. This does not establish periodic or
 polarizable QM/MM dynamics.
 
 ## Work remaining for submission
@@ -82,8 +96,8 @@ polarizable QM/MM dynamics.
 1. Recheck the final implementation against independent references; measure
    absolute CPU/GPU scaling and paired whole-job property-sampling overhead.
    Existing optimization percentages use specified historical baselines.
-2. Prepare and relax selected WATER20 structures, validate rotating probes and
-   convergence guards, check timestep behavior, and complete an interpretable
+2. Prepare and relax selected WATER20 structures, validate rotating probes,
+   converge numerical settings and timestep, and complete an interpretable
    trajectory demonstration with sampling appropriate to the claimed observable.
 3. Compare with existing implementations, update the manuscript, and archive
    portable inputs, analysis scripts and raw results for the publication release.

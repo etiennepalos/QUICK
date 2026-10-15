@@ -1,0 +1,3962 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-15T02:03:40.318110+00:00",
+  "status": "ENGINEERING_ACCEPTED_WITH_RETAINED_NUMERICAL_LIMITS",
+  "intended_repository_paths": [
+    "docs/gpu-electrostatics-bomd/fields-ddx-acceptance-20261015.md",
+    "docs/gpu-electrostatics-bomd/fields-ddx-acceptance-20261015.json"
+  ],
+  "author": "etiennepalos <33858083+etiennepalos@users.noreply.github.com>",
+  "feature_branch": "feature/gpu-electrostatics-bomd",
+  "final_commit": "Containing Git commit; final SHA and verified remote state are recorded in external publication-receipt.json",
+  "remote_update": "See external publication receipt; no push claim made by this report.",
+  "artifact_root": "/home/epalos/software/quick_ep/fields-ddx-20261014",
+  "repository": "/home/epalos/software/quick_ep/worktrees/gpu-electrostatics-fields-ddx",
+  "generator": "/home/epalos/software/quick_ep/fields-ddx-20261014/prepare_final_acceptance_draft_v3.py",
+  "generator_sha256": "170fb0629637c94cecb800732971b07671b4178589b2c3c818fd90b6a7fa6546",
+  "source_snapshot_reference": {
+    "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/after-build.json",
+    "archive_relative_path": "release-preparation-v1/after-build.json",
+    "sha256": "77710a3ced23d2924319ace9c5c96fe2b0c3244a5986d539d2ffa69ebfd5821e",
+    "bytes": 585578
+  },
+  "toolchain": {
+    "Fortran": "GNU Fortran conda-forge14.4.0-7",
+    "CUDA": "13.0.88",
+    "MPI": "Open MPI5.0.11",
+    "CMake": "4.2.3",
+    "GPU": "NVIDIA RTX PRO5000 72GB Blackwell",
+    "native_architecture": "SM120",
+    "ddX": "1.0 installed local checkout",
+    "physical_GPUs_tested": 1,
+    "HIP_runtime_validation": false,
+    "ddX_source_HEAD": "23de728143825695f54a04aeec2dd836b2ca9419",
+    "ddX_source_clean": true
+  },
+  "evidence": [
+    {
+      "id": "field_cpu",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cpu-full-v1/report.json",
+          "archive_relative_path": "field-cpu-full-v1/report.json",
+          "sha256": "50e2154a349039cac7b06e42174f4d48845a068facfdc087090f341468f14d01",
+          "bytes": 1523128
+        }
+      ],
+      "metrics": {
+        "completed_runs": 1031,
+        "passed_checks": 158,
+        "failed_checks": 0,
+        "cases": [
+          "water_hf_sto3g",
+          "water_hf_631gss",
+          "water_cation_uhf_sto3g",
+          "water_pbe0_sto3g",
+          "helium_hf_sto3g"
+        ]
+      },
+      "scope": "Only cases, signed-field/origin/charge identities and derivative controls explicitly named in the referenced report; no universal quadrature claim."
+    },
+    {
+      "id": "field_cuda",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cuda-four-cases-v2/report.json",
+          "archive_relative_path": "field-cuda-four-cases-v2/report.json",
+          "sha256": "d402e678d4f0cf9c1aa3857a96b4f654d9ea87851553496418bf2ab9434b6803",
+          "bytes": 1125612
+        }
+      ],
+      "metrics": {
+        "completed_runs": 188,
+        "passed_checks": 50,
+        "failed_checks": 0,
+        "cases": [
+          "water_hf_sto3g",
+          "water_hf_631gss",
+          "water_cation_uhf_sto3g",
+          "water_pbe0_sto3g"
+        ]
+      },
+      "scope": "Only cases, signed-field/origin/charge identities and derivative controls explicitly named in the referenced report; no universal quadrature claim."
+    },
+    {
+      "id": "field_mpi2",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-mpi-smoke/report.json",
+          "archive_relative_path": "field-mpi-smoke/report.json",
+          "sha256": "3d7a7a895b66d10ccfd57111a53f568c950c45f32b19073d8554337aa921f54c",
+          "bytes": 388609
+        }
+      ],
+      "metrics": {
+        "completed_runs": 47,
+        "passed_checks": 14,
+        "failed_checks": 0,
+        "cases": [
+          "water_hf_sto3g"
+        ]
+      },
+      "scope": "Only cases, signed-field/origin/charge identities and derivative controls explicitly named in the referenced report; no universal quadrature claim."
+    },
+    {
+      "id": "solvation_cpu_full",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-full-v2/report.json",
+          "archive_relative_path": "solvation-cpu-full-v2/report.json",
+          "sha256": "478a9a642a089236b022d27ddcecbef77a0aaf1d8040ce0829b2872b6140d163",
+          "bytes": 4151210
+        }
+      ],
+      "metrics": {
+        "completed_runs": 858,
+        "passed_checks": 6278,
+        "failed_checks": 0,
+        "cases": [
+          "helium",
+          "water",
+          "water_spd",
+          "water_cation",
+          "water_pbe0",
+          "water_pbe0_spd"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 6,
+          "nang": 302,
+          "nlebedev": 302,
+          "nrad": 75
+        },
+        "nuclear_FD": {
+          "checks": 48,
+          "maximum_error": 2.3372626228868043e-07
+        },
+        "frozen_density_variational": {
+          "checks": 84,
+          "maximum_error": 1.8968651094297684e-09
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "solvation_cuda_full",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cuda-full-v2/report.json",
+          "archive_relative_path": "solvation-cuda-full-v2/report.json",
+          "sha256": "19c34c6fc4e9c5d50d487b4b306adff704da9dcf062484e8b623ef198ba24147",
+          "bytes": 4468588
+        }
+      ],
+      "metrics": {
+        "completed_runs": 858,
+        "passed_checks": 6278,
+        "failed_checks": 0,
+        "cases": [
+          "helium",
+          "water",
+          "water_spd",
+          "water_cation",
+          "water_pbe0",
+          "water_pbe0_spd"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 6,
+          "nang": 302,
+          "nlebedev": 302,
+          "nrad": 75
+        },
+        "nuclear_FD": {
+          "checks": 48,
+          "maximum_error": 2.45457884573419e-07
+        },
+        "frozen_density_variational": {
+          "checks": 84,
+          "maximum_error": 1.8905019771864318e-09
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "solvation_mpi2",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-mpi2-forces-v2/report.json",
+          "archive_relative_path": "solvation-mpi2-forces-v2/report.json",
+          "sha256": "9655da40282899bf5e02a424c85f3ee3a784963973da37d1005d53ca178371da",
+          "bytes": 2092946
+        }
+      ],
+      "metrics": {
+        "completed_runs": 310,
+        "passed_checks": 2262,
+        "failed_checks": 0,
+        "cases": [
+          "water",
+          "water_cation"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 6,
+          "nang": 302,
+          "nlebedev": 302,
+          "nrad": 75
+        },
+        "nuclear_FD": {
+          "checks": 16,
+          "maximum_error": 2.3373695201556188e-07
+        },
+        "frozen_density_variational": {
+          "checks": 36,
+          "maximum_error": 1.8951968883129666e-09
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "solvation_cuda_mpi1",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cudampi-forces-v2/report.json",
+          "archive_relative_path": "solvation-cudampi-forces-v2/report.json",
+          "sha256": "f24f631eed2c95b65f51077be2ef15ba2d961cb8551ebe48d9e65a085e1f2a78",
+          "bytes": 1617973
+        }
+      ],
+      "metrics": {
+        "completed_runs": 166,
+        "passed_checks": 1246,
+        "failed_checks": 0,
+        "cases": [
+          "water",
+          "water_cation"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 6,
+          "nang": 302,
+          "nlebedev": 302,
+          "nrad": 75
+        },
+        "nuclear_FD": {
+          "checks": 8,
+          "maximum_error": 6.194830165506815e-08
+        },
+        "frozen_density_variational": {
+          "checks": 36,
+          "maximum_error": 1.8927235334587067e-09
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "dimer_cpu",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-water-dimer-v2/report.json",
+          "archive_relative_path": "solvation-cpu-water-dimer-v2/report.json",
+          "sha256": "e1e776f5ddfdaf9891f00144d25fbab9f906cd9d20f313ee73ca328b717595b9",
+          "bytes": 2032833
+        }
+      ],
+      "metrics": {
+        "completed_runs": 303,
+        "passed_checks": 2167,
+        "failed_checks": 0,
+        "cases": [
+          "water_dimer"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 6,
+          "nang": 302,
+          "nlebedev": 302,
+          "nrad": 75
+        },
+        "nuclear_FD": {
+          "checks": 8,
+          "maximum_error": 3.375215488696237e-07
+        },
+        "frozen_density_variational": {
+          "checks": 12,
+          "maximum_error": 1.9624242161841998e-10
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "dimer_cuda",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cuda-water-dimer-v2/report.json",
+          "archive_relative_path": "solvation-cuda-water-dimer-v2/report.json",
+          "sha256": "d7bd3f184d6b8458aca84ebec3b86f5382625bc3d397c58925fca7a7107305e1",
+          "bytes": 1565344
+        }
+      ],
+      "metrics": {
+        "completed_runs": 159,
+        "passed_checks": 1155,
+        "failed_checks": 0,
+        "cases": [
+          "water_dimer"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 6,
+          "nang": 302,
+          "nlebedev": 302,
+          "nrad": 75
+        },
+        "nuclear_FD": {
+          "checks": 4,
+          "maximum_error": 9.292156440826593e-08
+        },
+        "frozen_density_variational": {
+          "checks": 12,
+          "maximum_error": 1.9707176515670888e-10
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "frozen_cpu",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-frozen-smoke-v3/report.json",
+          "archive_relative_path": "solvation-cpu-frozen-smoke-v3/report.json",
+          "sha256": "587aaf0bad7cc384a867202ef57ed742b063d3816073d00a767cf5c7d49b878a",
+          "bytes": 364702
+        }
+      ],
+      "metrics": {
+        "completed_runs": 8,
+        "passed_checks": 106,
+        "failed_checks": 0,
+        "cases": [
+          "helium",
+          "water"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 4,
+          "nang": 110,
+          "nlebedev": 110,
+          "nrad": 50
+        },
+        "nuclear_FD": {
+          "checks": 0,
+          "maximum_error": null
+        },
+        "frozen_density_variational": {
+          "checks": 24,
+          "maximum_error": 7.123254867902329e-10
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "frozen_cuda",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cuda-frozen-smoke/report.json",
+          "archive_relative_path": "solvation-cuda-frozen-smoke/report.json",
+          "sha256": "0de15012fd0b0fedcb5c36a157fc4291fdc906018fb880dfd708688e9ef3ac50",
+          "bytes": 367296
+        }
+      ],
+      "metrics": {
+        "completed_runs": 8,
+        "passed_checks": 106,
+        "failed_checks": 0,
+        "cases": [
+          "helium",
+          "water"
+        ],
+        "models": [
+          "COSMO",
+          "PCM"
+        ],
+        "grid": {
+          "lmax": 4,
+          "nang": 110,
+          "nlebedev": 110,
+          "nrad": 50
+        },
+        "nuclear_FD": {
+          "checks": 0,
+          "maximum_error": null
+        },
+        "frozen_density_variational": {
+          "checks": 24,
+          "maximum_error": 7.27781099274516e-10
+        }
+      },
+      "scope": "Discretized all-electron electrostatic equilibrium COSMO/PCM functional. GPU MPI coverage uses one rank/one physical GPU; CPU MPI uses two ranks. Dimer GPU subset uses one nuclear FD step; CPU uses two. No infinite-grid/order convergence claim."
+    },
+    {
+      "id": "cpu_cuda_full_parity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-cuda-full-parity-v2.json",
+          "archive_relative_path": "solvation-cpu-cuda-full-parity-v2.json",
+          "sha256": "c6687ac4f9d58d3978c387a9582075b06f9387bdedb80720628552970a929930",
+          "bytes": 1355286
+        }
+      ],
+      "metrics": {
+        "matched_runs": 858,
+        "checks": 8837,
+        "tolerances": {
+          "energy_hartree": 1e-07,
+          "frozen_derivative": 1e-07,
+          "gradient_hartree_per_bohr": 1e-07,
+          "integrated_electrons": 1e-07
+        },
+        "max_energy_difference_hartree": 5.183778739592526e-09,
+        "max_gradient_difference_hartree_per_bohr": 1.7558202260181677e-08
+      },
+      "scope": "Matched inputs, exact raw-artifact identities, SCF acceptance and scalar/force/density-derivative CPU-vs-backend parity; no performance claim."
+    },
+    {
+      "id": "cpu_mpi2_parity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-mpi2-parity-v2.json",
+          "archive_relative_path": "solvation-cpu-mpi2-parity-v2.json",
+          "sha256": "d0570ec1652fd42b6213aa999276c29b15a4950e7e645e7a522371359c1af0c1",
+          "bytes": 489778
+        }
+      ],
+      "metrics": {
+        "matched_runs": 310,
+        "checks": 3213,
+        "tolerances": {
+          "energy_hartree": 1e-07,
+          "frozen_derivative": 1e-07,
+          "gradient_hartree_per_bohr": 1e-07,
+          "integrated_electrons": 1e-07
+        },
+        "max_energy_difference_hartree": 1.9895196601282805e-13,
+        "max_gradient_difference_hartree_per_bohr": 1.0269562977782698e-14
+      },
+      "scope": "Matched inputs, exact raw-artifact identities, SCF acceptance and scalar/force/density-derivative CPU-vs-backend parity; no performance claim."
+    },
+    {
+      "id": "cpu_cuda_mpi1_parity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-cudampi-parity-v2.json",
+          "archive_relative_path": "solvation-cpu-cudampi-parity-v2.json",
+          "sha256": "a3959671a2231e194b2ab54de65bc9ca8949752e563313b9cd52948e6ff9ee9e",
+          "bytes": 270286
+        }
+      ],
+      "metrics": {
+        "matched_runs": 166,
+        "checks": 1773,
+        "tolerances": {
+          "energy_hartree": 1e-07,
+          "frozen_derivative": 1e-07,
+          "gradient_hartree_per_bohr": 1e-07,
+          "integrated_electrons": 1e-07
+        },
+        "max_energy_difference_hartree": 2.4884343474695925e-09,
+        "max_gradient_difference_hartree_per_bohr": 6.299278682009302e-09
+      },
+      "scope": "Matched inputs, exact raw-artifact identities, SCF acceptance and scalar/force/density-derivative CPU-vs-backend parity; no performance claim."
+    },
+    {
+      "id": "dimer_cpu_cuda_parity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-water-dimer-cpu-cuda-parity-v2.json",
+          "archive_relative_path": "solvation-water-dimer-cpu-cuda-parity-v2.json",
+          "sha256": "96b0c339df7148fc595a3539dd6b23fb87b1da9d62040c8acc82384e84ac8d8b",
+          "bytes": 253864
+        }
+      ],
+      "metrics": {
+        "matched_runs": 159,
+        "checks": 1631,
+        "tolerances": {
+          "energy_hartree": 1e-07,
+          "frozen_derivative": 1e-07,
+          "gradient_hartree_per_bohr": 1e-07,
+          "integrated_electrons": 1e-07
+        },
+        "max_energy_difference_hartree": 4.0273278045788174e-09,
+        "max_gradient_difference_hartree_per_bohr": 5.667843312739951e-09
+      },
+      "scope": "Matched inputs, exact raw-artifact identities, SCF acceptance and scalar/force/density-derivative CPU-vs-backend parity; no performance claim."
+    },
+    {
+      "id": "canonical_cpu",
+      "disposition": "PASS_WITH_EXPLICIT_SKIPS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cpu-regression-v1/report.json",
+          "archive_relative_path": "standard-cpu-regression-v1/report.json",
+          "sha256": "c10abc650e9976bad9714b3cf3ba97a5e74284a8d9d6c61fe5f4facbded98005",
+          "bytes": 49205
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cpu-regression-v1/old-controls/report.json",
+          "archive_relative_path": "standard-cpu-regression-v1/old-controls/report.json",
+          "sha256": "372ac6ec4467a5f2592f53a523a894926c03f43bf7a6f151273ba4900e1f4575",
+          "bytes": 9445
+        }
+      ],
+      "metrics": {
+        "planned": 196,
+        "completed": 196,
+        "pass": 191,
+        "skip": 5,
+        "fail": 0,
+        "canonical_comparison_passes": 450
+      },
+      "scope": "Unmodified canonical numerical fixtures/tolerances. Selected old4a5 ESP/MKS scientific outputs exact after excluding only wall-time columns. External Amber RESP/rwRESP fitters not executed."
+    },
+    {
+      "id": "canonical_cuda",
+      "disposition": "PASS_WITH_EXPLICIT_SKIPS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cuda-full-regression-greptext-v3/report.json",
+          "archive_relative_path": "standard-cuda-full-regression-greptext-v3/report.json",
+          "sha256": "e94cac665452bd066beeb751ce65386d135b83128d23dd02f38c3d26839e4b5a",
+          "bytes": 160155
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cuda-full-regression-v2/report.json",
+          "archive_relative_path": "standard-cuda-full-regression-v2/report.json",
+          "sha256": "70f92b2575f47849ac6f6e6514c702ff044015d4e67145ad5be09754d16b656c",
+          "bytes": 14596
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/baseline-cuda-f-banner-v1/report.json",
+          "archive_relative_path": "baseline-cuda-f-banner-v1/report.json",
+          "sha256": "37eefa689ff84feee6eeff0e01854438ac1c97bbc31406b3076a7ddaa48102fe",
+          "bytes": 8671
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/runtest-greptext-fix/report.json",
+          "archive_relative_path": "runtest-greptext-fix/report.json",
+          "sha256": "e15357bdff407ea467b5434134d874d55560213b6672e8f4203e2d6495e4837b",
+          "bytes": 1639
+        }
+      ],
+      "metrics": {
+        "planned": 189,
+        "completed": 189,
+        "counts": {
+          "PASS": 184,
+          "SKIP": 5,
+          "FAIL": 0,
+          "UNRESOLVED": 0
+        },
+        "canonical_comparison_passes": 436,
+        "original_failed_report_unchanged": true
+      },
+      "scope": "189 unchanged tests; three grep scanners use text mode to recognize a NUL-containing unsupported-f banner. Exact old4a5 negative reproduces inherited skip-recognition error with no SCF. Original failed report remains immutable; no fixture/reference/tolerance weakening."
+    },
+    {
+      "id": "legacy_oeprop_bomd",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-oeprop-bomd-all-backends-v2/validation_summary.json",
+          "archive_relative_path": "legacy-oeprop-bomd-all-backends-v2/validation_summary.json",
+          "sha256": "45b12ede08cf4b6ab3c4ef2485378abccf3a7518dd976149766a958daf02a62c",
+          "bytes": 630479
+        }
+      ],
+      "metrics": {
+        "cases": 48,
+        "checks": 897,
+        "backends": [
+          "CPU",
+          "MPI2",
+          "CUDA",
+          "CUDA-MPI1"
+        ]
+      },
+      "scope": "Unchanged established ddX-disabled acceptance, including stride/restart/live-density properties and actual kernel counts; single physical GPU."
+    },
+    {
+      "id": "coupled_cuda_mpi1_bomd",
+      "disposition": "PASS_SHORT_TRAJECTORIES",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cudampi-coupled-v2/report.json",
+          "archive_relative_path": "bomd-cudampi-coupled-v2/report.json",
+          "sha256": "d4b3357834691a53a21362096e7a5675aa80b248c5c383430a98577a640bfdf4",
+          "bytes": 1072564
+        }
+      ],
+      "metrics": {
+        "trajectories": 12,
+        "checks": 408
+      },
+      "scope": "Finite water; electrostatic equilibrium solvent; defined solute-only applied-field convention; short NVE software/force validation, not production ensembles or spectra; one MPI rank on one physical GPU, including stride/split/restart controls."
+    },
+    {
+      "id": "final_default_OFF_bridge",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/final-report.json",
+          "archive_relative_path": "default-off-final-bridge-v2/final-report.json",
+          "sha256": "1198d658409d6e50f842a64fd4f3cdc173b06b94c4e11d1cff57d75d0e63848d",
+          "bytes": 5537
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/source-lineage.json",
+          "archive_relative_path": "default-off-final-bridge-v2/source-lineage.json",
+          "sha256": "8889c0a97fe7cd81d56dbdc7519709421610ae38a721d42bc5de1e2d4f80718d",
+          "bytes": 1477
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/build-report.json",
+          "archive_relative_path": "default-off-final-bridge-v2/build-report.json",
+          "sha256": "5100059eeb30a756c9f104801811a9cfa83707ab3ccdac67ddd27518beaac6a8",
+          "bytes": 1514
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/verify-report.json",
+          "archive_relative_path": "default-off-final-bridge-v2/verify-report.json",
+          "sha256": "8488ec1b948d0d7a8f9b124ca9a5cd57d1064cec74a91ad1a43b64f1bc69d4c9",
+          "bytes": 112924
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/cpu-smoke-v2/report.json",
+          "archive_relative_path": "default-off-final-bridge-v2/cpu-smoke-v2/report.json",
+          "sha256": "cf9c64802a9512a8ecd6a2773df54008d569f0004f190d45ce33c398ec9e9abc",
+          "bytes": 2478
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/cuda-smoke-v2/report.json",
+          "archive_relative_path": "default-off-final-bridge-v2/cuda-smoke-v2/report.json",
+          "sha256": "733289e17f109710c87cd1fdf4152323319141ce9d060acd8e9a2396ebb7438a",
+          "bytes": 2514
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/bridge-preparation-v2.json",
+          "archive_relative_path": "default-off-final-bridge-v2/bridge-preparation-v2.json",
+          "sha256": "7ecbce79d1798d3ee3ee36377f14b98bb7ae177921ae13fa66c442fe9c52fbb3",
+          "bytes": 641
+        }
+      ],
+      "metrics": {
+        "numerical_inputs": 2692,
+        "old_runtime_outputs_archived": 543,
+        "variant_families": [
+          "CPU",
+          "MPI",
+          "CUDA",
+          "CUDA-MPI"
+        ],
+        "ldd_checks": 6,
+        "smoke_runs": 6,
+        "source_runtime_unchanged": true,
+        "ddX_dependency": false
+      },
+      "scope": "Final isolated optional-OFF bridge only; all variants compile/link, serial CPU/CUDA three-smoke behavior. No MPI runtime or performance claim from this bridge."
+    },
+    {
+      "id": "final_operator_object_identity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/operator-objects-before-patches.json",
+          "archive_relative_path": "release-preparation-v1/operator-objects-before-patches.json",
+          "sha256": "8697a1483d9998907482e9f853de5d81fe19afe1463fd17104ab4e0620fd211a",
+          "bytes": 6957
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/operator-objects-after-rebuild.json",
+          "archive_relative_path": "release-preparation-v1/operator-objects-after-rebuild.json",
+          "sha256": "82a9312f2f4850bb7c201e76b8af097675214136e00cd24f4fe7bedd0e3bbf19",
+          "bytes": 7036
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/patch-application.json",
+          "archive_relative_path": "release-preparation-v1/patch-application.json",
+          "sha256": "de8d9c6d9f45dbbf57ed1ffd7c371a0652ffe9b10b2a43e2d57d61395cb1bd27",
+          "bytes": 2291
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/final-patch-plan-v2.json",
+          "archive_relative_path": "release-preparation-v1/final-patch-plan-v2.json",
+          "sha256": "2e34185f2ef2c6e21903654f6e3f23cc85cb11a98ce6bd7e6da23c3a957d57e2",
+          "bytes": 2873
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/before-build.json",
+          "archive_relative_path": "release-preparation-v1/before-build.json",
+          "sha256": "39e6949d9d0cd53730ec2afed4fcb9e9c2e5767c25a9e223367c91b38fc6f219",
+          "bytes": 585578
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/after-build.json",
+          "archive_relative_path": "release-preparation-v1/after-build.json",
+          "sha256": "77710a3ced23d2924319ace9c5c96fe2b0c3244a5986d539d2ffa69ebfd5821e",
+          "bytes": 585578
+        }
+      ],
+      "metrics": {
+        "passed": true,
+        "compared_objects": 42,
+        "changed_objects": []
+      },
+      "scope": "All42pre-existing validated mathematical operator objects; release API/main changes excluded by design. Identical mathematical objects do not imply identical whole libraries or replace final API/main/install lifecycle checks."
+    },
+    {
+      "id": "interleaved_MPI_subcommunicators",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-split-positive-v1/report.json",
+          "archive_relative_path": "solvation-split-positive-v1/report.json",
+          "sha256": "7ac7fcc650bdc1be33b513a0754b5156f0b83cb319b8333ec2f0a9f5c86851fc",
+          "bytes": 21341
+        }
+      ],
+      "metrics": {
+        "runs": 3,
+        "checks": 43,
+        "passed": true
+      },
+      "scope": "Four world ranks split into interleaved groups (0,2) and (1,3); water COSMO versus helium PCM; different cavity, force and property counts; exact geometry reuse and moved geometry"
+    },
+    {
+      "id": "PCM_higher_grid_CPU_CUDA",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/pcm-cavity-parity-cuda-v1/report.json",
+          "archive_relative_path": "pcm-cavity-parity-cuda-v1/report.json",
+          "sha256": "c07b14dc8f86a6a484cfa0a55e9fc923651be01168a6d82a539673a958d16ab0",
+          "bytes": 49256
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/pcm-cavity-parity-cuda-v1/evidence-manifest.json",
+          "archive_relative_path": "pcm-cavity-parity-cuda-v1/evidence-manifest.json",
+          "sha256": "b5b8ce5a913387d6feebd4a2f51b672684d6712b65eecb3de7f5a3dfc2a18194",
+          "bytes": 9045
+        }
+      ],
+      "metrics": {
+        "GPU_runs": 4,
+        "checks": 59,
+        "parity": [
+          {
+            "label": "water-PCM-L8-N590",
+            "energy_error_hartree": 5.975806516289595e-10,
+            "gradient_error_hartree_per_bohr": 2.589121125828875e-09,
+            "electron_count_error": 2.2382096176443156e-13,
+            "both_SCF_converged": true,
+            "gpu_volume_counters": [
+              21,
+              21,
+              1
+            ],
+            "gpu_coulomb_cache": [
+              20,
+              1,
+              237664,
+              21,
+              0,
+              0,
+              246768
+            ],
+            "passed": true
+          },
+          {
+            "label": "water-PCM-L10-N974",
+            "energy_error_hartree": 5.976232841931051e-10,
+            "gradient_error_hartree_per_bohr": 2.588772335387901e-09,
+            "electron_count_error": 5.329070518200751e-15,
+            "both_SCF_converged": true,
+            "gpu_volume_counters": [
+              21,
+              21,
+              1
+            ],
+            "gpu_coulomb_cache": [
+              20,
+              1,
+              391776,
+              21,
+              0,
+              0,
+              406384
+            ],
+            "passed": true
+          },
+          {
+            "label": "water27_dimer-PCM-L8-N590",
+            "energy_error_hartree": 4.013230636701337e-09,
+            "gradient_error_hartree_per_bohr": 5.533937280643997e-09,
+            "electron_count_error": 4.156675004196586e-13,
+            "both_SCF_converged": true,
+            "gpu_volume_counters": [
+              19,
+              19,
+              1
+            ],
+            "gpu_coulomb_cache": [
+              18,
+              1,
+              1544760,
+              19,
+              0,
+              0,
+              1561880
+            ],
+            "passed": true
+          },
+          {
+            "label": "water27_dimer-PCM-L10-N974",
+            "energy_error_hartree": 4.013486432086211e-09,
+            "gradient_error_hartree_per_bohr": 5.5356021988473e-09,
+            "electron_count_error": 3.375077994860476e-13,
+            "both_SCF_converged": true,
+            "gpu_volume_counters": [
+              19,
+              19,
+              1
+            ],
+            "gpu_coulomb_cache": [
+              18,
+              1,
+              2550240,
+              19,
+              0,
+              0,
+              2576936
+            ],
+            "passed": true
+          }
+        ],
+        "refinement": [
+          {
+            "case": "water",
+            "backend": "CPU_stored",
+            "comparison": "L8/N590 -> L10/N974, fixed100x434 volume",
+            "energy_delta_hartree": -2.511449821440692e-07,
+            "absolute_energy_delta_hartree": 2.511449821440692e-07,
+            "maximum_gradient_component_delta_hartree_per_bohr": 2.9651045687466293e-05,
+            "passed_unchanged_refinement_gates": true
+          },
+          {
+            "case": "water",
+            "backend": "CUDA_new",
+            "comparison": "L8/N590 -> L10/N974, fixed100x434 volume",
+            "energy_delta_hartree": -2.5114493951150507e-07,
+            "absolute_energy_delta_hartree": 2.5114493951150507e-07,
+            "maximum_gradient_component_delta_hartree_per_bohr": 2.9651045277245824e-05,
+            "passed_unchanged_refinement_gates": true
+          },
+          {
+            "case": "water27_dimer",
+            "backend": "CPU_stored",
+            "comparison": "L8/N590 -> L10/N974, fixed100x434 volume",
+            "energy_delta_hartree": 6.778908243632031e-07,
+            "absolute_energy_delta_hartree": 6.778908243632031e-07,
+            "maximum_gradient_component_delta_hartree_per_bohr": 4.9608585790020254e-05,
+            "passed_unchanged_refinement_gates": true
+          },
+          {
+            "case": "water27_dimer",
+            "backend": "CUDA_new",
+            "comparison": "L8/N590 -> L10/N974, fixed100x434 volume",
+            "energy_delta_hartree": 6.77891080158588e-07,
+            "absolute_energy_delta_hartree": 6.77891080158588e-07,
+            "maximum_gradient_component_delta_hartree_per_bohr": 4.960858412510205e-05,
+            "passed_unchanged_refinement_gates": true
+          }
+        ]
+      },
+      "scope": "HF/STO-3G water and exact WATER27 dimer, L8/N590 and L10/N974, fixed100x434 volume. Pairwise energy1e-5 and gradient5e-5 gates; backend1e-7/2e-7 and electron1e-9 gates. Correctness-only timings."
+    },
+    {
+      "id": "COSMO_dimer_L_order",
+      "disposition": "RETAINED_REFINEMENT_FAILURE",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-angular-isolation-cpu-v1/report.json",
+          "archive_relative_path": "cavity-angular-isolation-cpu-v1/report.json",
+          "sha256": "216eeae3d99e594041f49cc70531dbb829253d8b086d9a119a47e326869f4e6f",
+          "bytes": 19996
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-L14-volume-refinement-cpu-v1/report.json",
+          "archive_relative_path": "cavity-L14-volume-refinement-cpu-v1/report.json",
+          "sha256": "a601939772574f856ae72e067cc187949a8dd147d9df085d1334f2432afedd1a",
+          "bytes": 19881
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-refinement-cpu-v1/report.json",
+          "archive_relative_path": "cavity-refinement-cpu-v1/report.json",
+          "sha256": "4d41afc3ff1ea49c374ae7b49a389750d0439bd7b31da0c4afd555f32f341342",
+          "bytes": 50368
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-refinement-10-cpu-v1/report.json",
+          "archive_relative_path": "cavity-refinement-10-cpu-v1/report.json",
+          "sha256": "8dbc164b8827d12c9961bf8ce9c8a5c1b0bd962025240c0012104b197e56f782",
+          "bytes": 33388
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-refinement-12-14-cpu-v1/report.json",
+          "archive_relative_path": "cavity-refinement-12-14-cpu-v1/report.json",
+          "sha256": "533c23385a500bf00eece516d3cfbf4765ea8dded9c00435682dd18ed40c6c8b",
+          "bytes": 57832
+        }
+      ],
+      "metrics": {
+        "comparisons": [
+          {
+            "comparison": "L10/N974 -> L10/N5810",
+            "category": "angular_refinement_fixed_L10",
+            "delta_energy_hartree": 1.3282077873100206e-06,
+            "absolute_energy_delta_hartree": 1.3282077873100206e-06,
+            "maximum_gradient_component_delta_hartree_per_bohr": 3.986110322185682e-05,
+            "delta_solvation_energy_hartree": 1.1709880219264168e-06,
+            "volume_electrons": [
+              20.000000026248593,
+              20.000000026247676
+            ],
+            "both_scf_explicitly_converged": true,
+            "declared_pairwise_accuracy_criteria_satisfied": true,
+            "interpretation": "Pair meets unchanged gates; no infinite-limit convergence claim"
+          },
+          {
+            "comparison": "L14/N2030 -> L14/N5810",
+            "category": "angular_refinement_fixed_L14",
+            "delta_energy_hartree": 1.4953252218674606e-06,
+            "absolute_energy_delta_hartree": 1.4953252218674606e-06,
+            "maximum_gradient_component_delta_hartree_per_bohr": 1.947030198737581e-05,
+            "delta_solvation_energy_hartree": 1.524587517537368e-06,
+            "volume_electrons": [
+              20.00000002626083,
+              20.000000026260224
+            ],
+            "both_scf_explicitly_converged": true,
+            "declared_pairwise_accuracy_criteria_satisfied": true,
+            "interpretation": "Pair meets unchanged gates; no infinite-limit convergence claim"
+          },
+          {
+            "comparison": "L10/N5810 -> L14/N5810",
+            "category": "harmonic_order_shared_N5810",
+            "delta_energy_hartree": 4.568094777823717e-05,
+            "absolute_energy_delta_hartree": 4.568094777823717e-05,
+            "maximum_gradient_component_delta_hartree_per_bohr": 0.00011581771705741414,
+            "delta_solvation_energy_hartree": 4.660588568273713e-05,
+            "volume_electrons": [
+              20.000000026247676,
+              20.000000026260224
+            ],
+            "both_scf_explicitly_converged": true,
+            "declared_pairwise_accuracy_criteria_satisfied": false,
+            "interpretation": "Pair exceeds a declared gate; preserve this failed refinement classification"
+          }
+        ],
+        "source_unchanged": true,
+        "runtime_unchanged": true
+      },
+      "scope": "At shared N5810 and fixed100x434 volume, L10->14 fails unchanged1e-5Eh/5e-5Eh-bohr gates. Separate fixed-L angular and L14 volume controls pass their pairwise gates. All prior failed comparisons remain failures; no COSMO dimer convergence/default recommendation."
+    },
+    {
+      "id": "independent_regular_projection_COSMO",
+      "disposition": "MATCHED_MODEL_PASS_DIFFERENT_MODEL_DISCLOSED",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-pyscf-oracle-v3/report.json",
+          "archive_relative_path": "solvation-pyscf-oracle-v3/report.json",
+          "sha256": "529031c15cc3117ec1e3619fa1b315c9e2a4aedf383fc55076426aaf01c6a7dd",
+          "bytes": 30400
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-pyscf-oracle-v3/independent-review.json",
+          "archive_relative_path": "solvation-pyscf-oracle-v3/independent-review.json",
+          "sha256": "cabbfb219cc3e8056a20078a62fc88d0bb17a9eff7e266dce8d41b96a6073dc7",
+          "bytes": 4654
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-pyscf-oracle-v3/evidence-manifest.json",
+          "archive_relative_path": "solvation-pyscf-oracle-v3/evidence-manifest.json",
+          "sha256": "5b54fbb9e32365451bf50f949e40df10b681c5bbbd467f1e779aaa0d5344539a",
+          "bytes": 1403
+        }
+      ],
+      "metrics": {
+        "matched_quadrature_comparison": {
+          "total_energy_hartree": -2.8083064762540744e-09,
+          "solvation_energy_hartree": -2.9709074610140274e-10,
+          "gradient_hartree_per_bohr": [
+            [
+              -3.7033910452177743e-09,
+              -8.480968737619582e-11,
+              2.6746101930430477e-09
+            ],
+            [
+              1.6979991787624549e-09,
+              6.140686529686364e-11,
+              -1.548134218043451e-09
+            ],
+            [
+              2.00539426731261e-09,
+              2.3402869052391306e-11,
+              -1.1264690708001623e-09
+            ]
+          ],
+          "gradient_max_abs_hartree_per_bohr": 3.7033910452177743e-09
+        },
+        "stock_projection_comparison_classification": "Different outside-sphere density-leak projection: report raw differences; no acceptance waiver or tolerance adjustment.",
+        "all_four_scf_converged": true
+      },
+      "scope": "Independent PySCF continuous-density ddCOSMO with exact basis/shared quadrature. The regular-harmonic comparator removes the stock outside-sphere leak factor process-locally; stock PySCF results remain a distinct-model comparison, not an equivalence claim."
+    },
+    {
+      "id": "independent_field_oracle_CPU_CUDA",
+      "disposition": "RETAINED_ABSOLUTE_PBE0_FAILURES_INCREMENTAL_PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-pyscf-portable-cpu-cuda-v2/report.json",
+          "archive_relative_path": "field-pyscf-portable-cpu-cuda-v2/report.json",
+          "sha256": "d2fb436fe6df58a2a62250440514be95f0e3e9e36a69c5eaa22947f01e0532c9",
+          "bytes": 45276
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-pyscf-portable-cpu-cuda-v2/absolute-field/report.json",
+          "archive_relative_path": "field-pyscf-portable-cpu-cuda-v2/absolute-field/report.json",
+          "sha256": "49b3ade7989ab1e55fb5e127e250b197cfde3039e536f0226a95819775ba8b46",
+          "bytes": 24963
+        }
+      ],
+      "metrics": {
+        "zero_side_failed_checks": 4,
+        "field_side_failed_checks": 4,
+        "total_PBE0_absolute_gradient_failures": 8,
+        "zero_and_incremental_report_checks": 66,
+        "incremental_field_validation_passed": true,
+        "zero_failed_checks": [
+          {
+            "max_abs_error": 0.0002689080130540639,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cpu-full-v1/report.json:water_pbe0_sto3g:zero_absolute_gradient:h=0.001",
+            "passed": false,
+            "tolerance": 5e-05
+          },
+          {
+            "max_abs_error": 0.0002690704004908945,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cpu-full-v1/report.json:water_pbe0_sto3g:zero_absolute_gradient:h=0.0005",
+            "passed": false,
+            "tolerance": 5e-05
+          },
+          {
+            "max_abs_error": 0.0002688965130540639,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cuda-four-cases-v2/report.json:water_pbe0_sto3g:zero_absolute_gradient:h=0.001",
+            "passed": false,
+            "tolerance": 5e-05
+          },
+          {
+            "max_abs_error": 0.0002690589004908945,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cuda-four-cases-v2/report.json:water_pbe0_sto3g:zero_absolute_gradient:h=0.0005",
+            "passed": false,
+            "tolerance": 5e-05
+          }
+        ],
+        "field_failed_checks": [
+          {
+            "max_abs_error": 0.0002688616640102422,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cpu-full-v1/report.json:water_pbe0_sto3g:independent_gradient:h=0.001",
+            "passed": false,
+            "step_bohr": 0.001,
+            "tolerance": 5e-05,
+            "units": "hartree/bohr"
+          },
+          {
+            "max_abs_error": 0.00026902412960677375,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cpu-full-v1/report.json:water_pbe0_sto3g:independent_gradient:h=0.0005",
+            "passed": false,
+            "step_bohr": 0.0005,
+            "tolerance": 5e-05,
+            "units": "hartree/bohr"
+          },
+          {
+            "max_abs_error": 0.0002688500640102417,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cuda-four-cases-v2/report.json:water_pbe0_sto3g:independent_gradient:h=0.001",
+            "passed": false,
+            "step_bohr": 0.001,
+            "tolerance": 5e-05,
+            "units": "hartree/bohr"
+          },
+          {
+            "max_abs_error": 0.00026901252960677326,
+            "name": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cuda-four-cases-v2/report.json:water_pbe0_sto3g:independent_gradient:h=0.0005",
+            "passed": false,
+            "step_bohr": 0.0005,
+            "tolerance": 5e-05,
+            "units": "hartree/bohr"
+          }
+        ]
+      },
+      "scope": "Exactly8 PBE0 absolute-gradient failures: two displacement sizes x CPU/CUDA x zero/applied field. Preserve original5e-5 gates and false status. HF and field-response claims are limited to the named passed checks."
+    },
+    {
+      "id": "matched_SG1_largest_component_diagnostic",
+      "disposition": "BOUNDED_EXPLANATION_NOT_FAILURE_RELABELING",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/matched-sg1-diagnostic-v1/report.json",
+          "archive_relative_path": "matched-sg1-diagnostic-v1/report.json",
+          "sha256": "85c880de68cb13aec61f4edd972e1aca61b3fa927427d9ee0fd4c063662ea797",
+          "bytes": 22677
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/matched-sg1-diagnostic-v1/interpretation.json",
+          "archive_relative_path": "matched-sg1-diagnostic-v1/interpretation.json",
+          "sha256": "d3093cc88cb9cf94cf51f1cd5708202539949a88080e932803fdfdbf5db74217",
+          "bytes": 2367
+        }
+      ],
+      "metrics": {
+        "independent_SCF_geometries": 10,
+        "maximum_energy_difference_hartree": 3.1209452799885185e-09,
+        "comparisons": [
+          {
+            "field": "zero",
+            "matched_grid_pyscf_finite_difference": 0.004872572191061408,
+            "quick_analytic": 0.004872795088628223,
+            "quick_analytic_minus_pyscf_matched_FD": 2.228975668145186e-07,
+            "quick_analytic_minus_quick_FD": 2.2946298169294194e-07,
+            "quick_finite_difference": 0.00487256562564653,
+            "step_bohr": 0.001
+          },
+          {
+            "field": "zero",
+            "matched_grid_pyscf_finite_difference": 0.004872751134143982,
+            "quick_analytic": 0.004872795088628223,
+            "quick_analytic_minus_pyscf_matched_FD": 4.395448424069498e-08,
+            "quick_analytic_minus_quick_FD": 5.0505688264403104e-08,
+            "quick_finite_difference": 0.0048727445829399585,
+            "step_bohr": 0.0005
+          },
+          {
+            "field": "field",
+            "matched_grid_pyscf_finite_difference": 0.004871669261774514,
+            "quick_analytic": 0.004871892121653757,
+            "quick_analytic_minus_pyscf_matched_FD": 2.2285987924270528e-07,
+            "quick_analytic_minus_quick_FD": 2.2953898095885023e-07,
+            "quick_finite_difference": 0.004871662582672798,
+            "step_bohr": 0.001
+          },
+          {
+            "field": "field",
+            "matched_grid_pyscf_finite_difference": 0.004871848190646233,
+            "quick_analytic": 0.004871892121653757,
+            "quick_analytic_minus_pyscf_matched_FD": 4.3931007523596854e-08,
+            "quick_analytic_minus_quick_FD": 5.051063325673538e-08,
+            "quick_finite_difference": 0.0048718416110205,
+            "step_bohr": 0.0005
+          }
+        ],
+        "field_response_components": [
+          {
+            "step_bohr": 0.001,
+            "field_induced_Oz_gradient_error": -3.768757181332738e-11
+          },
+          {
+            "step_bohr": 0.0005,
+            "field_induced_Oz_gradient_error": -2.3476717098125377e-11
+          }
+        ],
+        "source_runtime_unchanged": true
+      },
+      "scope": "The dominant tested O-z PBE0 absolute-gradient discrepancy is explained by quadrature choice: independent SCF on native SG1 reduces2.69e-4 discrepancy to4.40e-8 at h0.0005. Original higher-grid absolute failures remain false; this is evidence of consistency with the selected QUICK quadrature, not a claim of convergence of SG1 forces. Othergradient components were not tested in this bounded diagnostic. IndependentPySCF uses fullAO evaluation. It reproduces native weight<DMCutoff skipping but not nativebin/primitive screening or rho/2<DMCutoff skipping. Smoothresidualenergy<=3.13e-9Eh retained."
+    },
+    {
+      "id": "BOMD_original_and_default_screening",
+      "disposition": "RETAINED_TIMESTEP_AND_SCREENING_FAILURES",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-seven-case-acceptance-summary.json",
+          "archive_relative_path": "bomd-seven-case-acceptance-summary.json",
+          "sha256": "e1d7bc2682587312104ce3874a5dbe67310ce7728f6f576881b6f492d7d3f5be",
+          "bytes": 14810
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-production-v3/report.json",
+          "archive_relative_path": "bomd-cpu-production-v3/report.json",
+          "sha256": "d51a1f79ab9dd0dd2844ec6d05225bf58559ec8443e9b86350ecbd631d92f22c",
+          "bytes": 2121601
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cuda-production-v3/report.json",
+          "archive_relative_path": "bomd-cuda-production-v3/report.json",
+          "sha256": "206a69d29268b3e0d140d765c8dd5e48036ffaff169a70908d6e7da3d06a55ca",
+          "bytes": 2138142
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-cuda-production-v3-comparison.json",
+          "archive_relative_path": "bomd-cpu-cuda-production-v3-comparison.json",
+          "sha256": "649e4bba35041d9701f1dc8a0f97fcc5b1abd8520de94837dafc18384880dae1",
+          "bytes": 48805
+        }
+      ],
+      "metrics": {
+        "cases": [
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.1949986884474129e-06,
+                "production0.05_max_drift_hartree": 4.780745825883059e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.1937836319475537e-06,
+                "production0.05_max_drift_hartree": 4.779542166488682e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "field",
+            "cpu_cuda_parity_failed_checks": [],
+            "cpu_cuda_parity_passed": true,
+            "max_electrostatics_difference_au": 2.7007795999622886e-09,
+            "max_energy_difference_hartree": 1.3842083035342512e-09,
+            "max_geometry_difference_angstrom": 1.9789999639030498e-09
+          },
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.4025948047446946e-06,
+                "production0.05_max_drift_hartree": 5.333748333669064e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.4014174638532495e-06,
+                "production0.05_max_drift_hartree": 5.332582077244297e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "cosmo",
+            "cpu_cuda_parity_failed_checks": [],
+            "cpu_cuda_parity_passed": true,
+            "max_electrostatics_difference_au": 2.6629978222558748e-09,
+            "max_energy_difference_hartree": 1.7783321482056635e-09,
+            "max_geometry_difference_angstrom": 1.7960000153749434e-09
+          },
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.2556613739889144e-06,
+                "production0.05_max_drift_hartree": 5.074963354445572e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.2544839904649052e-06,
+                "production0.05_max_drift_hartree": 5.073797169075078e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "pcm",
+            "cpu_cuda_parity_failed_checks": [],
+            "cpu_cuda_parity_passed": true,
+            "max_electrostatics_difference_au": 2.6633930616526413e-09,
+            "max_energy_difference_hartree": 1.7746657476891414e-09,
+            "max_geometry_difference_angstrom": 1.7979999711315031e-09
+          },
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.3962302176651065e-06,
+                "production0.05_max_drift_hartree": 5.3293799311404655e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.3950531041473369e-06,
+                "production0.05_max_drift_hartree": 5.3282144136801435e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "cosmo_field",
+            "cpu_cuda_parity_failed_checks": [],
+            "cpu_cuda_parity_passed": true,
+            "max_electrostatics_difference_au": 2.6603395042457123e-09,
+            "max_energy_difference_hartree": 1.7823822417994961e-09,
+            "max_geometry_difference_angstrom": 1.801999993666925e-09
+          },
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.2561044826497891e-06,
+                "production0.05_max_drift_hartree": 5.07732634957847e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 1.2549275822948402e-06,
+                "production0.05_max_drift_hartree": 5.076160704220456e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "pcm_field",
+            "cpu_cuda_parity_failed_checks": [],
+            "cpu_cuda_parity_passed": true,
+            "max_electrostatics_difference_au": 2.6607418490698365e-09,
+            "max_energy_difference_hartree": 1.7787016304282588e-09,
+            "max_geometry_difference_angstrom": 1.8040000604457873e-09
+          },
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 8.511439801850429e-07,
+                "production0.05_max_drift_hartree": 1.7199460984329562e-06,
+                "strict_refinement_error": 1.6316554081186035e-07,
+                "strict_refinement_passed": false,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 8.631427306227124e-07,
+                "production0.05_max_drift_hartree": 1.7381355235102092e-06,
+                "strict_refinement_error": 1.6788852121862872e-07,
+                "strict_refinement_passed": false,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "pbe0_pcm",
+            "cpu_cuda_parity_failed_checks": [
+              {
+                "error": 1.584066779969362e-07,
+                "name": "pbe0_pcm-nve-dt0.05:energy_time",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.5666275032799604e-07,
+                "name": "pbe0_pcm-nve-dt0.05:checkpoint_reference_energy",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.586272020404067e-07,
+                "name": "pbe0_pcm-production-nve-dt0.025:energy_time",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.566627076954319e-07,
+                "name": "pbe0_pcm-production-nve-dt0.025:checkpoint_reference_energy",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.5707578882029338e-07,
+                "name": "pbe0_pcm-restart:energy_time",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.566627219062866e-07,
+                "name": "pbe0_pcm-restart:checkpoint_reference_energy",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.567867684570956e-07,
+                "name": "pbe0_pcm-split:energy_time",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.566627219062866e-07,
+                "name": "pbe0_pcm-split:checkpoint_reference_energy",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.5707576039858395e-07,
+                "name": "pbe0_pcm-stride0:energy_time",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.5666277874970547e-07,
+                "name": "pbe0_pcm-stride0:checkpoint_reference_energy",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.570757177660198e-07,
+                "name": "pbe0_pcm-stride1:energy_time",
+                "passed": false,
+                "tolerance": 1e-07
+              },
+              {
+                "error": 1.5666276453885075e-07,
+                "name": "pbe0_pcm-stride1:checkpoint_reference_energy",
+                "passed": false,
+                "tolerance": 1e-07
+              }
+            ],
+            "cpu_cuda_parity_passed": false,
+            "max_electrostatics_difference_au": 9.941641149202596e-09,
+            "max_energy_difference_hartree": 1.586272020404067e-07,
+            "max_geometry_difference_angstrom": 5.807799996482288e-08
+          },
+          {
+            "backends": {
+              "cpu": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 9.819028861102197e-07,
+                "production0.05_max_drift_hartree": 3.919103932048529e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              },
+              "cuda": {
+                "both_absolute_drift_gates_passed": true,
+                "fine0.025_max_drift_hartree": 9.78563846842917e-07,
+                "production0.05_max_drift_hartree": 3.915748351346338e-06,
+                "strict_refinement_error": 0.0,
+                "strict_refinement_passed": true,
+                "stride_restart_and_counters_passed": true
+              }
+            },
+            "case": "pbe0_pcm_spd",
+            "cpu_cuda_parity_failed_checks": [],
+            "cpu_cuda_parity_passed": true,
+            "max_electrostatics_difference_au": 4.7069552699952055e-09,
+            "max_energy_difference_hartree": 4.257309622890393e-09,
+            "max_geometry_difference_angstrom": 1.2126999959782836e-08
+          }
+        ],
+        "original_full_campaigns_passed": {
+          "cpu": false,
+          "cuda": false
+        },
+        "original_full_failed_checks": {
+          "cpu": [
+            {
+              "error": 1.912550682448e-05,
+              "name": "field-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.0962955929348936e-05,
+              "name": "cosmo-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.026541197608367e-05,
+              "name": "pcm-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.0966357936913482e-05,
+              "name": "cosmo_field-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.0275506713574032e-05,
+              "name": "pcm_field-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 1.559643125403909e-05,
+              "name": "pbe0_pcm_spd-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            }
+          ],
+          "cuda": [
+            {
+              "error": 1.9124280868254573e-05,
+              "name": "field-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.0961767816629617e-05,
+              "name": "cosmo-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.026422353651469e-05,
+              "name": "pcm-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.0965169923670146e-05,
+              "name": "cosmo_field-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 2.027431895612608e-05,
+              "name": "pcm_field-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            },
+            {
+              "error": 1.5593082835607674e-05,
+              "name": "pbe0_pcm_spd-nve-dt0.1:short_nve_drift",
+              "passed": false,
+              "tolerance": 1e-05
+            }
+          ]
+        },
+        "production_default_screening_campaigns_passed": {
+          "cpu": false,
+          "cuda": false
+        },
+        "production_default_screening_failed_checks": {
+          "cpu": [
+            {
+              "coarse_drift": 1.7199460984329562e-06,
+              "coarse_dt_fs": 0.05,
+              "equal_physical_time_fs": 2.0,
+              "error": 1.6316554081186035e-07,
+              "fine_drift": 8.511439801850429e-07,
+              "fine_dt_fs": 0.025,
+              "name": "pbe0_pcm:production_timestep_refinement",
+              "passed": false,
+              "tolerance": 5e-08
+            }
+          ],
+          "cuda": [
+            {
+              "coarse_drift": 1.7381355235102092e-06,
+              "coarse_dt_fs": 0.05,
+              "equal_physical_time_fs": 2.0,
+              "error": 1.6788852121862872e-07,
+              "fine_drift": 8.631427306227124e-07,
+              "fine_dt_fs": 0.025,
+              "name": "pbe0_pcm:production_timestep_refinement",
+              "passed": false,
+              "tolerance": 5e-08
+            }
+          ]
+        },
+        "production_cpu_cuda_parity_passed": false
+      },
+      "scope": "Seven-case finite-water scope. Original0.1fs coarse drift failures and ordinary PBE0/STO-3G screening refinement/backend failures remain false; passed HF and tight-screened spd cases are identified separately."
+    },
+    {
+      "id": "BOMD_PBE0_tight_screening",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-tight-xc-v1/report.json",
+          "archive_relative_path": "bomd-cpu-tight-xc-v1/report.json",
+          "sha256": "9da4e73f2d26e4246834bdbcd083f39fab21fbbb2c5960be9810e819999e89be",
+          "bytes": 1032879
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cuda-tight-xc-v1/report.json",
+          "archive_relative_path": "bomd-cuda-tight-xc-v1/report.json",
+          "sha256": "6867f71146443cc6d47e89cb6975d970fad227f6c9f16e55f8a79bf2919534c5",
+          "bytes": 1036017
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-cuda-tight-xc-v1-comparison.json",
+          "archive_relative_path": "bomd-cpu-cuda-tight-xc-v1-comparison.json",
+          "sha256": "f2a0b7aadc8735ab1159afaf52a0c3bface5db1e09065cea2649145560c5d700",
+          "bytes": 4582
+        }
+      ],
+      "metrics": {
+        "accepted_control": {
+          "cpu_passed": true,
+          "cuda_passed": true,
+          "drifts_hartree": {
+            "cpu": {
+              "pbe0_pcm_tight-nve-dt0.025": 4.324971172309233e-07,
+              "pbe0_pcm_tight-nve-dt0.05": 1.743144594001933e-06,
+              "pbe0_pcm_tight-nve-dt0.1": 7.001187839250633e-06
+            },
+            "cuda": {
+              "pbe0_pcm_tight-nve-dt0.025": 4.303417284745592e-07,
+              "pbe0_pcm_tight-nve-dt0.05": 1.7409894894626632e-06,
+              "pbe0_pcm_tight-nve-dt0.1": 6.999034255272818e-06
+            }
+          },
+          "parity_passed": true,
+          "scope": "Fresh0.1/0.05/0.025fs equal2fs with XCCUTOFF/BASISCUTOFF1e-12; no original failure reclassified."
+        },
+        "keyword": "DFT PBE0 BASIS=STO-3G CUTOFF=1D-12 GRADCUTOFF=1D-12 DENSERMS=1D-10 GRADIENT CHARGE=0 DDX=PCM DDX_LMAX=6 DDX_NLEBEDEV=302 DDX_NRAD=75 DDX_NANG=302 XCCUTOFF=1D-12 BASISCUTOFF=1D-12",
+        "CPU_checks": 98,
+        "CUDA_checks": 98,
+        "parity_checks": 26
+      },
+      "scope": "Fresh equal 2 fs trajectories at0.1/0.05/0.025fs, XCCUTOFF=BASISCUTOFF1e-12. Fixture-specific force/integrator evidence; no long-time, ensemble or SG1-grid convergence claim."
+    },
+    {
+      "id": "BOMD_unconverged_rejection_cpu",
+      "disposition": "PASS_NEGATIVE_CONTROL",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-cpu/report.json",
+          "archive_relative_path": "bomd-scf2-rejection-cpu/report.json",
+          "sha256": "c0a9b6c99956d5711afa8a1ac122ae4576ecf2ca6028b0b78325077744c61539",
+          "bytes": 2437
+        }
+      ],
+      "metrics": {
+        "passed": true,
+        "runs": 2
+      },
+      "scope": "RHF/COSMO and UHF/PCM force consumers reject deliberately exhausted SCF before accepted integration/property output; published ordinary SCF routines are not changed."
+    },
+    {
+      "id": "BOMD_unconverged_rejection_mpi2",
+      "disposition": "PASS_NEGATIVE_CONTROL",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-mpi2/report.json",
+          "archive_relative_path": "bomd-scf2-rejection-mpi2/report.json",
+          "sha256": "820a18e6364df9b3cedc7b3f08ae24bc8b4890db80bcc2fb41d874d6daff6f21",
+          "bytes": 2739
+        }
+      ],
+      "metrics": {
+        "passed": true,
+        "runs": 2
+      },
+      "scope": "RHF/COSMO and UHF/PCM force consumers reject deliberately exhausted SCF before accepted integration/property output; published ordinary SCF routines are not changed."
+    },
+    {
+      "id": "WATER20_coupled_CUDA",
+      "disposition": "PASS_SHORT_TRANSFER",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/water20-coupled-cuda-v2/report.json",
+          "archive_relative_path": "water20-coupled-cuda-v2/report.json",
+          "sha256": "edec1a8afd951cd5a49c44e1f1073683993db9cdeb6e4143a8ba1d985d349f56",
+          "bytes": 918510
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/water20-coupled-cuda-v2/trajectory_summary.json",
+          "archive_relative_path": "water20-coupled-cuda-v2/trajectory_summary.json",
+          "sha256": "2af965c793fc9b5c62f6641b8e05e5eb29f577aa32a5a69900b9712756295624",
+          "bytes": 2078
+        }
+      ],
+      "metrics": {
+        "checks": 38,
+        "keyword": "DFT PBE0 D3 BASIS=DEF2-SVP SCF=120 DENSERMS=1D-9 CUTOFF=1D-12 GRADCUTOFF=1D-12 XCCUTOFF=1D-12 BASISCUTOFF=1D-12 GRADIENT DDX=PCM EXTERNAL_EFIELD_X=0.0002 DDX_FIELD=SOLUTE",
+        "dt_fs": 0.025,
+        "scf_cycles": [
+          17,
+          14,
+          14
+        ],
+        "steps_run": 2,
+        "force_calls": 3,
+        "api_energy_gradient_calls": 3,
+        "property_calls": 3,
+        "properties_extra_api_calls": 0,
+        "applied_field_master_gpu_calls": [
+          3,
+          3
+        ],
+        "solvation_updates": 48,
+        "solvation_gpu_volume_calls": [
+          48,
+          48,
+          3
+        ],
+        "solvation_gpu_coulomb_cache": [
+          45,
+          3,
+          6762498000,
+          48,
+          0,
+          0,
+          6765553992
+        ],
+        "max_abs_drift_au": 1.8726495909504592e-09
+      },
+      "scope": "CUDA coupled PBE0-D3/def2-SVP with default ddX cavity/volume grids, solute-only field, ESP/EFIELD/EFG every accepted step. Short software/force-transfer check; no ensemble or long-time drift claim."
+    },
+    {
+      "id": "CLI_private_main_teardown",
+      "disposition": "HISTORICAL_PRIVATE_PROOF_FINAL_LIFECYCLE_NOW_ACCEPTED",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-private-v1/report.json",
+          "archive_relative_path": "cli-lifecycle-private-v1/report.json",
+          "sha256": "de7e016eb6e5b712c12d884b5bbe0a69e7c6d1be59c568b8c3386028c92171f5",
+          "bytes": 46166
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-private-v1/commands-original.json",
+          "archive_relative_path": "cli-lifecycle-private-v1/commands-original.json",
+          "sha256": "cfbc44d271c44c886ba592305496853f014154da14f8773c212334009ab7fe02",
+          "bytes": 3259
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-private-v1/commands-private.json",
+          "archive_relative_path": "cli-lifecycle-private-v1/commands-private.json",
+          "sha256": "3a19f642d2f787199b20613c6d748e3eaaa2d5727d504e8269dc21b686d2307c",
+          "bytes": 3667
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-v2/fix-cli-solvation-cleanup-before-gpu-reset.patch",
+          "archive_relative_path": "cli-lifecycle-v2/fix-cli-solvation-cleanup-before-gpu-reset.patch",
+          "sha256": "7e4a74a6a82ca9f15246a411e44937e7a18d9497a1cb274ba748d8d6a50d41d3",
+          "bytes": 913
+        }
+      ],
+      "metrics": {
+        "comparisons": [
+          {
+            "case": "water-no-ddx-field-gradient",
+            "energy_error_at_printed_precision": 0.0,
+            "gradient_error_at_printed_precision": 0.0,
+            "coordinates_and_labels_identical": true,
+            "raw_gradient_block_identical": true,
+            "private_cleanup_diagnostics_empty": true,
+            "passed": true
+          },
+          {
+            "case": "water-ddcosmo-field-gradient",
+            "energy_error_at_printed_precision": 0.0,
+            "gradient_error_at_printed_precision": 0.0,
+            "coordinates_and_labels_identical": true,
+            "raw_gradient_block_identical": true,
+            "private_cleanup_diagnostics_empty": true,
+            "passed": true
+          },
+          {
+            "case": "water-ddpcm-field-gradient",
+            "energy_error_at_printed_precision": 0.0,
+            "gradient_error_at_printed_precision": 0.0,
+            "coordinates_and_labels_identical": true,
+            "raw_gradient_block_identical": true,
+            "private_cleanup_diagnostics_empty": true,
+            "passed": true
+          }
+        ],
+        "original_diagnostics": [
+          [],
+          [
+            "QUICK continuum Coulomb CUDA: driver shutting down"
+          ],
+          [
+            "QUICK continuum Coulomb CUDA: driver shutting down"
+          ]
+        ],
+        "sanitizers": [
+          {
+            "case": "water-ddcosmo-field-gradient",
+            "tool": "memcheck",
+            "passed": true,
+            "zero_error_summary": true,
+            "leak_summary_lines": [
+              "========= LEAK SUMMARY: 0 bytes leaked in 0 allocations"
+            ]
+          },
+          {
+            "case": "water-ddcosmo-field-gradient",
+            "tool": "initcheck",
+            "passed": true,
+            "zero_error_summary": true,
+            "leak_summary_lines": []
+          },
+          {
+            "case": "water-ddpcm-field-gradient",
+            "tool": "memcheck",
+            "passed": true,
+            "zero_error_summary": true,
+            "leak_summary_lines": [
+              "========= LEAK SUMMARY: 0 bytes leaked in 0 allocations"
+            ]
+          },
+          {
+            "case": "water-ddpcm-field-gradient",
+            "tool": "initcheck",
+            "passed": true,
+            "zero_error_summary": true,
+            "leak_summary_lines": []
+          }
+        ],
+        "source_file_count": 3209,
+        "active_build_file_count": 2559,
+        "source_unchanged": true,
+        "active_build_unchanged": true
+      },
+      "scope": "Historical private-main proof: exact printed energies/gradient blocks and zero sanitizer errors/leaks. The then-required final integration/rebuild is now closed by the final installed CUDA lifecycle and configured-prefix scientific-smoke rows; original private raw report unchanged."
+    },
+    {
+      "id": "protected_worktrees",
+      "disposition": "PASS_READ_ONLY_PRESERVATION",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/protected-worktrees-release-check-v1/report.json",
+          "archive_relative_path": "protected-worktrees-release-check-v1/report.json",
+          "sha256": "a9298d6b13e7d404e231db7787016d393ae5149d1dcabba462aac005c9199c5f",
+          "bytes": 5301
+        }
+      ],
+      "metrics": {
+        "worktree_count": 11,
+        "checked_file_count": 31841,
+        "all_protected_worktrees_unchanged": true
+      },
+      "scope": "Includes ddX, all archival paper worktrees, the user-dirty QUICK checkout, and51 existing paper3 untracked files."
+    },
+    {
+      "id": "BOMD_unconverged_rejection_cuda",
+      "disposition": "PASS_NEGATIVE_CONTROL",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-cuda-v2/report.json",
+          "archive_relative_path": "bomd-scf2-rejection-cuda-v2/report.json",
+          "sha256": "73c7381887b16c27a4e24653a2620366c0eaebab16df35029d6f02f5e9e38ebd",
+          "bytes": 2453
+        }
+      ],
+      "metrics": {
+        "passed": true,
+        "runs": 2
+      },
+      "scope": "Deliberately exhausted RHF/COSMO and UHF/PCM force consumers reject before accepting integration/property output. CUDA MPI uses one rank."
+    },
+    {
+      "id": "BOMD_unconverged_rejection_cudampi",
+      "disposition": "PASS_NEGATIVE_CONTROL",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-cudampi-v2/report.json",
+          "archive_relative_path": "bomd-scf2-rejection-cudampi-v2/report.json",
+          "sha256": "142cb7a17da28ad9145914a37be9d1cd02b6624bf5f606aa8ebd760684d03f98",
+          "bytes": 2633
+        }
+      ],
+      "metrics": {
+        "passed": true,
+        "runs": 2
+      },
+      "scope": "Deliberately exhausted RHF/COSMO and UHF/PCM force consumers reject before accepting integration/property output. CUDA MPI uses one rank."
+    },
+    {
+      "id": "native_component_and_sanitizers",
+      "disposition": "PASS_COMPONENT_SCOPE",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_ddx_backend-report.json",
+          "archive_relative_path": "test_ddx_backend-report.json",
+          "sha256": "46111c872b2d9d486343086ce957fd2a6eab0b640ef11241209245f2a2efaede",
+          "bytes": 1027
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_ddx_backend-run.log",
+          "archive_relative_path": "test_ddx_backend-run.log",
+          "sha256": "72a396edcfeb6de5c61f6d039bec428d90d58d4b6ffa06122e8735bf06b92c8b",
+          "bytes": 179
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_solvation_coulomb-report.json",
+          "archive_relative_path": "test_solvation_coulomb-report.json",
+          "sha256": "511b18bfc8ca2f44d9639bd7e672541dd240b9d0362eff535611000cfacfad6a",
+          "bytes": 1039
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_solvation_coulomb-run.log",
+          "archive_relative_path": "test_solvation_coulomb-run.log",
+          "sha256": "e1f003aea780171ddf9462f722ca3d0e5c78095ed13d63b1b056742feb11aa98",
+          "bytes": 71
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-report.json",
+          "archive_relative_path": "solvation_grid_ao_fd_driver-report.json",
+          "sha256": "f52f8c8ca91c35b4f638af8d3a45a617a187ee140eeebc837b5ade6009a29bdd",
+          "bytes": 1049
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-run.log",
+          "archive_relative_path": "solvation_grid_ao_fd_driver-run.log",
+          "sha256": "b0cf9783e7c2fa3d70d201e43dceba53de05fd4deacd6f412ecf55403c94b944",
+          "bytes": 1061
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-cuda-report.json",
+          "archive_relative_path": "solvation_grid_ao_fd_driver-cuda-report.json",
+          "sha256": "1174e0a807c08f5a35d7c569cd54b2e9eeb4b534f711d3e3b94789650a84b637",
+          "bytes": 2020
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-cuda-run.log",
+          "archive_relative_path": "solvation_grid_ao_fd_driver-cuda-run.log",
+          "sha256": "03443d9b1089888e1bc87ca663b375588e697cc82c32762449c1c2974baed81f",
+          "bytes": 1341
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_gpu_solvation_coulomb-cuda-report.json",
+          "archive_relative_path": "test_gpu_solvation_coulomb-cuda-report.json",
+          "sha256": "ccaa6f41e314785a4bea6eca590967e3dbdd1d2d0bb2aaa8003742f7003dc24e",
+          "bytes": 2018
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_gpu_solvation_coulomb-cuda-run.log",
+          "archive_relative_path": "test_gpu_solvation_coulomb-cuda-run.log",
+          "sha256": "5070cba0b2cafe422bd1c50605130cc237f7e144b044defcb596deecbfaeb210",
+          "bytes": 179
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/report.json",
+          "archive_relative_path": "field-native-component/report.json",
+          "sha256": "2a7452c927cca73c2fa177370908ef35808de650385377d8fbce2cd969963298",
+          "bytes": 4382
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/contract.log",
+          "archive_relative_path": "field-native-component/contract.log",
+          "sha256": "5c1d7386662cecc4e38ff2ddf1f91b13e9c507e4ba9c2da57b3e631e734e1583",
+          "bytes": 2413
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/memcheck.log",
+          "archive_relative_path": "field-native-component/memcheck.log",
+          "sha256": "a7648efa80a96e36db8560d3c912164650fafcff6ea873b50400513de3c8231d",
+          "bytes": 2475
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/initcheck.log",
+          "archive_relative_path": "field-native-component/initcheck.log",
+          "sha256": "a7648efa80a96e36db8560d3c912164650fafcff6ea873b50400513de3c8231d",
+          "bytes": 2475
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/report.json",
+          "archive_relative_path": "cache-shared-v1/report.json",
+          "sha256": "89d7163b8650a74bd1a0f307ecc797e630b0f2e0401b8944e85c6cb324a0bd4b",
+          "bytes": 8524
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/run.log",
+          "archive_relative_path": "cache-shared-v1/run.log",
+          "sha256": "64cd24b3da3c82ce46c7615fdc6db516ae1d7ba206462499d83d24eb460e1f24",
+          "bytes": 1434
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/memcheck.log",
+          "archive_relative_path": "cache-shared-v1/memcheck.log",
+          "sha256": "19071fd64462764cd959755f0a2d03ac6ae63cd318020bab4c1b261a3f3697ca",
+          "bytes": 1552
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/initcheck.log",
+          "archive_relative_path": "cache-shared-v1/initcheck.log",
+          "sha256": "b7aa20c5e7166bf0d61f785308eb6f7bf7d09a5e0ff1d4ed1e3f326a8e9d8c4d",
+          "bytes": 1496
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/atomic-cas-emulation-v1/report.json",
+          "archive_relative_path": "atomic-cas-emulation-v1/report.json",
+          "sha256": "16686167e6f7029a21522ed2c5051e4677356939b993cf94f4c981e784d26326",
+          "bytes": 2327
+        }
+      ],
+      "metrics": {
+        "field_contract_checks": 36,
+        "field_matrix_cpu_cuda_error": 3.469446951953614e-18,
+        "field_gradient_cpu_cuda_error": 5.204170427930421e-18,
+        "CPU_Coulomb_gradient_FD_error": 6.67471634e-11,
+        "full_discrete_volume_gradient_FD_error": 8.674972268307712e-09,
+        "CUDA_Coulomb_matrix_error": 5.55111512e-16,
+        "CUDA_Coulomb_gradient_error": 5.41233725e-16,
+        "cache_matrix_cases": 22,
+        "cache_max_error": 6.66133815e-16,
+        "standalone_field_cache_memcheck_initcheck_errors": 0
+      },
+      "scope": "Normalized contracted Cartesian s/p/d/f and signed mixed-SP synthetic component coverage, ownership/empty-rank/origin/screening/cache lifecycle tests; no whole-QUICK f-SCF support claim. CAS pre-SM600 branch emulated on modern SM120, not actual old-toolkit/device support."
+    },
+    {
+      "id": "controlled_production_grid_cache_profile",
+      "disposition": "PASS_OPERATOR_PROFILE_ONLY",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cache-summary.json",
+          "archive_relative_path": "profiles/optimized-v2-production-cache-summary.json",
+          "sha256": "12d5b3da8810393660696d4335b2ff53d45191588a2b456c1a353f0715654205",
+          "bytes": 5335
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/report.json",
+          "archive_relative_path": "profiles/optimized-v2-production-pcm/report.json",
+          "sha256": "14f3e393f0f2c78234686164af2541c3be17638d350ae9ddf226ed77db79f7e5",
+          "bytes": 15594
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/provenance.json",
+          "archive_relative_path": "profiles/optimized-v2-production-pcm/provenance.json",
+          "sha256": "cbd920f0b65716a6924f0ce988623e8cd7f73b0bf2dc2ed7cf8adebf90d39f71",
+          "bytes": 91944
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/water20-coulomb-full-timings.csv",
+          "archive_relative_path": "profiles/optimized-v2-production-pcm/water20-coulomb-full-timings.csv",
+          "sha256": "6840566e4732a743c5d1896414323a65df9f9e318945378306cf3796d2008f40",
+          "bytes": 2719
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/geometry.xyz",
+          "archive_relative_path": "profiles/optimized-v2-production-pcm/geometry.xyz",
+          "sha256": "2043d27a9ca2cc7c79a23a005d68b59a076bce575bca4452efb1a4a06b775982",
+          "bytes": 2959
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/report.json",
+          "archive_relative_path": "profiles/optimized-v2-production-cosmo/report.json",
+          "sha256": "86a7993a7a3a007de6cf0f3747ee39c6a70ffe813cf4a1ec6d9e3b146db39361",
+          "bytes": 15589
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/provenance.json",
+          "archive_relative_path": "profiles/optimized-v2-production-cosmo/provenance.json",
+          "sha256": "8def8bced405917aa846fdbcaece388bc291afa04c2c5fa491624a193ca5e98f",
+          "bytes": 91968
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/water20-coulomb-full-timings.csv",
+          "archive_relative_path": "profiles/optimized-v2-production-cosmo/water20-coulomb-full-timings.csv",
+          "sha256": "3080b343003ba805c726ddc5961e41a1e0dfa7cc50017d31edf5290690b0c79f",
+          "bytes": 2719
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/geometry.xyz",
+          "archive_relative_path": "profiles/optimized-v2-production-cosmo/geometry.xyz",
+          "sha256": "2043d27a9ca2cc7c79a23a005d68b59a076bce575bca4452efb1a4a06b775982",
+          "bytes": 2959
+        }
+      ],
+      "metrics": {
+        "pcm": {
+          "basis_functions": 500,
+          "cavity_nodes": 6749,
+          "volume_points": 1359000,
+          "first_fill_seconds": 5.335109061,
+          "steady_cached_matrix_seconds": 0.006068332,
+          "steady_direct_matrix_seconds": 5.317188529,
+          "steady_matrix_reuse_speedup": 876.2191206743468,
+          "four_matrix_evaluation_amortized_speedup": 3.9732517872292017,
+          "max_cached_direct_matrix_error": 5.2909066017292616e-17,
+          "cache_owned_buffers_bytes": 6765553992
+        },
+        "cosmo": {
+          "basis_functions": 500,
+          "cavity_nodes": 8019,
+          "volume_points": 1359000,
+          "first_fill_seconds": 6.407162878,
+          "steady_cached_matrix_seconds": 0.007168376,
+          "steady_direct_matrix_seconds": 6.382053195,
+          "steady_matrix_reuse_speedup": 890.3067019642943,
+          "four_matrix_evaluation_amortized_speedup": 3.9727298443477372,
+          "max_cached_direct_matrix_error": 6.938893903907228e-17,
+          "cache_owned_buffers_bytes": 8038104152
+        }
+      },
+      "scope": "Actual WATER20 basis/geometry and complete default cavity/volume grids, one frozen gas-phase density, identical reaction charges/runtime; isolated direct-versus-cache operator measurements, not self-consistent solvent trajectories. Four-evaluation amortization is an ESTIMATE from measured cold/warm/direct costs, not a timed four-direct sequence. Warm 876x/890x applies only to the repeated reverse matrix operator; gradients remain direct and no whole-BOMD speedup is established."
+    },
+    {
+      "id": "native_field_component_profile",
+      "disposition": "COMPONENT_TIMING_ONLY",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/report.json",
+          "archive_relative_path": "field-native-component/report.json",
+          "sha256": "2a7452c927cca73c2fa177370908ef35808de650385377d8fbce2cd969963298",
+          "bytes": 4382
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/benchmark-500.log",
+          "archive_relative_path": "field-native-component/benchmark-500.log",
+          "sha256": "6d90a9d98fb35cbe6ebc651e487426f7a3f4a17c6f6ba663a169966faf837288",
+          "bytes": 3582
+        }
+      ],
+      "metrics": [
+        {
+          "nb": "500",
+          "na": "60",
+          "maxprim": "3",
+          "repeats": "5",
+          "mode": "matrix",
+          "cpu_median_s": "1.678583564",
+          "cuda_median_s": "0.001255188",
+          "speedup": "1337.3164529934959",
+          "inclusive_upload_alloc_free": "1"
+        },
+        {
+          "nb": "500",
+          "na": "60",
+          "maxprim": "3",
+          "repeats": "5",
+          "mode": "gradient",
+          "cpu_median_s": "20.114262830000001",
+          "cuda_median_s": "0.017297268000000001",
+          "speedup": "1162.857789449756",
+          "inclusive_upload_alloc_free": "1"
+        }
+      ],
+      "scope": "Synthetic 500-AO/60-center s/p/d/f density, five-repeat complete-call medians including allocations/uploads/copies/frees. Not an actual molecular SCF or trajectory benchmark."
+    },
+    {
+      "id": "legacy_build_limits",
+      "disposition": "CPU_PASS_CUDA13_INHERITED_CONFIGURE_LIMIT",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-default-off-v1/report.json",
+          "archive_relative_path": "legacy-default-off-v1/report.json",
+          "sha256": "64c0f7cbae1e0a5e9a82a83b0c4b71296835ba1c2e6453877a29fdc4305f1368",
+          "bytes": 2008
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-default-off-v1/smoke-report.json",
+          "archive_relative_path": "legacy-default-off-v1/smoke-report.json",
+          "sha256": "45e056d809c691d309b26432b7f0e33086e3623d7dde52784b191a04e7500bcd",
+          "bytes": 3997
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-cuda-default-off-v1/report.json",
+          "archive_relative_path": "legacy-cuda-default-off-v1/report.json",
+          "sha256": "2f68ca52f62638fa164622aa25343404e11ca291abe9065539b557483e80e13f",
+          "bytes": 947
+        }
+      ],
+      "metrics": {
+        "actual_legacy_CPU_default_OFF_build": true,
+        "actual_legacy_CUDA13_build": false,
+        "three_new_CUDA_units_manual_cpp11_compile": true
+      },
+      "scope": "Untouched legacy configure rejects CUDA13; artifact-only C++11 compilation of the three new CUDA units is not official legacy CUDA build/runtime acceptance. CMake is the tested CUDA13 route."
+    },
+    {
+      "id": "final_installed_CUDA_lifecycle",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-reviewed-report.json",
+          "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-reviewed-report.json",
+          "sha256": "f22c700c2b685b20aa40253182ccc817b882cb56d59c4e126c542a2352f3d83e",
+          "bytes": 50245
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-report.json",
+          "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-report.json",
+          "sha256": "8f7525e5564d5f287505af0503071868ed345662af26ca6b55bb9c7dc9b1ffdf",
+          "bytes": 41818
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cache-contract-final/report.json",
+          "archive_relative_path": "release-preparation-v1/cache-contract-final/report.json",
+          "sha256": "a7f5e6b15826c2476bdf1b27f374c05acff8b0d36cb62378004bbc2c7beff300",
+          "bytes": 23783
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cache-contract-final/reviewed-report.json",
+          "archive_relative_path": "release-preparation-v1/cache-contract-final/reviewed-report.json",
+          "sha256": "8f329b20e91e995b209206129cf935991e1cc6faf56038567c8a0fd864e35619",
+          "bytes": 24267
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-before.json",
+          "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-before.json",
+          "sha256": "4d92e3c25c78ff37e86014bf6d0369afbb8886e1d180fb81eb752332217bc769",
+          "bytes": 1002775
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-after.json",
+          "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-after.json",
+          "sha256": "e88a9e234ef8e6793f6c5b57f92adf76f7f6b1bd06cd1bbbe01f0a6dee699da5",
+          "bytes": 1002775
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/RUN-AFTER-FREEZE-ROOT-ONLY.before-runtime-hash-fix.sh",
+          "archive_relative_path": "release-preparation-v1/RUN-AFTER-FREEZE-ROOT-ONLY.before-runtime-hash-fix.sh",
+          "sha256": "bcac5f317bf768267623e5848fc8f017003df8d0619eb487097f1303ac3f59dd",
+          "bytes": 7400
+        }
+      ],
+      "metrics": {
+        "checks": {
+          "all_six_cli_runs_pass": true,
+          "basis_cpu_cuda_identical": true,
+          "both_cached_source_rejections_pass": true,
+          "cache_three_modes_twenty_two_cases_pass": true,
+          "consumer_loaded_installed_quick": true,
+          "installed_consumer_pass": true,
+          "installed_files_unchanged": true,
+          "installed_runtime_unchanged": true,
+          "source_unchanged": true
+        },
+        "CUDA_CLI_sanitizer_runs": 6,
+        "cache_modes": [
+          "normal",
+          "memcheck",
+          "initcheck"
+        ],
+        "cache_matrix_cases_per_mode": 22,
+        "cache_source_rejection_backends": [
+          "CUDA",
+          "CUDA-MPI1"
+        ],
+        "installed_file_counts": {
+          "cpu": 1736,
+          "cuda": 2088
+        },
+        "postprocessing_review": {
+          "correction": "The initial supplementary symbol assertion treated expected B global-data COPY relocations as procedure overrides. Corrected classification examines code/weak-code/IFUNC symbol types; readelf raw relocation evidence retained. All original scientific/sanitizer/rejection checks and tolerances are unchanged; no scientific rerun.",
+          "original_aggregate_report": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-report.json",
+          "original_preserved": true,
+          "original_sha256": "8f7525e5564d5f287505af0503071868ed345662af26ca6b55bb9c7dc9b1ffdf"
+        },
+        "aslr_identity_correction": {
+          "bash_syntax_check_pass": true,
+          "corrected_runner_sha256": "c1f72ab8511f1e2a7b30538b5f2cff08d8c5db30a4b0bdec1d2af9e1ec34e57f",
+          "original_runner_preserved": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/RUN-AFTER-FREEZE-ROOT-ONLY.before-runtime-hash-fix.sh",
+          "original_runner_sha256": "bcac5f317bf768267623e5848fc8f017003df8d0619eb487097f1303ac3f59dd",
+          "other_ASLR_dependent_equalities": "None found in release *.py/*.sh excluding preserved original runner. CPU/MPI orchestrator compares path+hash maps, not ldd text.",
+          "raw_ldd_preserved": true,
+          "reason": "Raw ldd includes ASLR load addresses. Runtime identity compares resolved paths+SHA256 only. Cache first report retained, reviewed report explicitly documents identity-only correction."
+        }
+      },
+      "scope": "Final v3 installed CUDA consumer/CLI cleanup/cache/rejection checks only, sequential exclusive GPU process on CPUs28-29. CUDA-MPI rejection is rank1 only. No repository/build/install mutation or additional GPU jobs. CPU CLI prefix/RPATH mismatch remains outside this accepted CUDA scope. Original ASLR-address and data-COPY-relocation false-flag reports remain preserved; reviewed corrections affect postprocessing identity/symbol classification only, with no scientific rerun or gate change."
+    },
+    {
+      "id": "final_installed_CUDA_BOMD_all_seven",
+      "disposition": "PASS_SHORT_TRAJECTORIES",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cuda/report.json",
+          "archive_relative_path": "release-preparation-v1/bomd-cuda/report.json",
+          "sha256": "4f4fa07438e69109f32bc7c41519c3eb3e5501522137a687b196b1d3e488dfc5",
+          "bytes": 1299647
+        }
+      ],
+      "metrics": {
+        "trajectories": 28,
+        "checks": 936,
+        "cases": [
+          "field",
+          "cosmo",
+          "pcm",
+          "cosmo_field",
+          "pcm_field",
+          "pbe0_pcm",
+          "pbe0_pcm_spd"
+        ],
+        "arguments": {
+          "basis": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cpu/basis",
+          "cases": [
+            "field",
+            "cosmo",
+            "pcm",
+            "cosmo_field",
+            "pcm_field",
+            "pbe0_pcm",
+            "pbe0_pcm_spd"
+          ],
+          "drift_tolerance": 1e-05,
+          "driver": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cuda/bin/test-api-oeprop-bomd.cuda",
+          "energy_dt": 0.05,
+          "energy_steps": 0,
+          "launcher": "taskset -c 28",
+          "ranks": 1,
+          "steps": 4,
+          "timeout": 1800,
+          "workdir": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cuda"
+        },
+        "installed_library": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cuda/lib/libquick_cuda.so",
+        "installed_library_sha256": "390d22fba6d569c84a1c0f95dbd9e9b478554d8f305bc3fb28736c4cdca42eb4",
+        "source_runtime_unchanged": true
+      },
+      "scope": "Finite water; electrostatic equilibrium solvent; defined solute-only applied-field convention; short NVE software/force validation, not production ensembles or spectra; four short steps and stride/split/restart controls, not a new long-time drift/ensemble campaign. Actual final installed CUDA library loaded."
+    },
+    {
+      "id": "earlier_CPU_CLI_prefix_scope",
+      "disposition": "NOT_FINAL_INSTALLED_CPU_ACCEPTANCE",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.in",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.in",
+          "sha256": "1bd61e8b182788bc9ccad8c5d81fa6131caacbed0b549c1481232e8d9436c15f",
+          "bytes": 208
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.out",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.out",
+          "sha256": "0da10b4b59c37643354715f81dae9235b792c85d0f97cababb27590bf7beedc3",
+          "bytes": 11640
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/execution.log",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/execution.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.in",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.in",
+          "sha256": "80f1eb60e113b2dc33bb4b8f82bf4a986da978a4ca52582296c3aa6eda537eb4",
+          "bytes": 286
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.out",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.out",
+          "sha256": "501b815957c356a768eabccc861a54966dd73b18097d8d39e771d52f59b5eb6d",
+          "bytes": 11804
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/execution.log",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/execution.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.in",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.in",
+          "sha256": "3dce98ad3bb46235ae7a18c240c74c86b727385f0b032b68f1486f25386f32e2",
+          "bytes": 284
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.out",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.out",
+          "sha256": "754ba9009855ac578799902bb2eeefcd46b91284aa39f2a35532e861e48d9654",
+          "bytes": 11802
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/execution.log",
+          "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/execution.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ],
+      "metrics": {
+        "raw_runs": 3,
+        "final_installed_CPU_CLI_claim": false
+      },
+      "scope": "The three original CPU CLI runs resolved the old A library and remain excluded from final installed CPU acceptance. Separate imported-target CPU and proper configured-prefix packaging/scientific-smoke rows now close the gap. Original excluded outputs and preflight reports remain unchanged; they are not retroactively accepted."
+    },
+    {
+      "id": "final_installed_CPU_and_MPI",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cpu-final-release-acceptance-summary.json",
+          "archive_relative_path": "release-preparation-v1/cpu-final-release-acceptance-summary.json",
+          "sha256": "4a0faa61abfe5dcb43515cffb9d840107df147370eb0190451b5004155ac1eb3",
+          "bytes": 5178
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cpu-consumer-release-report.json",
+          "archive_relative_path": "release-preparation-v1/bomd-cpu-consumer-release-report.json",
+          "sha256": "942d6fccaee24f61081601b43f176dd227acfc03ab7bf2645604886f96a134d2",
+          "bytes": 1130645
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cpu/report.json",
+          "archive_relative_path": "release-preparation-v1/bomd-cpu/report.json",
+          "sha256": "7a38c12acbaf68de66d4c9f72030867880a29a1d73a5a3570699a94e54c1ab2f",
+          "bytes": 1289546
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/point-field-mpi2-acceptance-summary.json",
+          "archive_relative_path": "release-preparation-v1/point-field-mpi2-acceptance-summary.json",
+          "sha256": "5c6230b6a1897d23252c6c589d6a7c63bced90b5f2375b35290a0d39e83e87ca",
+          "bytes": 1856
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/point-field-mpi2-neutral/report.json",
+          "archive_relative_path": "release-preparation-v1/point-field-mpi2-neutral/report.json",
+          "sha256": "2af288ff3336df48b0094475cf329351993b2744d85888c925fac1356e7d081e",
+          "bytes": 421339
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/point-field-mpi2-cation/report.json",
+          "archive_relative_path": "release-preparation-v1/point-field-mpi2-cation/report.json",
+          "sha256": "a8a2fdb68c7aaf5b8fa550ea80d5958289323e25f47d0f9258303cbbaaf5aae0",
+          "bytes": 421233
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cpu-install-prefix-rpath-preflight-v1/report.json",
+          "archive_relative_path": "release-preparation-v1/cpu-install-prefix-rpath-preflight-v1/report.json",
+          "sha256": "4896b82c133a9cba4364cb6c4cee47e7f225f40c584280ffff3034ab3b07cd63",
+          "bytes": 12363
+        }
+      ],
+      "metrics": {
+        "CPU_trajectories": 28,
+        "CPU_checks": 936,
+        "CPU_summary": {
+          "passed": true,
+          "cases": [
+            "field",
+            "cosmo",
+            "pcm",
+            "cosmo_field",
+            "pcm_field",
+            "pbe0_pcm",
+            "pbe0_pcm_spd"
+          ],
+          "trajectories": 28,
+          "force_evaluations": 112,
+          "checks": 936,
+          "failed_checks": 0,
+          "steps": 4,
+          "energy_steps": 0,
+          "basis": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cpu/basis",
+          "actual_library": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cpu/lib/libquick.so",
+          "elapsed_seconds": 292.90117765101604,
+          "maximum_short_drift_hartree": 1.1308173952784273e-07,
+          "sampling_preserves_energy_max_error": 0.0,
+          "sampling_preserves_geometry_max_error": 0.0,
+          "sampling_preserves_velocities_max_error": 0.0,
+          "restart_energy_max_error": 6.963318810448982e-13,
+          "restart_geometry_max_error": 0.0,
+          "restart_velocity_max_error": 2.143389090346337e-14,
+          "restart_property_max_error": 9.088063634976606e-12,
+          "source_unchanged": true,
+          "runtime_unchanged": true,
+          "actual_installed_library_observed": true,
+          "science_affinity_observed": true
+        },
+        "MPI_evaluations": 130,
+        "MPI_checks": 32,
+        "MPI_cases": [
+          {
+            "case": "point-field-mpi2-neutral",
+            "passed": true,
+            "runs": 65,
+            "checks": 16,
+            "failed_checks": 0,
+            "max_nuclear_fd_error": 2.241597720775701e-07,
+            "max_point_fd_error": 1.504485286352164e-10,
+            "runtime_accepted": true,
+            "actual_installed_library_observed": true,
+            "rank_affinities": [
+              [
+                19,
+                23
+              ],
+              [
+                19,
+                23
+              ]
+            ],
+            "report_sha256": "2af288ff3336df48b0094475cf329351993b2744d85888c925fac1356e7d081e"
+          },
+          {
+            "case": "point-field-mpi2-cation",
+            "passed": true,
+            "runs": 65,
+            "checks": 16,
+            "failed_checks": 0,
+            "max_nuclear_fd_error": 2.4183739721905795e-07,
+            "max_point_fd_error": 2.4755901495421284e-10,
+            "runtime_accepted": true,
+            "actual_installed_library_observed": true,
+            "rank_affinities": [
+              [
+                19,
+                23
+              ],
+              [
+                19,
+                23
+              ]
+            ],
+            "report_sha256": "a8a2fdb68c7aaf5b8fa550ea80d5958289323e25f47d0f9258303cbbaaf5aae0"
+          }
+        ]
+      },
+      "scope": "Final installed CPU/MPI scientific release bridge. The integrated shared-library MPI energy-only guard is tested directly. CPU trajectories use the exact frozen driver source rebuilt as an imported QUICK::libquick consumer, avoiding the separately recorded installed executable absolute-RPATH prefix issue. No source/build/install modification or GPU run by this agent. Short trajectory correctness only; prior v2 NVE/refinement evidence remains separate."
+    },
+    {
+      "id": "final_installed_CPU_CUDA_BOMD_parity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cpu-cuda-comparison.json",
+          "archive_relative_path": "release-preparation-v1/bomd-cpu-cuda-comparison.json",
+          "sha256": "0c3e96f42da52cadbb78ecf4d73a6924f66208138b45f85bf3cd67827c0427cf",
+          "bytes": 31446
+        }
+      ],
+      "metrics": {
+        "checks": 212,
+        "tolerances": {
+          "energy_au": 1e-07,
+          "properties_au": 2e-07,
+          "trajectory_angstrom": 1e-07,
+          "velocities_checkpoint_units": 1e-07
+        }
+      },
+      "scope": "Matched seven-case four-step stride/split/restart controls against actual frozen R-installed CPU/CUDA libraries; no long-time NVE or ensemble claim."
+    },
+    {
+      "id": "final_installed_CUDA_MPI1_BOMD",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cudampi/report.json",
+          "archive_relative_path": "release-preparation-v1/bomd-cudampi/report.json",
+          "sha256": "c8f91bbc0b85a4c23721638de69ec81e0c65f1464e3fcb31176e3f2ca750ac11",
+          "bytes": 1107826
+        }
+      ],
+      "metrics": {
+        "trajectories": 12,
+        "checks": 408,
+        "arguments": {
+          "basis": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cpu/basis",
+          "cases": [
+            "cosmo",
+            "pcm_field",
+            "pbe0_pcm_spd"
+          ],
+          "drift_tolerance": 1e-05,
+          "driver": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/install/cuda/bin/test-api-oeprop-bomd.cuda.MPI",
+          "energy_dt": 0.05,
+          "energy_steps": 0,
+          "launcher": "taskset -c 28 mpirun --bind-to none -np 1",
+          "ranks": 1,
+          "steps": 4,
+          "timeout": 1800,
+          "workdir": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cudampi"
+        }
+      },
+      "scope": "Final installed CUDA-MPI library, one rank on one physical GPU, COSMO/PCM+field/hybrid basis three-case short trajectory controls."
+    },
+    {
+      "id": "proper_configured_prefix_packaging",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-packaging-report.json",
+          "archive_relative_path": "release-preparation-v1/configured-prefix-packaging-report.json",
+          "sha256": "89b597fc8c5d14d77b7041f388a58475029934840d1ac624b148bab0572578fb",
+          "bytes": 5356
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v1/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-prefix-cpu-v1/report.json",
+          "sha256": "87c508f1cb4f8e50db8e85a693d1b8f2988e17419c92bc446f9e917d89a91ae9",
+          "bytes": 1144580
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v2/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-prefix-cpu-v2/report.json",
+          "sha256": "8eb819c3b0a67b1c621ce2863f324fb9dac9610ffa6268310664196fd143b6fc",
+          "bytes": 1146236
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v3/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-prefix-cpu-v3/report.json",
+          "sha256": "619f5a4af08a6d296a4d78172ab45815c8ff3787d57a7ea354758f389e3e934c",
+          "bytes": 2132836
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cuda-v3/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-prefix-cuda-v3/report.json",
+          "sha256": "a7633336beaa0b0d46217d244d67b866cc08a7ec4c02c7a44e9c561f5cd5a571",
+          "bytes": 2626512
+        }
+      ],
+      "metrics": {
+        "backends": [
+          {
+            "backend": "cpu",
+            "cache_changes": {
+              "CMAKE_INSTALL_PREFIX:PATH": [
+                "/home/epalos/software/quick_ep/fields-ddx-20261014/install/cpu",
+                "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-install/cpu"
+              ]
+            },
+            "checks": {
+              "actual_build_has_no_source_compile_flag": true,
+              "all_compiled_modules_byteidentical": true,
+              "all_compiled_objects_byteidentical": true,
+              "all_generated_compiled_inputs_byteidentical": true,
+              "all_installed_elf_dependencies_resolve_without_ld_overrides": true,
+              "old_installations_unchanged": true,
+              "only_prefix_cache_change": true,
+              "plan_has_no_source_compilation": true,
+              "source_unchanged": true,
+              "source_unchanged_before_install": true
+            },
+            "elf_count": 10,
+            "generated_inputs_count": 387,
+            "libraries_sha256": {
+              "lib/libquick.so": "6284afc8a37f2c8ee40a6ef5f6c92becbbd32dfd62cca91afa52b4bbe1ee08ca",
+              "lib/libquick_mpi.so": "4517a2fafeeaf405ea96c8d42fae42febba9b46b6cd6563aa9841e03e88d78d3"
+            },
+            "math_proof": "Every compiled object/module and generated compiled input byte-identical before/after, all source bytes unchanged. The full prefix-only Ninja plans and exact metadata/link commands are retained.",
+            "modules_count": 173,
+            "objects_count": 596,
+            "passed": true,
+            "prefix": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-install/cpu",
+            "report": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v3/report.json",
+            "report_sha256": "619f5a4af08a6d296a4d78172ab45815c8ff3787d57a7ea354758f389e3e934c",
+            "source_count": 3216
+          },
+          {
+            "backend": "cuda",
+            "cache_changes": {
+              "CMAKE_INSTALL_PREFIX:PATH": [
+                "/home/epalos/software/quick_ep/fields-ddx-20261014/install/cuda",
+                "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-install/cuda"
+              ]
+            },
+            "checks": {
+              "actual_build_has_no_source_compile_flag": true,
+              "all_compiled_modules_byteidentical": true,
+              "all_compiled_objects_byteidentical": true,
+              "all_generated_compiled_inputs_byteidentical": true,
+              "all_installed_elf_dependencies_resolve_without_ld_overrides": true,
+              "old_installations_unchanged": true,
+              "only_prefix_cache_change": true,
+              "plan_has_no_source_compilation": true,
+              "source_unchanged": true,
+              "source_unchanged_before_install": true
+            },
+            "elf_count": 20,
+            "generated_inputs_count": 727,
+            "libraries_sha256": {
+              "lib/libquick.so": "0680dee46494e4cb3bb3865cfcaae63873d317c56ab1b962902fb4d89b06bb09",
+              "lib/libquick_cuda.so": "b6fa106b83de47f9b5ba240c603f8b2c1a203ce6663115aa7180472c20f1692a",
+              "lib/libquick_mpi.so": "3395607346011e13d00bce298a35fa0b975478a6643feac09722d9f0f5d60f01",
+              "lib/libquick_mpi_cuda.so": "730e30b225bdfd7f4811d365e5d8ce6b3f125dee4ffce6f91d40e79c51a02d02"
+            },
+            "math_proof": "Every compiled object/module and generated compiled input byte-identical before/after, all source bytes unchanged. The full prefix-only Ninja plans and exact metadata/link commands are retained.",
+            "modules_count": 344,
+            "objects_count": 1303,
+            "passed": true,
+            "prefix": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-install/cuda",
+            "report": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cuda-v3/report.json",
+            "report_sha256": "a7633336beaa0b0d46217d244d67b866cc08a7ec4c02c7a44e9c561f5cd5a571",
+            "source_count": 3216
+          }
+        ],
+        "ddX_dependency": {
+          "HEAD": "23de728143825695f54a04aeec2dd836b2ca9419",
+          "installed_shared_library": "/home/epalos/software/quick_ep/fields-ddx-20261014/install/ddx/lib/libddx.so.1.0.0",
+          "installed_shared_library_sha256": "76d82d5c31b68a7ad570cb92105fb52d897a3b1b8e536044499c0a38165f5ad2",
+          "source_clone": "/home/epalos/software/ddX",
+          "status_porcelain": "",
+          "unchanged_user_clone_read_only": true
+        },
+        "actual_source_compilation": false,
+        "preserved_old_installs": true
+      },
+      "scope": "All30 installed ELF files (10CPU+20CUDA), including all8 CPU/MPI/CUDA/CUDA-MPI main/BOMD variants, resolve correct new configured prefix with LD_LIBRARY_PATH and LD_PRELOAD unset. Source and old R/install/A/install are byte-identical. No science, GPU jobs, or W edits performed by packaging workflow. V1/v2 metadata guards stopped before any build/install; v3 permits verified CMake Ninja dependency metadata plus link actions only. All old failed/preflight reports remain preserved."
+    },
+    {
+      "id": "configured_prefix_scientific_smokes",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cpu-runner-report.json",
+          "archive_relative_path": "release-preparation-v1/configured-smoke-cpu-runner-report.json",
+          "sha256": "25c36d1a8375cd70b88a880ee09e1f67f6c1cc5491dc9a30f48c7046ee27ce0c",
+          "bytes": 1521686
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cpu/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-smoke-cpu/report.json",
+          "sha256": "758949e8326bbbb33647a6b8762a6911f71ae8a7938173037be158acc423d319",
+          "bytes": 1044207
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cuda/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-smoke-cuda/report.json",
+          "sha256": "78d1d72b88eeab3593a32eaf981faf94acfd3b2935c63e2f0dce729e51904ad3",
+          "bytes": 1049012
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda-v2/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-cli-cuda-v2/report.json",
+          "sha256": "f9c826b5342de1fcc4a27dbafc3bc9d9df9e0759ce510cca263b1c0363f4875e",
+          "bytes": 1530676
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda-closeout.json",
+          "archive_relative_path": "release-preparation-v1/configured-cli-cuda-closeout.json",
+          "sha256": "c9cd8997eb2e877f7404d0b2760090e6d96f0dbae5dbaa6138a95db3e4648340",
+          "bytes": 10982
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cuda-live-maps.json",
+          "archive_relative_path": "release-preparation-v1/configured-smoke-cuda-live-maps.json",
+          "sha256": "5236003dd6bfb6687b1fac741cfa7fe7058182d25c9f866e8ebd30ea8e6ec541",
+          "bytes": 732
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cpu-cuda-comparison.json",
+          "archive_relative_path": "release-preparation-v1/configured-smoke-cpu-cuda-comparison.json",
+          "sha256": "5bff17125ad3c3a72f0fb9184815ff61e64300649f8f37fc2868640e4fd30b4c",
+          "bytes": 9812
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-cli-cuda/report.json",
+          "sha256": "7f48dac33c8b68ce065b997a15d4ba5233dad04734085647b9b874753a93c14e",
+          "bytes": 753434
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda-preflight-v1/report.json",
+          "archive_relative_path": "release-preparation-v1/configured-cli-cuda-preflight-v1/report.json",
+          "sha256": "9e219eb31c8f9f5740d2cb2f0249f24c571165cc577aac72f34e735655600473",
+          "bytes": 747312
+        }
+      ],
+      "metrics": {
+        "BOMD": {
+          "cpu": {
+            "trajectories": 8,
+            "checks": 274,
+            "library": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-install/cpu/lib/libquick.so"
+          },
+          "cuda": {
+            "trajectories": 8,
+            "checks": 274,
+            "library": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-install/cuda/lib/libquick_cuda.so"
+          }
+        },
+        "CPU_CLI_runs": 3,
+        "CUDA_CLI_sanitizer_runs": 6,
+        "CPU_CUDA_comparison_checks": 62,
+        "CPU_CUDA_tolerances": {
+          "energy_au": 1e-07,
+          "properties_au": 2e-07,
+          "trajectory_angstrom": 1e-07,
+          "velocities_checkpoint_units": 1e-07
+        },
+        "actual_GPU_live_map_observations": 1
+      },
+      "scope": "Actual new configured prefixes, clean launch environment without user runtime override, CPU normal CLI three fixtures and CUDA six memcheck/initcheck controls; both backends eight short BOMD trajectories/two cases. Sanitizer-injected child loader variables/libraries explicitly recorded and actual mapped QUICK path/hash verified. First successful raw memcheck reused; remaining five executed once. Broad R/install campaigns remain separately pinned; source/operator bytes preserved through prefix-only relink."
+    },
+    {
+      "id": "final_WATER20_release_bridge",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/water20-coupled-cuda/report.json",
+          "archive_relative_path": "release-preparation-v1/water20-coupled-cuda/report.json",
+          "sha256": "b5cdd841e3492e5a433833aadbd6e1dfc1ac0e1e8b4800942edb3662ce55e1ff",
+          "bytes": 1266298
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/water20-release-comparison.json",
+          "archive_relative_path": "release-preparation-v1/water20-release-comparison.json",
+          "sha256": "9671f9651f36d9c9973cc1227dfd20c057873d02017ea743aba031b1bb5dd581",
+          "bytes": 193942
+        }
+      ],
+      "metrics": {
+        "report_checks": 53,
+        "comparison_checks": 60,
+        "dt_fs": 0.025,
+        "keyword": "DFT PBE0 D3 BASIS=DEF2-SVP SCF=120 DENSERMS=1D-9 CUTOFF=1D-12 GRADCUTOFF=1D-12 XCCUTOFF=1D-12 BASISCUTOFF=1D-12 GRADIENT DDX=PCM EXTERNAL_EFIELD_X=0.0002 DDX_FIELD=SOLUTE",
+        "summary": {
+          "api_energy_gradient_calls": 3,
+          "applied_field_master_gpu_calls": [
+            3,
+            3
+          ],
+          "backend": "cuda",
+          "density_probe_ids": "local to each sampled frame; no temporal correspondence",
+          "dt_fs": 0.025,
+          "efg_axes": "laboratory Cartesian; G_ij = dE_i/dC_j = -d2V/dC_i dC_j",
+          "efield_axes": "laboratory Cartesian",
+          "final_step": 2,
+          "final_total_au": -1526.1640909643409,
+          "force_calls": 3,
+          "force_wall_seconds": 517.8084124529269,
+          "initial_total_au": -1526.1640909624668,
+          "max_abs_drift_au": 1.8740138330031186e-09,
+          "max_gradient_change_au_per_bohr": 0.00018343585596309296,
+          "max_net_gradient_au_per_bohr": 1.422332271435311e-08,
+          "mpi_ranks": 1,
+          "oeprop_stride": 1,
+          "oeprop_wall_seconds": 0.015162263996899128,
+          "probe_generation_calls": 3,
+          "probe_mode": "fixed",
+          "probe_wall_seconds": 1.4891033060848713e-05,
+          "properties_extra_api_calls": 0,
+          "property_calls": 3,
+          "property_units": "atomic units; probe coordinates in Angstrom",
+          "restart_hamiltonian_verified": true,
+          "solvation_gpu_coulomb_cache": [
+            45,
+            3,
+            6762498000,
+            48,
+            0,
+            0,
+            6765553992
+          ],
+          "solvation_gpu_volume_calls": [
+            48,
+            48,
+            3
+          ],
+          "solvation_master_phase_seconds": {
+            "cavity_efield": 0.6619692629901692,
+            "cavity_esp": 3.2811738159507513,
+            "cavity_model": 0.04044669191353023,
+            "coulomb_gradient": 42.25561436987482,
+            "coulomb_matrix": 16.3108904940309,
+            "ddx_gradient": 0.3561161048710346,
+            "ddx_solve": 52.53425455384422,
+            "density_projection": 1.2430484712822363,
+            "local_matrix": 47.033953351550736,
+            "partition_gradient": 27.519888711045496,
+            "solid_harmonics": 1.7918494208715856,
+            "volume_density": 58.46274741133675,
+            "volume_gradient": 10.537592489039525,
+            "volume_grid": 14.548334863968194
+          },
+          "solvation_updates": 48,
+          "start_step": 0,
+          "steps_run": 2,
+          "timing_scope": "per rank wall time; force includes SCF plus gradient and API internal work/output; excludes driver trajectory/property IO"
+        },
+        "tolerances": {
+          "checkpoint_velocities": 1e-07,
+          "energy_time_hartree": 1e-07,
+          "geometry_angstrom": 1e-07,
+          "properties_au": 2e-07,
+          "property_coordinates_and_time": 1e-10
+        }
+      },
+      "scope": "Exact accepted WATER27 H2O20es geometry and fixed probes, final installed CUDA PCM+solute field PBE0-D3/DEF2-SVP; two0.025fs steps with raw-source/runtime/counter/parity checks. Short software/force-transfer result, not convergence/ensemble evidence."
+    },
+    {
+      "id": "final_protected_worktrees",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/protected-worktrees-after/report.json",
+          "archive_relative_path": "release-preparation-v1/protected-worktrees-after/report.json",
+          "sha256": "15c9b8393f1ba7783898488d378ab05191f0921149d4b6bc49740909571c52ae",
+          "bytes": 5301
+        }
+      ],
+      "metrics": {
+        "worktrees": 11,
+        "files": 31841,
+        "unchanged": true
+      },
+      "scope": "HEAD, exact porcelain short status, and bytes of every tracked/nonignored untracked regular file; ignored build/runtime artifacts excluded as in baseline inventory."
+    },
+    {
+      "id": "final_source_runtime_install_identity",
+      "disposition": "PASS",
+      "evidence": [
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/identity-comparison.json",
+          "archive_relative_path": "release-preparation-v1/identity-comparison.json",
+          "sha256": "9e1a8bb447d8e48f66f75ba378fa86ad2e205fa6107dc39dd6f6d1ae7a64955a",
+          "bytes": 5857
+        },
+        {
+          "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/after-release-checks.json",
+          "archive_relative_path": "release-preparation-v1/after-release-checks.json",
+          "sha256": "a7e6723bd024457cf2477ac0e2602867af8bf5f2c35873ee5bef41b1d5b20b42",
+          "bytes": 1002775
+        }
+      ],
+      "metrics": {
+        "passed": true,
+        "checks": 9,
+        "source_file_count": 3216,
+        "configured_installations": {
+          "cpu": {
+            "report": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v3/report.json",
+            "sha256": "619f5a4af08a6d296a4d78172ab45815c8ff3787d57a7ea354758f389e3e934c",
+            "files": 1736,
+            "objects": 596,
+            "modules": 173,
+            "generated_compiled_inputs": 387
+          },
+          "cuda": {
+            "report": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cuda-v3/report.json",
+            "sha256": "a7633336beaa0b0d46217d244d67b866cc08a7ec4c02c7a44e9c561f5cd5a571",
+            "files": 2088,
+            "objects": 1303,
+            "modules": 344,
+            "generated_compiled_inputs": 727
+          }
+        }
+      },
+      "scope": "Final executable/source/runtime/install identity after all scoped release tests, before documentation adoption and intentional canonical feature fast-forward. Original scientific accuracy failures remain preserved separately. Only explicitly authorized packaging metadata/link changes are distinguished by that report. No unchecked identity equality inferred from matching numerical outputs."
+    }
+  ],
+  "files": {
+    "field-cpu-full-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cpu-full-v1/report.json",
+      "archive_relative_path": "field-cpu-full-v1/report.json",
+      "sha256": "50e2154a349039cac7b06e42174f4d48845a068facfdc087090f341468f14d01",
+      "bytes": 1523128
+    },
+    "field-cuda-four-cases-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-cuda-four-cases-v2/report.json",
+      "archive_relative_path": "field-cuda-four-cases-v2/report.json",
+      "sha256": "d402e678d4f0cf9c1aa3857a96b4f654d9ea87851553496418bf2ab9434b6803",
+      "bytes": 1125612
+    },
+    "field-mpi-smoke/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-mpi-smoke/report.json",
+      "archive_relative_path": "field-mpi-smoke/report.json",
+      "sha256": "3d7a7a895b66d10ccfd57111a53f568c950c45f32b19073d8554337aa921f54c",
+      "bytes": 388609
+    },
+    "solvation-cpu-full-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-full-v2/report.json",
+      "archive_relative_path": "solvation-cpu-full-v2/report.json",
+      "sha256": "478a9a642a089236b022d27ddcecbef77a0aaf1d8040ce0829b2872b6140d163",
+      "bytes": 4151210
+    },
+    "solvation-cuda-full-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cuda-full-v2/report.json",
+      "archive_relative_path": "solvation-cuda-full-v2/report.json",
+      "sha256": "19c34c6fc4e9c5d50d487b4b306adff704da9dcf062484e8b623ef198ba24147",
+      "bytes": 4468588
+    },
+    "solvation-mpi2-forces-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-mpi2-forces-v2/report.json",
+      "archive_relative_path": "solvation-mpi2-forces-v2/report.json",
+      "sha256": "9655da40282899bf5e02a424c85f3ee3a784963973da37d1005d53ca178371da",
+      "bytes": 2092946
+    },
+    "solvation-cudampi-forces-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cudampi-forces-v2/report.json",
+      "archive_relative_path": "solvation-cudampi-forces-v2/report.json",
+      "sha256": "f24f631eed2c95b65f51077be2ef15ba2d961cb8551ebe48d9e65a085e1f2a78",
+      "bytes": 1617973
+    },
+    "solvation-cpu-water-dimer-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-water-dimer-v2/report.json",
+      "archive_relative_path": "solvation-cpu-water-dimer-v2/report.json",
+      "sha256": "e1e776f5ddfdaf9891f00144d25fbab9f906cd9d20f313ee73ca328b717595b9",
+      "bytes": 2032833
+    },
+    "solvation-cuda-water-dimer-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cuda-water-dimer-v2/report.json",
+      "archive_relative_path": "solvation-cuda-water-dimer-v2/report.json",
+      "sha256": "d7bd3f184d6b8458aca84ebec3b86f5382625bc3d397c58925fca7a7107305e1",
+      "bytes": 1565344
+    },
+    "solvation-cpu-frozen-smoke-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-frozen-smoke-v3/report.json",
+      "archive_relative_path": "solvation-cpu-frozen-smoke-v3/report.json",
+      "sha256": "587aaf0bad7cc384a867202ef57ed742b063d3816073d00a767cf5c7d49b878a",
+      "bytes": 364702
+    },
+    "solvation-cuda-frozen-smoke/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cuda-frozen-smoke/report.json",
+      "archive_relative_path": "solvation-cuda-frozen-smoke/report.json",
+      "sha256": "0de15012fd0b0fedcb5c36a157fc4291fdc906018fb880dfd708688e9ef3ac50",
+      "bytes": 367296
+    },
+    "solvation-cpu-cuda-full-parity-v2.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-cuda-full-parity-v2.json",
+      "archive_relative_path": "solvation-cpu-cuda-full-parity-v2.json",
+      "sha256": "c6687ac4f9d58d3978c387a9582075b06f9387bdedb80720628552970a929930",
+      "bytes": 1355286
+    },
+    "solvation-cpu-mpi2-parity-v2.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-mpi2-parity-v2.json",
+      "archive_relative_path": "solvation-cpu-mpi2-parity-v2.json",
+      "sha256": "d0570ec1652fd42b6213aa999276c29b15a4950e7e645e7a522371359c1af0c1",
+      "bytes": 489778
+    },
+    "solvation-cpu-cudampi-parity-v2.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-cpu-cudampi-parity-v2.json",
+      "archive_relative_path": "solvation-cpu-cudampi-parity-v2.json",
+      "sha256": "a3959671a2231e194b2ab54de65bc9ca8949752e563313b9cd52948e6ff9ee9e",
+      "bytes": 270286
+    },
+    "solvation-water-dimer-cpu-cuda-parity-v2.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-water-dimer-cpu-cuda-parity-v2.json",
+      "archive_relative_path": "solvation-water-dimer-cpu-cuda-parity-v2.json",
+      "sha256": "96b0c339df7148fc595a3539dd6b23fb87b1da9d62040c8acc82384e84ac8d8b",
+      "bytes": 253864
+    },
+    "standard-cpu-regression-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cpu-regression-v1/report.json",
+      "archive_relative_path": "standard-cpu-regression-v1/report.json",
+      "sha256": "c10abc650e9976bad9714b3cf3ba97a5e74284a8d9d6c61fe5f4facbded98005",
+      "bytes": 49205
+    },
+    "standard-cpu-regression-v1/old-controls/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cpu-regression-v1/old-controls/report.json",
+      "archive_relative_path": "standard-cpu-regression-v1/old-controls/report.json",
+      "sha256": "372ac6ec4467a5f2592f53a523a894926c03f43bf7a6f151273ba4900e1f4575",
+      "bytes": 9445
+    },
+    "standard-cuda-full-regression-greptext-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cuda-full-regression-greptext-v3/report.json",
+      "archive_relative_path": "standard-cuda-full-regression-greptext-v3/report.json",
+      "sha256": "e94cac665452bd066beeb751ce65386d135b83128d23dd02f38c3d26839e4b5a",
+      "bytes": 160155
+    },
+    "standard-cuda-full-regression-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/standard-cuda-full-regression-v2/report.json",
+      "archive_relative_path": "standard-cuda-full-regression-v2/report.json",
+      "sha256": "70f92b2575f47849ac6f6e6514c702ff044015d4e67145ad5be09754d16b656c",
+      "bytes": 14596
+    },
+    "baseline-cuda-f-banner-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/baseline-cuda-f-banner-v1/report.json",
+      "archive_relative_path": "baseline-cuda-f-banner-v1/report.json",
+      "sha256": "37eefa689ff84feee6eeff0e01854438ac1c97bbc31406b3076a7ddaa48102fe",
+      "bytes": 8671
+    },
+    "runtest-greptext-fix/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/runtest-greptext-fix/report.json",
+      "archive_relative_path": "runtest-greptext-fix/report.json",
+      "sha256": "e15357bdff407ea467b5434134d874d55560213b6672e8f4203e2d6495e4837b",
+      "bytes": 1639
+    },
+    "legacy-oeprop-bomd-all-backends-v2/validation_summary.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-oeprop-bomd-all-backends-v2/validation_summary.json",
+      "archive_relative_path": "legacy-oeprop-bomd-all-backends-v2/validation_summary.json",
+      "sha256": "45b12ede08cf4b6ab3c4ef2485378abccf3a7518dd976149766a958daf02a62c",
+      "bytes": 630479
+    },
+    "bomd-cudampi-coupled-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cudampi-coupled-v2/report.json",
+      "archive_relative_path": "bomd-cudampi-coupled-v2/report.json",
+      "sha256": "d4b3357834691a53a21362096e7a5675aa80b248c5c383430a98577a640bfdf4",
+      "bytes": 1072564
+    },
+    "default-off-final-bridge-v2/final-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/final-report.json",
+      "archive_relative_path": "default-off-final-bridge-v2/final-report.json",
+      "sha256": "1198d658409d6e50f842a64fd4f3cdc173b06b94c4e11d1cff57d75d0e63848d",
+      "bytes": 5537
+    },
+    "default-off-final-bridge-v2/source-lineage.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/source-lineage.json",
+      "archive_relative_path": "default-off-final-bridge-v2/source-lineage.json",
+      "sha256": "8889c0a97fe7cd81d56dbdc7519709421610ae38a721d42bc5de1e2d4f80718d",
+      "bytes": 1477
+    },
+    "default-off-final-bridge-v2/build-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/build-report.json",
+      "archive_relative_path": "default-off-final-bridge-v2/build-report.json",
+      "sha256": "5100059eeb30a756c9f104801811a9cfa83707ab3ccdac67ddd27518beaac6a8",
+      "bytes": 1514
+    },
+    "default-off-final-bridge-v2/verify-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/verify-report.json",
+      "archive_relative_path": "default-off-final-bridge-v2/verify-report.json",
+      "sha256": "8488ec1b948d0d7a8f9b124ca9a5cd57d1064cec74a91ad1a43b64f1bc69d4c9",
+      "bytes": 112924
+    },
+    "default-off-final-bridge-v2/cpu-smoke-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/cpu-smoke-v2/report.json",
+      "archive_relative_path": "default-off-final-bridge-v2/cpu-smoke-v2/report.json",
+      "sha256": "cf9c64802a9512a8ecd6a2773df54008d569f0004f190d45ce33c398ec9e9abc",
+      "bytes": 2478
+    },
+    "default-off-final-bridge-v2/cuda-smoke-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/cuda-smoke-v2/report.json",
+      "archive_relative_path": "default-off-final-bridge-v2/cuda-smoke-v2/report.json",
+      "sha256": "733289e17f109710c87cd1fdf4152323319141ce9d060acd8e9a2396ebb7438a",
+      "bytes": 2514
+    },
+    "default-off-final-bridge-v2/bridge-preparation-v2.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/default-off-final-bridge-v2/bridge-preparation-v2.json",
+      "archive_relative_path": "default-off-final-bridge-v2/bridge-preparation-v2.json",
+      "sha256": "7ecbce79d1798d3ee3ee36377f14b98bb7ae177921ae13fa66c442fe9c52fbb3",
+      "bytes": 641
+    },
+    "release-preparation-v1/operator-objects-before-patches.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/operator-objects-before-patches.json",
+      "archive_relative_path": "release-preparation-v1/operator-objects-before-patches.json",
+      "sha256": "8697a1483d9998907482e9f853de5d81fe19afe1463fd17104ab4e0620fd211a",
+      "bytes": 6957
+    },
+    "release-preparation-v1/operator-objects-after-rebuild.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/operator-objects-after-rebuild.json",
+      "archive_relative_path": "release-preparation-v1/operator-objects-after-rebuild.json",
+      "sha256": "82a9312f2f4850bb7c201e76b8af097675214136e00cd24f4fe7bedd0e3bbf19",
+      "bytes": 7036
+    },
+    "release-preparation-v1/patch-application.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/patch-application.json",
+      "archive_relative_path": "release-preparation-v1/patch-application.json",
+      "sha256": "de8d9c6d9f45dbbf57ed1ffd7c371a0652ffe9b10b2a43e2d57d61395cb1bd27",
+      "bytes": 2291
+    },
+    "release-preparation-v1/final-patch-plan-v2.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/final-patch-plan-v2.json",
+      "archive_relative_path": "release-preparation-v1/final-patch-plan-v2.json",
+      "sha256": "2e34185f2ef2c6e21903654f6e3f23cc85cb11a98ce6bd7e6da23c3a957d57e2",
+      "bytes": 2873
+    },
+    "release-preparation-v1/before-build.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/before-build.json",
+      "archive_relative_path": "release-preparation-v1/before-build.json",
+      "sha256": "39e6949d9d0cd53730ec2afed4fcb9e9c2e5767c25a9e223367c91b38fc6f219",
+      "bytes": 585578
+    },
+    "release-preparation-v1/after-build.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/after-build.json",
+      "archive_relative_path": "release-preparation-v1/after-build.json",
+      "sha256": "77710a3ced23d2924319ace9c5c96fe2b0c3244a5986d539d2ffa69ebfd5821e",
+      "bytes": 585578
+    },
+    "solvation-split-positive-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-split-positive-v1/report.json",
+      "archive_relative_path": "solvation-split-positive-v1/report.json",
+      "sha256": "7ac7fcc650bdc1be33b513a0754b5156f0b83cb319b8333ec2f0a9f5c86851fc",
+      "bytes": 21341
+    },
+    "pcm-cavity-parity-cuda-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/pcm-cavity-parity-cuda-v1/report.json",
+      "archive_relative_path": "pcm-cavity-parity-cuda-v1/report.json",
+      "sha256": "c07b14dc8f86a6a484cfa0a55e9fc923651be01168a6d82a539673a958d16ab0",
+      "bytes": 49256
+    },
+    "pcm-cavity-parity-cuda-v1/evidence-manifest.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/pcm-cavity-parity-cuda-v1/evidence-manifest.json",
+      "archive_relative_path": "pcm-cavity-parity-cuda-v1/evidence-manifest.json",
+      "sha256": "b5b8ce5a913387d6feebd4a2f51b672684d6712b65eecb3de7f5a3dfc2a18194",
+      "bytes": 9045
+    },
+    "cavity-angular-isolation-cpu-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-angular-isolation-cpu-v1/report.json",
+      "archive_relative_path": "cavity-angular-isolation-cpu-v1/report.json",
+      "sha256": "216eeae3d99e594041f49cc70531dbb829253d8b086d9a119a47e326869f4e6f",
+      "bytes": 19996
+    },
+    "cavity-L14-volume-refinement-cpu-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-L14-volume-refinement-cpu-v1/report.json",
+      "archive_relative_path": "cavity-L14-volume-refinement-cpu-v1/report.json",
+      "sha256": "a601939772574f856ae72e067cc187949a8dd147d9df085d1334f2432afedd1a",
+      "bytes": 19881
+    },
+    "cavity-refinement-cpu-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-refinement-cpu-v1/report.json",
+      "archive_relative_path": "cavity-refinement-cpu-v1/report.json",
+      "sha256": "4d41afc3ff1ea49c374ae7b49a389750d0439bd7b31da0c4afd555f32f341342",
+      "bytes": 50368
+    },
+    "cavity-refinement-10-cpu-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-refinement-10-cpu-v1/report.json",
+      "archive_relative_path": "cavity-refinement-10-cpu-v1/report.json",
+      "sha256": "8dbc164b8827d12c9961bf8ce9c8a5c1b0bd962025240c0012104b197e56f782",
+      "bytes": 33388
+    },
+    "cavity-refinement-12-14-cpu-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cavity-refinement-12-14-cpu-v1/report.json",
+      "archive_relative_path": "cavity-refinement-12-14-cpu-v1/report.json",
+      "sha256": "533c23385a500bf00eece516d3cfbf4765ea8dded9c00435682dd18ed40c6c8b",
+      "bytes": 57832
+    },
+    "solvation-pyscf-oracle-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-pyscf-oracle-v3/report.json",
+      "archive_relative_path": "solvation-pyscf-oracle-v3/report.json",
+      "sha256": "529031c15cc3117ec1e3619fa1b315c9e2a4aedf383fc55076426aaf01c6a7dd",
+      "bytes": 30400
+    },
+    "solvation-pyscf-oracle-v3/independent-review.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-pyscf-oracle-v3/independent-review.json",
+      "archive_relative_path": "solvation-pyscf-oracle-v3/independent-review.json",
+      "sha256": "cabbfb219cc3e8056a20078a62fc88d0bb17a9eff7e266dce8d41b96a6073dc7",
+      "bytes": 4654
+    },
+    "solvation-pyscf-oracle-v3/evidence-manifest.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation-pyscf-oracle-v3/evidence-manifest.json",
+      "archive_relative_path": "solvation-pyscf-oracle-v3/evidence-manifest.json",
+      "sha256": "5b54fbb9e32365451bf50f949e40df10b681c5bbbd467f1e779aaa0d5344539a",
+      "bytes": 1403
+    },
+    "field-pyscf-portable-cpu-cuda-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-pyscf-portable-cpu-cuda-v2/report.json",
+      "archive_relative_path": "field-pyscf-portable-cpu-cuda-v2/report.json",
+      "sha256": "d2fb436fe6df58a2a62250440514be95f0e3e9e36a69c5eaa22947f01e0532c9",
+      "bytes": 45276
+    },
+    "field-pyscf-portable-cpu-cuda-v2/absolute-field/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-pyscf-portable-cpu-cuda-v2/absolute-field/report.json",
+      "archive_relative_path": "field-pyscf-portable-cpu-cuda-v2/absolute-field/report.json",
+      "sha256": "49b3ade7989ab1e55fb5e127e250b197cfde3039e536f0226a95819775ba8b46",
+      "bytes": 24963
+    },
+    "matched-sg1-diagnostic-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/matched-sg1-diagnostic-v1/report.json",
+      "archive_relative_path": "matched-sg1-diagnostic-v1/report.json",
+      "sha256": "85c880de68cb13aec61f4edd972e1aca61b3fa927427d9ee0fd4c063662ea797",
+      "bytes": 22677
+    },
+    "matched-sg1-diagnostic-v1/interpretation.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/matched-sg1-diagnostic-v1/interpretation.json",
+      "archive_relative_path": "matched-sg1-diagnostic-v1/interpretation.json",
+      "sha256": "d3093cc88cb9cf94cf51f1cd5708202539949a88080e932803fdfdbf5db74217",
+      "bytes": 2367
+    },
+    "bomd-seven-case-acceptance-summary.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-seven-case-acceptance-summary.json",
+      "archive_relative_path": "bomd-seven-case-acceptance-summary.json",
+      "sha256": "e1d7bc2682587312104ce3874a5dbe67310ce7728f6f576881b6f492d7d3f5be",
+      "bytes": 14810
+    },
+    "bomd-cpu-production-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-production-v3/report.json",
+      "archive_relative_path": "bomd-cpu-production-v3/report.json",
+      "sha256": "d51a1f79ab9dd0dd2844ec6d05225bf58559ec8443e9b86350ecbd631d92f22c",
+      "bytes": 2121601
+    },
+    "bomd-cuda-production-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cuda-production-v3/report.json",
+      "archive_relative_path": "bomd-cuda-production-v3/report.json",
+      "sha256": "206a69d29268b3e0d140d765c8dd5e48036ffaff169a70908d6e7da3d06a55ca",
+      "bytes": 2138142
+    },
+    "bomd-cpu-cuda-production-v3-comparison.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-cuda-production-v3-comparison.json",
+      "archive_relative_path": "bomd-cpu-cuda-production-v3-comparison.json",
+      "sha256": "649e4bba35041d9701f1dc8a0f97fcc5b1abd8520de94837dafc18384880dae1",
+      "bytes": 48805
+    },
+    "bomd-cpu-tight-xc-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-tight-xc-v1/report.json",
+      "archive_relative_path": "bomd-cpu-tight-xc-v1/report.json",
+      "sha256": "9da4e73f2d26e4246834bdbcd083f39fab21fbbb2c5960be9810e819999e89be",
+      "bytes": 1032879
+    },
+    "bomd-cuda-tight-xc-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cuda-tight-xc-v1/report.json",
+      "archive_relative_path": "bomd-cuda-tight-xc-v1/report.json",
+      "sha256": "6867f71146443cc6d47e89cb6975d970fad227f6c9f16e55f8a79bf2919534c5",
+      "bytes": 1036017
+    },
+    "bomd-cpu-cuda-tight-xc-v1-comparison.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-cpu-cuda-tight-xc-v1-comparison.json",
+      "archive_relative_path": "bomd-cpu-cuda-tight-xc-v1-comparison.json",
+      "sha256": "f2a0b7aadc8735ab1159afaf52a0c3bface5db1e09065cea2649145560c5d700",
+      "bytes": 4582
+    },
+    "bomd-scf2-rejection-cpu/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-cpu/report.json",
+      "archive_relative_path": "bomd-scf2-rejection-cpu/report.json",
+      "sha256": "c0a9b6c99956d5711afa8a1ac122ae4576ecf2ca6028b0b78325077744c61539",
+      "bytes": 2437
+    },
+    "bomd-scf2-rejection-mpi2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-mpi2/report.json",
+      "archive_relative_path": "bomd-scf2-rejection-mpi2/report.json",
+      "sha256": "820a18e6364df9b3cedc7b3f08ae24bc8b4890db80bcc2fb41d874d6daff6f21",
+      "bytes": 2739
+    },
+    "water20-coupled-cuda-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/water20-coupled-cuda-v2/report.json",
+      "archive_relative_path": "water20-coupled-cuda-v2/report.json",
+      "sha256": "edec1a8afd951cd5a49c44e1f1073683993db9cdeb6e4143a8ba1d985d349f56",
+      "bytes": 918510
+    },
+    "water20-coupled-cuda-v2/trajectory_summary.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/water20-coupled-cuda-v2/trajectory_summary.json",
+      "archive_relative_path": "water20-coupled-cuda-v2/trajectory_summary.json",
+      "sha256": "2af965c793fc9b5c62f6641b8e05e5eb29f577aa32a5a69900b9712756295624",
+      "bytes": 2078
+    },
+    "cli-lifecycle-private-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-private-v1/report.json",
+      "archive_relative_path": "cli-lifecycle-private-v1/report.json",
+      "sha256": "de7e016eb6e5b712c12d884b5bbe0a69e7c6d1be59c568b8c3386028c92171f5",
+      "bytes": 46166
+    },
+    "cli-lifecycle-private-v1/commands-original.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-private-v1/commands-original.json",
+      "archive_relative_path": "cli-lifecycle-private-v1/commands-original.json",
+      "sha256": "cfbc44d271c44c886ba592305496853f014154da14f8773c212334009ab7fe02",
+      "bytes": 3259
+    },
+    "cli-lifecycle-private-v1/commands-private.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-private-v1/commands-private.json",
+      "archive_relative_path": "cli-lifecycle-private-v1/commands-private.json",
+      "sha256": "3a19f642d2f787199b20613c6d748e3eaaa2d5727d504e8269dc21b686d2307c",
+      "bytes": 3667
+    },
+    "cli-lifecycle-v2/fix-cli-solvation-cleanup-before-gpu-reset.patch": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cli-lifecycle-v2/fix-cli-solvation-cleanup-before-gpu-reset.patch",
+      "archive_relative_path": "cli-lifecycle-v2/fix-cli-solvation-cleanup-before-gpu-reset.patch",
+      "sha256": "7e4a74a6a82ca9f15246a411e44937e7a18d9497a1cb274ba748d8d6a50d41d3",
+      "bytes": 913
+    },
+    "protected-worktrees-release-check-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/protected-worktrees-release-check-v1/report.json",
+      "archive_relative_path": "protected-worktrees-release-check-v1/report.json",
+      "sha256": "a9298d6b13e7d404e231db7787016d393ae5149d1dcabba462aac005c9199c5f",
+      "bytes": 5301
+    },
+    "bomd-scf2-rejection-cuda-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-cuda-v2/report.json",
+      "archive_relative_path": "bomd-scf2-rejection-cuda-v2/report.json",
+      "sha256": "73c7381887b16c27a4e24653a2620366c0eaebab16df35029d6f02f5e9e38ebd",
+      "bytes": 2453
+    },
+    "bomd-scf2-rejection-cudampi-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/bomd-scf2-rejection-cudampi-v2/report.json",
+      "archive_relative_path": "bomd-scf2-rejection-cudampi-v2/report.json",
+      "sha256": "142cb7a17da28ad9145914a37be9d1cd02b6624bf5f606aa8ebd760684d03f98",
+      "bytes": 2633
+    },
+    "test_ddx_backend-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_ddx_backend-report.json",
+      "archive_relative_path": "test_ddx_backend-report.json",
+      "sha256": "46111c872b2d9d486343086ce957fd2a6eab0b640ef11241209245f2a2efaede",
+      "bytes": 1027
+    },
+    "test_ddx_backend-run.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_ddx_backend-run.log",
+      "archive_relative_path": "test_ddx_backend-run.log",
+      "sha256": "72a396edcfeb6de5c61f6d039bec428d90d58d4b6ffa06122e8735bf06b92c8b",
+      "bytes": 179
+    },
+    "test_solvation_coulomb-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_solvation_coulomb-report.json",
+      "archive_relative_path": "test_solvation_coulomb-report.json",
+      "sha256": "511b18bfc8ca2f44d9639bd7e672541dd240b9d0362eff535611000cfacfad6a",
+      "bytes": 1039
+    },
+    "test_solvation_coulomb-run.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_solvation_coulomb-run.log",
+      "archive_relative_path": "test_solvation_coulomb-run.log",
+      "sha256": "e1f003aea780171ddf9462f722ca3d0e5c78095ed13d63b1b056742feb11aa98",
+      "bytes": 71
+    },
+    "solvation_grid_ao_fd_driver-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-report.json",
+      "archive_relative_path": "solvation_grid_ao_fd_driver-report.json",
+      "sha256": "f52f8c8ca91c35b4f638af8d3a45a617a187ee140eeebc837b5ade6009a29bdd",
+      "bytes": 1049
+    },
+    "solvation_grid_ao_fd_driver-run.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-run.log",
+      "archive_relative_path": "solvation_grid_ao_fd_driver-run.log",
+      "sha256": "b0cf9783e7c2fa3d70d201e43dceba53de05fd4deacd6f412ecf55403c94b944",
+      "bytes": 1061
+    },
+    "solvation_grid_ao_fd_driver-cuda-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-cuda-report.json",
+      "archive_relative_path": "solvation_grid_ao_fd_driver-cuda-report.json",
+      "sha256": "1174e0a807c08f5a35d7c569cd54b2e9eeb4b534f711d3e3b94789650a84b637",
+      "bytes": 2020
+    },
+    "solvation_grid_ao_fd_driver-cuda-run.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/solvation_grid_ao_fd_driver-cuda-run.log",
+      "archive_relative_path": "solvation_grid_ao_fd_driver-cuda-run.log",
+      "sha256": "03443d9b1089888e1bc87ca663b375588e697cc82c32762449c1c2974baed81f",
+      "bytes": 1341
+    },
+    "test_gpu_solvation_coulomb-cuda-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_gpu_solvation_coulomb-cuda-report.json",
+      "archive_relative_path": "test_gpu_solvation_coulomb-cuda-report.json",
+      "sha256": "ccaa6f41e314785a4bea6eca590967e3dbdd1d2d0bb2aaa8003742f7003dc24e",
+      "bytes": 2018
+    },
+    "test_gpu_solvation_coulomb-cuda-run.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/test_gpu_solvation_coulomb-cuda-run.log",
+      "archive_relative_path": "test_gpu_solvation_coulomb-cuda-run.log",
+      "sha256": "5070cba0b2cafe422bd1c50605130cc237f7e144b044defcb596deecbfaeb210",
+      "bytes": 179
+    },
+    "field-native-component/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/report.json",
+      "archive_relative_path": "field-native-component/report.json",
+      "sha256": "2a7452c927cca73c2fa177370908ef35808de650385377d8fbce2cd969963298",
+      "bytes": 4382
+    },
+    "field-native-component/contract.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/contract.log",
+      "archive_relative_path": "field-native-component/contract.log",
+      "sha256": "5c1d7386662cecc4e38ff2ddf1f91b13e9c507e4ba9c2da57b3e631e734e1583",
+      "bytes": 2413
+    },
+    "field-native-component/memcheck.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/memcheck.log",
+      "archive_relative_path": "field-native-component/memcheck.log",
+      "sha256": "a7648efa80a96e36db8560d3c912164650fafcff6ea873b50400513de3c8231d",
+      "bytes": 2475
+    },
+    "field-native-component/initcheck.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/initcheck.log",
+      "archive_relative_path": "field-native-component/initcheck.log",
+      "sha256": "a7648efa80a96e36db8560d3c912164650fafcff6ea873b50400513de3c8231d",
+      "bytes": 2475
+    },
+    "cache-shared-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/report.json",
+      "archive_relative_path": "cache-shared-v1/report.json",
+      "sha256": "89d7163b8650a74bd1a0f307ecc797e630b0f2e0401b8944e85c6cb324a0bd4b",
+      "bytes": 8524
+    },
+    "cache-shared-v1/run.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/run.log",
+      "archive_relative_path": "cache-shared-v1/run.log",
+      "sha256": "64cd24b3da3c82ce46c7615fdc6db516ae1d7ba206462499d83d24eb460e1f24",
+      "bytes": 1434
+    },
+    "cache-shared-v1/memcheck.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/memcheck.log",
+      "archive_relative_path": "cache-shared-v1/memcheck.log",
+      "sha256": "19071fd64462764cd959755f0a2d03ac6ae63cd318020bab4c1b261a3f3697ca",
+      "bytes": 1552
+    },
+    "cache-shared-v1/initcheck.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/cache-shared-v1/initcheck.log",
+      "archive_relative_path": "cache-shared-v1/initcheck.log",
+      "sha256": "b7aa20c5e7166bf0d61f785308eb6f7bf7d09a5e0ff1d4ed1e3f326a8e9d8c4d",
+      "bytes": 1496
+    },
+    "atomic-cas-emulation-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/atomic-cas-emulation-v1/report.json",
+      "archive_relative_path": "atomic-cas-emulation-v1/report.json",
+      "sha256": "16686167e6f7029a21522ed2c5051e4677356939b993cf94f4c981e784d26326",
+      "bytes": 2327
+    },
+    "profiles/optimized-v2-production-cache-summary.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cache-summary.json",
+      "archive_relative_path": "profiles/optimized-v2-production-cache-summary.json",
+      "sha256": "12d5b3da8810393660696d4335b2ff53d45191588a2b456c1a353f0715654205",
+      "bytes": 5335
+    },
+    "profiles/optimized-v2-production-pcm/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/report.json",
+      "archive_relative_path": "profiles/optimized-v2-production-pcm/report.json",
+      "sha256": "14f3e393f0f2c78234686164af2541c3be17638d350ae9ddf226ed77db79f7e5",
+      "bytes": 15594
+    },
+    "profiles/optimized-v2-production-pcm/provenance.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/provenance.json",
+      "archive_relative_path": "profiles/optimized-v2-production-pcm/provenance.json",
+      "sha256": "cbd920f0b65716a6924f0ce988623e8cd7f73b0bf2dc2ed7cf8adebf90d39f71",
+      "bytes": 91944
+    },
+    "profiles/optimized-v2-production-pcm/water20-coulomb-full-timings.csv": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/water20-coulomb-full-timings.csv",
+      "archive_relative_path": "profiles/optimized-v2-production-pcm/water20-coulomb-full-timings.csv",
+      "sha256": "6840566e4732a743c5d1896414323a65df9f9e318945378306cf3796d2008f40",
+      "bytes": 2719
+    },
+    "profiles/optimized-v2-production-pcm/geometry.xyz": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-pcm/geometry.xyz",
+      "archive_relative_path": "profiles/optimized-v2-production-pcm/geometry.xyz",
+      "sha256": "2043d27a9ca2cc7c79a23a005d68b59a076bce575bca4452efb1a4a06b775982",
+      "bytes": 2959
+    },
+    "profiles/optimized-v2-production-cosmo/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/report.json",
+      "archive_relative_path": "profiles/optimized-v2-production-cosmo/report.json",
+      "sha256": "86a7993a7a3a007de6cf0f3747ee39c6a70ffe813cf4a1ec6d9e3b146db39361",
+      "bytes": 15589
+    },
+    "profiles/optimized-v2-production-cosmo/provenance.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/provenance.json",
+      "archive_relative_path": "profiles/optimized-v2-production-cosmo/provenance.json",
+      "sha256": "8def8bced405917aa846fdbcaece388bc291afa04c2c5fa491624a193ca5e98f",
+      "bytes": 91968
+    },
+    "profiles/optimized-v2-production-cosmo/water20-coulomb-full-timings.csv": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/water20-coulomb-full-timings.csv",
+      "archive_relative_path": "profiles/optimized-v2-production-cosmo/water20-coulomb-full-timings.csv",
+      "sha256": "3080b343003ba805c726ddc5961e41a1e0dfa7cc50017d31edf5290690b0c79f",
+      "bytes": 2719
+    },
+    "profiles/optimized-v2-production-cosmo/geometry.xyz": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/profiles/optimized-v2-production-cosmo/geometry.xyz",
+      "archive_relative_path": "profiles/optimized-v2-production-cosmo/geometry.xyz",
+      "sha256": "2043d27a9ca2cc7c79a23a005d68b59a076bce575bca4452efb1a4a06b775982",
+      "bytes": 2959
+    },
+    "field-native-component/benchmark-500.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/field-native-component/benchmark-500.log",
+      "archive_relative_path": "field-native-component/benchmark-500.log",
+      "sha256": "6d90a9d98fb35cbe6ebc651e487426f7a3f4a17c6f6ba663a169966faf837288",
+      "bytes": 3582
+    },
+    "legacy-default-off-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-default-off-v1/report.json",
+      "archive_relative_path": "legacy-default-off-v1/report.json",
+      "sha256": "64c0f7cbae1e0a5e9a82a83b0c4b71296835ba1c2e6453877a29fdc4305f1368",
+      "bytes": 2008
+    },
+    "legacy-default-off-v1/smoke-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-default-off-v1/smoke-report.json",
+      "archive_relative_path": "legacy-default-off-v1/smoke-report.json",
+      "sha256": "45e056d809c691d309b26432b7f0e33086e3623d7dde52784b191a04e7500bcd",
+      "bytes": 3997
+    },
+    "legacy-cuda-default-off-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/legacy-cuda-default-off-v1/report.json",
+      "archive_relative_path": "legacy-cuda-default-off-v1/report.json",
+      "sha256": "2f68ca52f62638fa164622aa25343404e11ca291abe9065539b557483e80e13f",
+      "bytes": 947
+    },
+    "gpu-secondary-v2-queue/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/gpu-secondary-v2-queue/report.json",
+      "archive_relative_path": "gpu-secondary-v2-queue/report.json",
+      "sha256": "a4362cbf75af9c1ec011187d7eb4205a03edeb62a32a333dbbf230dcead14a8c",
+      "bytes": 912952
+    },
+    "final-ddx-host-integration-review-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/final-ddx-host-integration-review-v2/report.json",
+      "archive_relative_path": "final-ddx-host-integration-review-v2/report.json",
+      "sha256": "6eeface57aa27e597adffd3e0232b9d43104cabc2bad7e0ae360fd3df098f89f",
+      "bytes": 7961
+    },
+    "portable-validation-review-v1/review.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/portable-validation-review-v1/review.json",
+      "archive_relative_path": "portable-validation-review-v1/review.json",
+      "sha256": "e0224af375fa8d95d47db6af44d126b14843348f9083d802572091f0079dcb93",
+      "bytes": 5810
+    },
+    "portable-validation-review-v1/compile-only/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/portable-validation-review-v1/compile-only/report.json",
+      "archive_relative_path": "portable-validation-review-v1/compile-only/report.json",
+      "sha256": "cabe4df3a46ba4f36fa4065e3fd003c4ff97bb30ca0bda00bbd5880275eb9d3b",
+      "bytes": 21858
+    },
+    "release-preparation-v1/gpu-final-lifecycle-v3-reviewed-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-reviewed-report.json",
+      "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-reviewed-report.json",
+      "sha256": "f22c700c2b685b20aa40253182ccc817b882cb56d59c4e126c542a2352f3d83e",
+      "bytes": 50245
+    },
+    "release-preparation-v1/gpu-final-lifecycle-v3-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-report.json",
+      "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-report.json",
+      "sha256": "8f7525e5564d5f287505af0503071868ed345662af26ca6b55bb9c7dc9b1ffdf",
+      "bytes": 41818
+    },
+    "release-preparation-v1/cache-contract-final/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cache-contract-final/report.json",
+      "archive_relative_path": "release-preparation-v1/cache-contract-final/report.json",
+      "sha256": "a7f5e6b15826c2476bdf1b27f374c05acff8b0d36cb62378004bbc2c7beff300",
+      "bytes": 23783
+    },
+    "release-preparation-v1/cache-contract-final/reviewed-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cache-contract-final/reviewed-report.json",
+      "archive_relative_path": "release-preparation-v1/cache-contract-final/reviewed-report.json",
+      "sha256": "8f329b20e91e995b209206129cf935991e1cc6faf56038567c8a0fd864e35619",
+      "bytes": 24267
+    },
+    "release-preparation-v1/gpu-final-lifecycle-v3-before.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-before.json",
+      "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-before.json",
+      "sha256": "4d92e3c25c78ff37e86014bf6d0369afbb8886e1d180fb81eb752332217bc769",
+      "bytes": 1002775
+    },
+    "release-preparation-v1/gpu-final-lifecycle-v3-after.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/gpu-final-lifecycle-v3-after.json",
+      "archive_relative_path": "release-preparation-v1/gpu-final-lifecycle-v3-after.json",
+      "sha256": "e88a9e234ef8e6793f6c5b57f92adf76f7f6b1bd06cd1bbbe01f0a6dee699da5",
+      "bytes": 1002775
+    },
+    "release-preparation-v1/RUN-AFTER-FREEZE-ROOT-ONLY.before-runtime-hash-fix.sh": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/RUN-AFTER-FREEZE-ROOT-ONLY.before-runtime-hash-fix.sh",
+      "archive_relative_path": "release-preparation-v1/RUN-AFTER-FREEZE-ROOT-ONLY.before-runtime-hash-fix.sh",
+      "sha256": "bcac5f317bf768267623e5848fc8f017003df8d0619eb487097f1303ac3f59dd",
+      "bytes": 7400
+    },
+    "release-preparation-v1/bomd-cuda/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cuda/report.json",
+      "archive_relative_path": "release-preparation-v1/bomd-cuda/report.json",
+      "sha256": "4f4fa07438e69109f32bc7c41519c3eb3e5501522137a687b196b1d3e488dfc5",
+      "bytes": 1299647
+    },
+    "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.in": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.in",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.in",
+      "sha256": "1bd61e8b182788bc9ccad8c5d81fa6131caacbed0b549c1481232e8d9436c15f",
+      "bytes": 208
+    },
+    "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.out": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.out",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/field.out",
+      "sha256": "0da10b4b59c37643354715f81dae9235b792c85d0f97cababb27590bf7beedc3",
+      "bytes": 11640
+    },
+    "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/execution.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/execution.log",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-no-ddx-field-gradient-normal/execution.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.in": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.in",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.in",
+      "sha256": "80f1eb60e113b2dc33bb4b8f82bf4a986da978a4ca52582296c3aa6eda537eb4",
+      "bytes": 286
+    },
+    "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.out": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.out",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/field.out",
+      "sha256": "501b815957c356a768eabccc861a54966dd73b18097d8d39e771d52f59b5eb6d",
+      "bytes": 11804
+    },
+    "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/execution.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/execution.log",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddcosmo-field-gradient-normal/execution.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.in": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.in",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.in",
+      "sha256": "3dce98ad3bb46235ae7a18c240c74c86b727385f0b032b68f1486f25386f32e2",
+      "bytes": 284
+    },
+    "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.out": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.out",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/field.out",
+      "sha256": "754ba9009855ac578799902bb2eeefcd46b91284aa39f2a35532e861e48d9654",
+      "bytes": 11802
+    },
+    "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/execution.log": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/execution.log",
+      "archive_relative_path": "release-preparation-v1/cli-cpu-water-ddpcm-field-gradient-normal/execution.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "release-preparation-v1/cpu-final-release-acceptance-summary.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cpu-final-release-acceptance-summary.json",
+      "archive_relative_path": "release-preparation-v1/cpu-final-release-acceptance-summary.json",
+      "sha256": "4a0faa61abfe5dcb43515cffb9d840107df147370eb0190451b5004155ac1eb3",
+      "bytes": 5178
+    },
+    "release-preparation-v1/bomd-cpu-consumer-release-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cpu-consumer-release-report.json",
+      "archive_relative_path": "release-preparation-v1/bomd-cpu-consumer-release-report.json",
+      "sha256": "942d6fccaee24f61081601b43f176dd227acfc03ab7bf2645604886f96a134d2",
+      "bytes": 1130645
+    },
+    "release-preparation-v1/bomd-cpu/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cpu/report.json",
+      "archive_relative_path": "release-preparation-v1/bomd-cpu/report.json",
+      "sha256": "7a38c12acbaf68de66d4c9f72030867880a29a1d73a5a3570699a94e54c1ab2f",
+      "bytes": 1289546
+    },
+    "release-preparation-v1/point-field-mpi2-acceptance-summary.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/point-field-mpi2-acceptance-summary.json",
+      "archive_relative_path": "release-preparation-v1/point-field-mpi2-acceptance-summary.json",
+      "sha256": "5c6230b6a1897d23252c6c589d6a7c63bced90b5f2375b35290a0d39e83e87ca",
+      "bytes": 1856
+    },
+    "release-preparation-v1/point-field-mpi2-neutral/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/point-field-mpi2-neutral/report.json",
+      "archive_relative_path": "release-preparation-v1/point-field-mpi2-neutral/report.json",
+      "sha256": "2af288ff3336df48b0094475cf329351993b2744d85888c925fac1356e7d081e",
+      "bytes": 421339
+    },
+    "release-preparation-v1/point-field-mpi2-cation/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/point-field-mpi2-cation/report.json",
+      "archive_relative_path": "release-preparation-v1/point-field-mpi2-cation/report.json",
+      "sha256": "a8a2fdb68c7aaf5b8fa550ea80d5958289323e25f47d0f9258303cbbaaf5aae0",
+      "bytes": 421233
+    },
+    "release-preparation-v1/cpu-install-prefix-rpath-preflight-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/cpu-install-prefix-rpath-preflight-v1/report.json",
+      "archive_relative_path": "release-preparation-v1/cpu-install-prefix-rpath-preflight-v1/report.json",
+      "sha256": "4896b82c133a9cba4364cb6c4cee47e7f225f40c584280ffff3034ab3b07cd63",
+      "bytes": 12363
+    },
+    "release-preparation-v1/bomd-cpu-cuda-comparison.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cpu-cuda-comparison.json",
+      "archive_relative_path": "release-preparation-v1/bomd-cpu-cuda-comparison.json",
+      "sha256": "0c3e96f42da52cadbb78ecf4d73a6924f66208138b45f85bf3cd67827c0427cf",
+      "bytes": 31446
+    },
+    "release-preparation-v1/bomd-cudampi/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/bomd-cudampi/report.json",
+      "archive_relative_path": "release-preparation-v1/bomd-cudampi/report.json",
+      "sha256": "c8f91bbc0b85a4c23721638de69ec81e0c65f1464e3fcb31176e3f2ca750ac11",
+      "bytes": 1107826
+    },
+    "release-preparation-v1/configured-prefix-packaging-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-packaging-report.json",
+      "archive_relative_path": "release-preparation-v1/configured-prefix-packaging-report.json",
+      "sha256": "89b597fc8c5d14d77b7041f388a58475029934840d1ac624b148bab0572578fb",
+      "bytes": 5356
+    },
+    "release-preparation-v1/configured-prefix-cpu-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v1/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-prefix-cpu-v1/report.json",
+      "sha256": "87c508f1cb4f8e50db8e85a693d1b8f2988e17419c92bc446f9e917d89a91ae9",
+      "bytes": 1144580
+    },
+    "release-preparation-v1/configured-prefix-cpu-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v2/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-prefix-cpu-v2/report.json",
+      "sha256": "8eb819c3b0a67b1c621ce2863f324fb9dac9610ffa6268310664196fd143b6fc",
+      "bytes": 1146236
+    },
+    "release-preparation-v1/configured-prefix-cpu-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cpu-v3/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-prefix-cpu-v3/report.json",
+      "sha256": "619f5a4af08a6d296a4d78172ab45815c8ff3787d57a7ea354758f389e3e934c",
+      "bytes": 2132836
+    },
+    "release-preparation-v1/configured-prefix-cuda-v3/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-prefix-cuda-v3/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-prefix-cuda-v3/report.json",
+      "sha256": "a7633336beaa0b0d46217d244d67b866cc08a7ec4c02c7a44e9c561f5cd5a571",
+      "bytes": 2626512
+    },
+    "release-preparation-v1/configured-smoke-cpu-runner-report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cpu-runner-report.json",
+      "archive_relative_path": "release-preparation-v1/configured-smoke-cpu-runner-report.json",
+      "sha256": "25c36d1a8375cd70b88a880ee09e1f67f6c1cc5491dc9a30f48c7046ee27ce0c",
+      "bytes": 1521686
+    },
+    "release-preparation-v1/configured-smoke-cpu/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cpu/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-smoke-cpu/report.json",
+      "sha256": "758949e8326bbbb33647a6b8762a6911f71ae8a7938173037be158acc423d319",
+      "bytes": 1044207
+    },
+    "release-preparation-v1/configured-smoke-cuda/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cuda/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-smoke-cuda/report.json",
+      "sha256": "78d1d72b88eeab3593a32eaf981faf94acfd3b2935c63e2f0dce729e51904ad3",
+      "bytes": 1049012
+    },
+    "release-preparation-v1/configured-cli-cuda-v2/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda-v2/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-cli-cuda-v2/report.json",
+      "sha256": "f9c826b5342de1fcc4a27dbafc3bc9d9df9e0759ce510cca263b1c0363f4875e",
+      "bytes": 1530676
+    },
+    "release-preparation-v1/configured-cli-cuda-closeout.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda-closeout.json",
+      "archive_relative_path": "release-preparation-v1/configured-cli-cuda-closeout.json",
+      "sha256": "c9cd8997eb2e877f7404d0b2760090e6d96f0dbae5dbaa6138a95db3e4648340",
+      "bytes": 10982
+    },
+    "release-preparation-v1/configured-smoke-cuda-live-maps.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cuda-live-maps.json",
+      "archive_relative_path": "release-preparation-v1/configured-smoke-cuda-live-maps.json",
+      "sha256": "5236003dd6bfb6687b1fac741cfa7fe7058182d25c9f866e8ebd30ea8e6ec541",
+      "bytes": 732
+    },
+    "release-preparation-v1/configured-smoke-cpu-cuda-comparison.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-smoke-cpu-cuda-comparison.json",
+      "archive_relative_path": "release-preparation-v1/configured-smoke-cpu-cuda-comparison.json",
+      "sha256": "5bff17125ad3c3a72f0fb9184815ff61e64300649f8f37fc2868640e4fd30b4c",
+      "bytes": 9812
+    },
+    "release-preparation-v1/configured-cli-cuda/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-cli-cuda/report.json",
+      "sha256": "7f48dac33c8b68ce065b997a15d4ba5233dad04734085647b9b874753a93c14e",
+      "bytes": 753434
+    },
+    "release-preparation-v1/configured-cli-cuda-preflight-v1/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/configured-cli-cuda-preflight-v1/report.json",
+      "archive_relative_path": "release-preparation-v1/configured-cli-cuda-preflight-v1/report.json",
+      "sha256": "9e219eb31c8f9f5740d2cb2f0249f24c571165cc577aac72f34e735655600473",
+      "bytes": 747312
+    },
+    "release-preparation-v1/water20-coupled-cuda/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/water20-coupled-cuda/report.json",
+      "archive_relative_path": "release-preparation-v1/water20-coupled-cuda/report.json",
+      "sha256": "b5cdd841e3492e5a433833aadbd6e1dfc1ac0e1e8b4800942edb3662ce55e1ff",
+      "bytes": 1266298
+    },
+    "release-preparation-v1/water20-release-comparison.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/water20-release-comparison.json",
+      "archive_relative_path": "release-preparation-v1/water20-release-comparison.json",
+      "sha256": "9671f9651f36d9c9973cc1227dfd20c057873d02017ea743aba031b1bb5dd581",
+      "bytes": 193942
+    },
+    "release-preparation-v1/protected-worktrees-after/report.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/protected-worktrees-after/report.json",
+      "archive_relative_path": "release-preparation-v1/protected-worktrees-after/report.json",
+      "sha256": "15c9b8393f1ba7783898488d378ab05191f0921149d4b6bc49740909571c52ae",
+      "bytes": 5301
+    },
+    "release-preparation-v1/identity-comparison.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/identity-comparison.json",
+      "archive_relative_path": "release-preparation-v1/identity-comparison.json",
+      "sha256": "9e1a8bb447d8e48f66f75ba378fa86ad2e205fa6107dc39dd6f6d1ae7a64955a",
+      "bytes": 5857
+    },
+    "release-preparation-v1/after-release-checks.json": {
+      "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/release-preparation-v1/after-release-checks.json",
+      "archive_relative_path": "release-preparation-v1/after-release-checks.json",
+      "sha256": "a7e6723bd024457cf2477ac0e2602867af8bf5f2c35873ee5bef41b1d5b20b42",
+      "bytes": 1002775
+    }
+  },
+  "pending_final_release": [],
+  "raw_provenance": "Each SHA-pinned campaign report retains per-run absolute raw paths, input/result/output hashes and source/runtime before/after manifests. This compact index does not duplicate those large per-run maps.",
+  "preserved_limits": [
+    "Eight independent denser-XC-grid absolute PBE0 gradient failures remain false.",
+    "Matched-SG1 diagnostic explains only the largest tested O-z component; other components/native bin and primitive screening remain outside that diagnostic.",
+    "COSMO dimer L10 to14 at shared N5810 remains unconverged at original1e-5Eh/5e-5Eh-bohr gates.",
+    "Original coarse0.1fs NVE and ordinary-screening PBE0/STO3G refinement/backend failures remain; separate tight controls do not waive them.",
+    "Four-matrix amortization is estimated, warm876x/890x is operator-only; no whole-BOMD speedup or production-ensemble claim.",
+    "CPU MPI2 and CUDA MPI1 only; no multiple physical GPU, HIP, whole-QUICK f-SCF or actual SM5x evidence."
+  ],
+  "W_unchanged_during_preparation": true,
+  "source_files_checked": 3216,
+  "scientific_calculations_or_builds_run": false,
+  "manuscript_files_changed": false,
+  "draft_markdown_sha256": "c3dceb068b812e301d0deaa078bc40cb6da067679ccca1b860e82c791d149c0d",
+  "previous_version": {
+    "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/final-acceptance-draft-v2",
+    "sha256": {
+      "artifact-sha256.json": "ded399f296e96de55a2b603780ddf4067e23c9e3f458a8f8e21fc852d386a219",
+      "fields-ddx-acceptance-20261015.json": "b082891cca6c8b92737844e3855fd4dd5d83faa2b207bf57858070c3d8cd0688",
+      "fields-ddx-acceptance-20261015.md": "8c64e680f2fe6401752fc059cdb6f77aa0af507eb10585927f38503d04c24aca",
+      "README.md": "1bc97479893adc759d41d340ae564175e34d06f75b0296eb7a60317291ac0daf"
+    }
+  },
+  "parent_commit": "4a5a14d5d593438a962ab699bc6f19742d945d4a",
+  "publication_receipt": {
+    "path": "/home/epalos/software/quick_ep/fields-ddx-20261014/publication-receipt.json",
+    "scope": "Final containing-commit SHA and verified remote state are external post-publication metadata; no push claim in this report."
+  },
+  "engineering_acceptance_criteria": [
+    "All named final installed CPU/MPI/CUDA/CUDA-MPI and configured-prefix checks passed against their intended resolved libraries with pinned runtime identity.",
+    "Mathematical operators, compiled objects/modules/generated inputs and scientific source bytes remained unchanged through nonnumerical integration and configured-prefix packaging.",
+    "Regression, analytic-force/variational, stride/restart, no-extra-SCF, expected-rejection, cache/lifecycle/sanitizer and protected-worktree controls passed within their documented scope.",
+    "All original numerical accuracy/refinement/NVE failures remain explicit; engineering acceptance does not establish production ensembles, universal defaults or publication completion."
+  ],
+  "previous_version_unchanged": true,
+  "resolved_v2_pending_scopes": [
+    {
+      "id": "final_installed_CPU_consumer_and_BOMD",
+      "status": "RESOLVED",
+      "accepted_evidence_rows": [
+        "final_installed_CPU_and_MPI"
+      ]
+    },
+    {
+      "id": "final_CPU_CLI_configured_prefix",
+      "status": "RESOLVED",
+      "accepted_evidence_rows": [
+        "proper_configured_prefix_packaging",
+        "configured_prefix_scientific_smokes"
+      ]
+    },
+    {
+      "id": "final_MPI2_point_gradient",
+      "status": "RESOLVED",
+      "accepted_evidence_rows": [
+        "final_installed_CPU_and_MPI"
+      ]
+    },
+    {
+      "id": "final_CUDA_MPI1_coupled_BOMD",
+      "status": "RESOLVED",
+      "accepted_evidence_rows": [
+        "final_installed_CUDA_MPI1_BOMD"
+      ]
+    },
+    {
+      "id": "final_WATER20_release",
+      "status": "RESOLVED",
+      "accepted_evidence_rows": [
+        "final_WATER20_release_bridge"
+      ]
+    },
+    {
+      "id": "final_protected_worktrees_and_release_identity",
+      "status": "RESOLVED",
+      "accepted_evidence_rows": [
+        "final_protected_worktrees",
+        "final_source_runtime_install_identity"
+      ]
+    }
+  ]
+}

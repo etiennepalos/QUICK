@@ -31,6 +31,7 @@
     use quick_grad_cshell_module, only: cshell_gradient
     use quick_grad_oshell_module, only: oshell_gradient
     use quick_oeproperties_module, only: compute_oeprop
+    use quick_solvation_module, only: finalize_solvation
     use quick_optimizer_module
     use quick_sad_guess_module, only: getSadGuess
     use quick_calculated_module, only: quick_qm_struct
@@ -356,6 +357,9 @@
     !-----------------------------------------------------------------
     ! 7.The final job is to output energy and many other infos
     !-----------------------------------------------------------------
+    ! Release the optional native solver and Coulomb cache while CUDA
+    ! remains active; gpu_delete below resets the device.
+    call finalize_solvation()
 #if defined(GPU) || defined(MPIV_GPU)
     call gpu_cleanup()
     call delete(quick_method, ierr)

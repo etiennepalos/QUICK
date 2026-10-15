@@ -22,6 +22,7 @@ This page gives a summary of CMake options that can be used with QUICK. Note tha
 - `-DMAGMA=TRUE`: Enable matrix diagonalization using Magma library in HIP/HIP-MPI version.
 - `-DMAGMA_PATH=<path>`: Look for Magma library in the given directory. 
 - `-DHDF5=TRUE`: Sets up quick restart capabilities using HDF5 data file. Please compile with HDF5 for full restart capability.
+- `-DQUICK_DDX=ON`: Enable the optional continuous-density ddCOSMO/ddPCM interface (default OFF). Requires an installed ddX 1.0 CMake package; set `-DddX_DIR=<prefix>/lib/cmake/ddX` when needed. See [applied fields and ddX](docs/gpu-electrostatics-bomd/applied-fields-and-ddx.md).
 
 #### Parallel versions
 By default QUICK will only build the serial version. This can be changed with
