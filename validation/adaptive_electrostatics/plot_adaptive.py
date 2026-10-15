@@ -117,7 +117,9 @@ def main():
     axes[0].scatter([], [], color='#1877b8', label='observed maximum')
     axes[0].scatter([], [], marker='x', color='#cd6c16',
                     label='Taylor budget (last attempted on fallback)')
-    axes[0].legend(loc='best', fontsize=7)
+    handles, legend_labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, legend_labels, loc='upper center',
+               bbox_to_anchor=(.5, -.01), ncol=2, fontsize=8)
     fig.suptitle('Finite-query errors and truncation budgets; total numerical error is uncertified')
     fig.tight_layout()
     for suffix in ('png', 'pdf'):
@@ -125,7 +127,7 @@ def main():
     plt.close(fig)
 
     cases = sorted({r['case'] for r in selected})
-    fig, axes = plt.subplots(1, len(cases), figsize=(7 * len(cases), 5), squeeze=False)
+    fig, axes = plt.subplots(1, len(cases), figsize=(7 * len(cases), 7), squeeze=False)
     for axis, case in zip(axes[0], cases):
         matching = [r for r in selected if r['case'] == case]
         groups = {}
@@ -148,9 +150,9 @@ def main():
         axis.set_ylabel('Median complete property API time (s)')
         axis.set_title(case)
         axis.grid(alpha=.2)
-        axis.legend(fontsize=7)
+        axis.legend(fontsize=7, loc='upper center', bbox_to_anchor=(.5, -.2))
     fig.suptitle('Initial SCF excluded; all adaptive preparation, transfers and fallback included')
-    fig.tight_layout()
+    fig.subplots_adjust(bottom=.43, top=.88, wspace=.25)
     for suffix in ('png', 'pdf'):
         fig.savefig(args.output / f'adaptive_total_time.{suffix}', bbox_inches='tight')
     plt.close(fig)
