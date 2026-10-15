@@ -189,6 +189,12 @@ contains
     case(57)
       msg='Invalid QUICK refined XC grid. Specify paired XC_RADIAL and positive-weight XC_ANGULAR controls for DFT.'
 
+    case(58)
+      msg='Invalid QUICK experimental adaptive-electrostatics options.'
+
+    case(59)
+      msg='Certified adaptive electrostatics is unavailable: validated arithmetic and anchor error budgets are required.'
+
     case default
       msg='Unknown error.'
 

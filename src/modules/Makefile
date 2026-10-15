@@ -39,6 +39,8 @@ modobj = $(objfolder)/quick_exception_module.o $(objfolder)/quick_input_parser_m
 	$(objfolder)/quick_eri_grad_cshell_module.o $(objfolder)/quick_eri_grad_oshell_module.o \
 	$(objfolder)/quick_lri_grad_module.o $(objfolder)/quick_cew_module.o \
 	$(objfolder)/quick_oei_module.o $(objfolder)/quick_oeproperties_module.o $(objfolder)/quick_field_hessian_module.o \
+	$(objfolder)/quick_electrostatic_jet_module.o $(objfolder)/quick_partition_of_unity_module.o \
+	$(objfolder)/quick_adaptive_electrostatics_module.o \
 	$(objfolder)/quick_solvation_grid_module.o $(objfolder)/quick_solvation_ao_module.o \
 	$(objfolder)/quick_solvation_coulomb_module.o $(objfolder)/quick_solvation_module.o $(objfolder)/quick_dft_module.o \
 	$(objfolder)/quick_grad_cshell_module.o $(objfolder)/quick_grad_oshell_module.o \
@@ -56,6 +58,9 @@ $(objfolder)/quick_field_hessian_module.o: $(objfolder)/quick_basis_module.o \
     $(objfolder)/quick_molspec_module.o $(objfolder)/quick_method_module.o \
     $(objfolder)/quick_calculated_module.o $(objfolder)/quick_mpi_module.o
 $(objfolder)/quick_api_module.o: $(objfolder)/quick_field_hessian_module.o
+$(objfolder)/quick_adaptive_electrostatics_module.o: $(objfolder)/quick_electrostatic_jet_module.o \
+    $(objfolder)/quick_partition_of_unity_module.o
+$(objfolder)/quick_api_module.o: $(objfolder)/quick_adaptive_electrostatics_module.o
 $(objfolder)/quick_solvation_grid_module.o: $(objfolder)/quick_gridpoints_module.o
 $(objfolder)/quick_solvation_ao_module.o $(objfolder)/quick_solvation_coulomb_module.o: \
     $(objfolder)/quick_basis_module.o $(objfolder)/quick_molspec_module.o $(objfolder)/quick_method_module.o

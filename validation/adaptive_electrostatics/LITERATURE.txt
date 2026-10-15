@@ -1,0 +1,54 @@
+Focused initial comparison, checked 2026-10-15. This is not a systematic
+priority search and does not establish novelty of the proposed combination.
+
+1. Babuska and Melenk, The partition of unity method, International Journal
+   for Numerical Methods in Engineering 40 (1997), 727-758.
+   https://doi.org/10.1002/(SICI)1097-0207(19970228)40:4<727::AID-NME86>3.0.CO;2-N
+   Publisher abstract inspected. Smooth approximation spaces assembled with
+   partitions of unity, convergence analysis and error estimation are
+   established ingredients. Do not claim their introduction here.
+
+2. Lekien and Marsden, Tricubic interpolation in three dimensions,
+   International Journal for Numerical Methods in Engineering 63 (2005),
+   455-471, DOI 10.1002/nme.1296.
+   https://www.cds.caltech.edu/~marsden/bib/2005/08-LeMa2005/LeMa2005.pdf
+   Author-hosted primary paper inspected. Local cubic interpolation with
+   derivative data and continuity properties predates this project. Its
+   tensor-product corner interpolant differs from the present compactly
+   blended total-degree Taylor polynomials; that distinction is not itself
+   evidence of a useful new method.
+
+3. Fong and Darve, The black-box fast multipole method, Journal of
+   Computational Physics 228 (2009), 8712-8725.
+   https://doi.org/10.1016/j.jcp.2009.08.031
+   https://mc.stanford.edu/cgi-bin/images/f/fa/Darve_bbfmm_2009.pdf
+   Publisher/author-hosted primary paper inspected. Interpolation-based
+   acceleration of kernel sums with controlled approximation is established.
+   A future performance claim needs the current native direct CUDA baseline
+   and relevant alternatives; a comparison only with a slow CPU is inadequate.
+
+4. Kowalewski, Larsson and Heryudono, An adaptive interpolation scheme for
+   molecular potential energy surfaces (2016 preprint).
+   https://arxiv.org/abs/1605.09751
+   Author abstract inspected. Adaptive node refinement using local error
+   estimates and partition-of-unity interpolation has molecular precedents.
+   Their object is a nuclear-coordinate potential-energy surface, whereas
+   the current object is a fixed-density observation-coordinate ESP.
+
+5. Gharibnejad et al., A multi-center quadrature scheme for the molecular
+   continuum, Computer Physics Communications 263 (2021), 107889.
+   https://doi.org/10.1016/j.cpc.2021.107889
+   https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=930736
+   Primary paper inspected. Smooth atomic partitions and complementary
+   long-range weights are already used in molecular integral/Poisson work.
+   Their quadrature construction is not the present query interpolation,
+   but precludes a broad claim that smooth partitions for electrostatic
+   quantities are new.
+
+Present defensible scope: an experimental QUICK implementation combining
+coherent electronic V/E/G/H anchors, ordinary-FP full-density support
+majorants through F10, complete partition derivative terms, resource caps
+and whole-frame direct fallback. Demonstrated performance, bound usefulness
+and a narrower literature comparison remain necessary before presenting a
+distinct numerical-method contribution. No floating-point certification is
+implemented. Preserve negative results and unavailable numerical budgets.

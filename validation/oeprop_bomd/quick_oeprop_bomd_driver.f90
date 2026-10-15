@@ -18,6 +18,9 @@ program quick_oeprop_bomd_driver
   use quick_input_parser_module, only: found_keyword
   use quick_oei_module, only: get_external_field_gpu_counts
   use quick_field_hessian_module, only: get_field_hessian_gpu_count
+  use quick_partition_of_unity_module, only: get_adaptive_gpu_info
+  use quick_api_module, only: getQuickAdaptiveElectrostatics,adaptive_electrostatics_options, &
+    adaptive_electrostatics_report,ADAPTIVE_INDICATOR,ADAPTIVE_ANALYTIC_MAJORANT,ADAPTIVE_CERTIFIED
 #ifdef MPIV
   use mpi
   use quick_api_module, only: setQuickMPI
@@ -39,13 +42,26 @@ program quick_oeprop_bomd_driver
   double precision :: dt_fs, temperature_k
   double precision :: density_isovalue, density_spacing_ang, density_max_radius_ang
   logical :: field_hessian
+  logical :: adaptive_electrostatics,adaptive_fixed_domain,adaptive_gpu_queries
+  integer :: adaptive_degree,adaptive_max_depth,adaptive_max_anchors
+  double precision :: adaptive_tolerances(3),adaptive_max_seconds,adaptive_max_memory_mb
+  double precision :: adaptive_lower_bohr(3),adaptive_upper_bohr(3)
+  character(len=32) :: adaptive_error_mode
+  type(adaptive_electrostatics_options) :: adaptive_options
+  type(adaptive_electrostatics_report) :: adaptive_report
   namelist /quick_bomd/ geometry_file,probe_file,output_prefix,checkpoint_file, &
     restart_file,keywd,probe_mode,nsteps,oeprop_stride,dt_fs,temperature_k,nfrozen,frozen_atoms, &
-    anchor_atoms,coordinate_atoms,density_isovalue,density_spacing_ang,density_max_radius_ang,field_hessian
+    anchor_atoms,coordinate_atoms,density_isovalue,density_spacing_ang,density_max_radius_ang,field_hessian, &
+    adaptive_electrostatics,adaptive_degree,adaptive_error_mode,adaptive_tolerances,adaptive_max_depth, &
+    adaptive_max_anchors,adaptive_max_seconds,adaptive_max_memory_mb,adaptive_fixed_domain, &
+    adaptive_lower_bohr,adaptive_upper_bohr,adaptive_gpu_queries
 
   integer :: ierr, argc, unit, ios, natom, npoints, start_step, step, local_step
   integer :: energy_unit, xyz_unit, oeprop_unit, active_dof
   integer :: field_hessian_unit,field_hessian_calls,hessian_launches_before,hessian_launches_after
+  integer :: adaptive_unit,adaptive_calls,adaptive_fallbacks
+  integer :: adaptive_launches_before,adaptive_launches_after
+  integer(int64) :: adaptive_live_bytes,adaptive_last_bytes
   integer, allocatable :: atomic_numbers(:), probe_atoms(:)
   logical, allocatable :: frozen(:)
   double precision, allocatable :: coords(:,:), velocities(:,:), accelerations(:,:)
@@ -80,6 +96,25 @@ program quick_oeprop_bomd_driver
   field_hessian=.false.
   field_hessian_unit=-1
   field_hessian_calls=0
+  adaptive_electrostatics=.false.
+  adaptive_degree=3
+  adaptive_error_mode='analytic_majorant'
+  adaptive_tolerances=[1.0d-6,1.0d-5,1.0d-4]
+  adaptive_max_depth=3
+  adaptive_max_anchors=600
+  adaptive_max_seconds=30.0d0
+  adaptive_max_memory_mb=256.0d0
+  adaptive_fixed_domain=.false.
+  adaptive_lower_bohr=0.0d0
+  adaptive_upper_bohr=0.0d0
+  adaptive_gpu_queries=.false.
+  adaptive_unit=-1
+  adaptive_calls=0
+  adaptive_fallbacks=0
+  adaptive_launches_before=0
+  adaptive_launches_after=0
+  adaptive_live_bytes=0_int64
+  adaptive_last_bytes=0_int64
   dt_fs=0.05d0
   temperature_k=50.0d0
   nfrozen=0
@@ -193,6 +228,7 @@ program quick_oeprop_bomd_driver
   call stop_on_error(ierr,'setQuickJob')
   call get_external_field_gpu_counts(field_before(1),field_before(2))
   call get_field_hessian_gpu_count(hessian_launches_before)
+  if (adaptive_electrostatics) call get_adaptive_gpu_info(adaptive_launches_before,adaptive_live_bytes,adaptive_last_bytes)
 #if defined(GPU) || defined(MPIV_GPU)
   call gpu_oeprop_launch_counts(launches_before(1),launches_before(2),launches_before(3))
 #endif
@@ -209,6 +245,40 @@ program quick_oeprop_bomd_driver
   kernels_file=trim(output_prefix)//'_kernels.csv'
   call open_outputs(energy_file,xyz_file,oeprop_file,energy_unit,xyz_unit,oeprop_unit,ierr)
   call stop_on_error(ierr,'open outputs')
+  if (adaptive_electrostatics) then
+    adaptive_options%degree=adaptive_degree
+    adaptive_options%tolerances=adaptive_tolerances
+    adaptive_options%max_depth=adaptive_max_depth
+    adaptive_options%max_anchors=adaptive_max_anchors
+    adaptive_options%max_prepare_seconds=adaptive_max_seconds
+    adaptive_options%max_memory_mb=adaptive_max_memory_mb
+    adaptive_options%fixed_domain=adaptive_fixed_domain
+    adaptive_options%lower=adaptive_lower_bohr
+    adaptive_options%upper=adaptive_upper_bohr
+    adaptive_options%gpu_queries=adaptive_gpu_queries
+    select case(trim(adaptive_error_mode))
+    case('indicator','INDICATOR')
+      adaptive_options%error_mode=ADAPTIVE_INDICATOR
+    case('analytic_majorant','ANALYTIC_MAJORANT')
+      adaptive_options%error_mode=ADAPTIVE_ANALYTIC_MAJORANT
+    case('certified','CERTIFIED')
+      call stop_on_error(59,'certified adaptive electrostatics unavailable')
+    case default
+      call stop_on_error(58,'adaptive error mode')
+    end select
+    if (is_master) then
+      open(newunit=adaptive_unit,file=trim(output_prefix)//'_adaptive.csv', &
+        status='replace',action='write',iostat=ierr)
+      if (ierr==0) write(adaptive_unit,'(A)') &
+        'step,degree,error_mode,fallback,depth,anchors,bounds,max_overlap,'// &
+        'truncation_V,truncation_E,truncation_G,numeric_budget_known,preparation_s,query_s,reason,'// &
+        'anchor_backend,query_backend,gpu_query_launches'
+    endif
+#ifdef MPIV
+    call MPI_BCAST(ierr,1,MPI_INTEGER,0,quick_comm,quick_mpi_error)
+#endif
+    call stop_on_error(ierr,'open adaptive diagnostics')
+  endif
   if (field_hessian) then
     if (is_master) then
       open(newunit=field_hessian_unit,file=trim(output_prefix)//'_field_hessian.csv', &
@@ -268,6 +338,7 @@ program quick_oeprop_bomd_driver
     close(xyz_unit)
     close(oeprop_unit)
     if (field_hessian) close(field_hessian_unit)
+    if (adaptive_electrostatics) close(adaptive_unit)
   endif
 #if defined(GPU) || defined(MPIV_GPU)
   call gpu_oeprop_launch_counts(launches_after(1),launches_after(2),launches_after(3))
@@ -275,6 +346,10 @@ program quick_oeprop_bomd_driver
   launch_deltas=launches_after-launches_before
   call get_external_field_gpu_counts(field_after(1),field_after(2))
   call get_field_hessian_gpu_count(hessian_launches_after)
+  if (adaptive_electrostatics) then
+    call get_adaptive_gpu_info(adaptive_launches_after,adaptive_live_bytes,adaptive_last_bytes)
+    call stop_on_error(merge(0,56,adaptive_live_bytes==0_int64),'adaptive device allocation cleanup')
+  endif
   field_deltas=field_after-field_before
   call write_kernel_counts(kernels_file,ierr)
   call stop_on_error(ierr,'write launch counts')
@@ -347,7 +422,7 @@ contains
   subroutine sample_properties(frame_step)
     implicit none
     integer, intent(in) :: frame_step
-    integer :: before_step,delta,i,j
+    integer :: before_step,delta,i,j,adaptive_frame_before,adaptive_frame_after
     double precision :: begin_time
 
     if (oeprop_stride == 0) return
@@ -372,9 +447,11 @@ contains
     call stop_on_error(merge(0,53,delta == 0),'probe generation changed API step')
 
     before_step=quick_api%step
+    if (adaptive_electrostatics) call get_adaptive_gpu_info(adaptive_frame_before,adaptive_live_bytes,adaptive_last_bytes)
     begin_time=wall_time_seconds()
     call evaluate_properties(npoints,probes_bohr,esp,efield,efg,ierr)
     call stop_on_error(ierr,'on-the-fly OEPROP')
+    if (adaptive_electrostatics) call get_adaptive_gpu_info(adaptive_frame_after,adaptive_live_bytes,adaptive_last_bytes)
     if (field_hessian) then
       if (allocated(hessian_values)) deallocate(hessian_values)
       allocate(hessian_values(3,3,3,npoints),stat=ierr)
@@ -392,6 +469,16 @@ contains
     call stop_on_error(merge(0,53,delta == 0),'OEPROP changed API step')
     if (.not. all(ieee_is_finite(esp)) .or. .not. all(ieee_is_finite(efield)) .or. &
         .not. all(ieee_is_finite(efg))) call stop_on_error(45,'nonfinite OEPROP')
+    if (adaptive_electrostatics) then
+      adaptive_calls=adaptive_calls+1
+      if (adaptive_report%fallback) adaptive_fallbacks=adaptive_fallbacks+1
+      if (is_master) write(adaptive_unit,'(3(I0,","),L1,4(",",I0),3(",",ES24.16),",",L1,2(",",ES24.16),3(",",A),",",I0)') &
+        frame_step,adaptive_degree,adaptive_report%error_mode,adaptive_report%fallback,adaptive_report%depth, &
+        adaptive_report%anchors,adaptive_report%bound_count,adaptive_report%max_overlap, &
+        adaptive_report%truncation_budget,adaptive_report%numerical_budget_known, &
+        adaptive_report%preparation_seconds,adaptive_report%query_seconds,trim(adaptive_report%reason), &
+        trim(adaptive_report%anchor_backend),trim(adaptive_report%query_backend),adaptive_frame_after-adaptive_frame_before
+    endif
     call write_property_frame(oeprop_unit,frame_step,dt_fs,probe_mode,probes_ang, &
       reaction_coordinate,esp,efield,efg)
     if (field_hessian) call write_field_hessian_frame(frame_step)
@@ -609,7 +696,11 @@ contains
     if (allocated(esp)) deallocate(esp,efield,efg)
     allocate(esp(npoints),efield(3,npoints),efg(3,3,npoints),stat=ierr)
     if (ierr /= 0) return
-    call getQuickOEPROP(npoints,probes,ierr,esp=esp,efield=efield,efg=efg)
+    if (adaptive_electrostatics) then
+      call getQuickAdaptiveElectrostatics(npoints,probes,adaptive_options,esp,efield,efg,adaptive_report,ierr)
+    else
+      call getQuickOEPROP(npoints,probes,ierr,esp=esp,efield=efield,efg=efg)
+    endif
   end subroutine evaluate_properties
 
   subroutine assign_masses(z,masses,ierr)
@@ -958,6 +1049,21 @@ contains
         write(unit,'(A,I0,A)') '  "property_calls": ',property_calls,','
         write(unit,'(A,I0,A)') '  "probe_generation_calls": ',probe_generation_calls,','
         write(unit,'(A,I0,A)') '  "properties_extra_api_calls": ',properties_extra_api_calls,','
+        if (adaptive_electrostatics) then
+          write(unit,'(A)') '  "adaptive_electrostatics": true,'
+          write(unit,'(A,I0,A)') '  "adaptive_calls": ',adaptive_calls,','
+          write(unit,'(A,I0,A)') '  "adaptive_whole_frame_fallbacks": ',adaptive_fallbacks,','
+          write(unit,'(A)') '  "adaptive_values_rebuilt_each_frame": true,'
+          write(unit,'(A)') '  "adaptive_total_numeric_budget_known": false,'
+          write(unit,'(A)') '  "adaptive_hessian": "direct",'
+          write(unit,'(A)') '  "adaptive_anchor_backend": "cpu",'
+          write(unit,'(A)') '  "adaptive_bound_backend": "cpu",'
+          write(unit,'(A,A,A)') '  "adaptive_cuda_queries_requested": ', &
+            trim(merge('true ','false',adaptive_gpu_queries)),','
+          write(unit,'(A,I0,A)') '  "adaptive_gpu_query_launches": ',adaptive_launches_after-adaptive_launches_before,','
+          write(unit,'(A,I0,A)') '  "adaptive_device_bytes_live_after": ',adaptive_live_bytes,','
+          write(unit,'(A,I0,A)') '  "adaptive_device_bytes_last_call": ',adaptive_last_bytes,','
+        endif
         if (field_hessian) then
           write(unit,'(A,I0,A)') '  "field_hessian_calls": ',field_hessian_calls,','
           write(unit,'(A,I0,A)') '  "field_hessian_master_gpu_launches": ', &

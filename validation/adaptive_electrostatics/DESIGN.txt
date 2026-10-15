@@ -1,0 +1,240 @@
+Independent electronic jets and continuous support majorants
+===========================================================
+
+Scope and source convention
+---------------------------
+quick_electrostatic_jet_module is a new independent CPU implementation.
+Published ESP/EFIELD/EFG, RESP, applied-field and continuum code is not
+called or modified by it. The supplied real symmetric density is fixed.
+For unrestricted calculations the caller supplies D_alpha+D_beta. Native
+Cartesian primitive coefficients must be passed intact, including original
+primitive and contraction normalization; no spherical transformation or
+renormalization occurs. The upper triangle D(nu,mu), mu>=nu, defines the
+contraction; off-diagonal pairs carry a factor two. owned(mu) partitions the
+higher AO index. Zero input density or primitive coefficients are exact
+zeros; otherwise there is no intentional primitive/density cutoff.
+
+V_el=-sum(D*I); E=-grad_C(V_el); G_ij=dE_i/dC_j;
+H_ijk=dG_ij/dC_k. All coordinates are bohr, the potential is Eh/e, and
+each derivative adds one inverse bohr. Nuclear, external point-charge,
+direct applied-field and continuum-reaction contributions are absent.
+The density may contain their SCF polarization response. Classical sources
+must be added directly at query points by the higher-level controller.
+
+Interfaces and transaction contract
+-----------------------------------
+electronic_jet_cpu(nb,na,maxprim,nc,ang,centers,expo,coeff,atoms,D,
+                   npoints,points,owned,V,E,G,H,status,ierr)
+electronic_cell_majorants_cpu(nb,na,maxprim,nc,ang,centers,expo,coeff,atoms,D,
+                   ncells,lower,upper,owned,component_bounds,status,ierr)
+
+All arrays follow the existing raw Hessian geometry/basis layout: ang(3,nb),
+one-based centers(nb), expo/coeff(maxprim,nb), atoms(3,na), D(nb,nb), and
+owned(nb) in {0,1}. Jet results are V(np), E(3,np), G(3,3,np), H(3,3,3,np).
+Bounds are component_bounds(35,ncells), with box endpoints (3,ncells).
+Point cells lower=upper are allowed. Inputs must be finite and angular
+momentum is limited to Cartesian s/p/d/f, sum(ang(:,mu))<=3.
+
+Both raw calls are ADDITIVE and transactional. Outputs change only if the
+whole call succeeds; a later overflow does not expose partial contractions.
+Status resets on every call, including errors. ierr=46 is dimension error,
+55 invalid numeric/range data, 56 allocation/backend failure. These raw
+routines have no retained-density state, MPI collectives, GPU dispatch,
+SCF work, screening threshold, or internal cache. Callers must synchronize
+rank-local errors before reducing results. Sum positive component bounds
+across ownership partitions BEFORE forming a tensor norm.
+
+Packing and symmetry
+--------------------
+JET_COMPONENT_POWERS(3,35) and JET_COMPONENT_RANK(35) are public constants.
+Packing is rank0 at1, rank1 at2:4, rank2 at5:10, rank3 at11:20, rank4
+at21:35. Within a rank, x power descends and then y power descends; z is
+the remaining degree. Thus rank2 is xx,xy,xz,yy,yz,zz and rank3 is
+xxx,xxy,xxz,xyy,xyz,xzz,yyy,yyz,yzz,zzz. Rank4 similarly has15 components.
+Each computed G/H component is expanded identically to all permutations.
+jet_rank_norm(component_bounds,rank) returns the full Frobenius norm using
+r!/(nx!ny!nz!) multiplicities; invalid rank/nonfinite input returns -1.
+
+Hermite/F10 construction
+-----------------------
+For each primitive pair, p=alpha+beta, P=A+beta/p*(B-A), and
+K=exp[-alpha*beta/p*|A-B|^2]. The density/normalization prefactor is
+w*ca*cb*(2*pi/p)*K. Signed one-dimensional Hermite coefficients use
+E_new(t)=E_old(t-1)/(2p)+(P-A or P-B)*E_old(t)+(t+1)*E_old(t+1).
+Their positive recurrence replaces each displacement by its absolute value,
+which bounds the magnitude of every signed coefficient by induction.
+
+For an entire support box, qmax_i=max(|P_i-lower_i|,|P_i-upper_i|),
+qmin_i=distance(P_i,[lower_i,upper_i]), and Tmin=p*sum(qmin_i^2).
+Boys F_m is positive and monotone decreasing. Seed positive Coulomb bounds
+with (2p)^m*F_m(Tmin); propagate
+Rbar_(t+e_i)^m=qmax_i*Rbar_t^(m+1)+t_i*Rbar_(t-e_i)^(m+1).
+For the jet, use signed seeds (-2p)^m*F_m(p*|P-C|^2) and q=P-C.
+Observation derivatives contribute (-1)^rank to the integral. Consequently
+the packed electronic V,E,G,H use contraction signs -, -, +, -.
+
+Cell component bounds sum the positive Hermite/Coulomb contraction times
+the absolute full density prefactor. No density cancellation is used.
+Ranks3 and4 Frobenius norms provide M3 and M4 over the ENTIRE box support.
+For f/f pairs the required maximum Boys order is10. Compact descending-m
+recurrence needs two degree-10 Cartesian tetrahedra, 2*286 doubles, rather
+than a full four-dimensional tensor. Highest-order Boys functions use the
+positive-term expansion below T=32 and stable downward recurrence; above
+32 an erf seed and upward recurrence are used. This new routine shares
+the mathematics of the independent Hessian route but changes no old path.
+
+What the status does and does not establish
+------------------------------------------
+The positive recurrence is a real-arithmetic component inequality evaluated
+in ordinary FP64. It is not outward-rounded, does not validate Boys values,
+and does not bound accumulation/anchor error. no_intentional_screen is true;
+numerical_budget_known and certified are always false. This remains true
+even if every range counter is zero. No unknown error is assigned zero.
+
+primitive_pairs counts nonzero input primitive pairs attempted. A Gaussian
+or final primitive prefactor below the smallest normal number increments
+prefactor_underflow_count and sets underflow_detected. An underflowed Boys
+value similarly increments boys_underflow_count. Zero hardware prefactors
+cannot contribute further, and such range loss is explicitly reported.
+These detected events do NOT exhaust every possible intermediate underflow
+or establish a residual bound. An intermediate overflow/nonfinite result
+returns error55 with unchanged outputs. A certified/full numerical error
+mode remains unavailable until validated special functions, scaled range
+handling, anchor intervals and outward-rounded arithmetic exist.
+
+POU and resource contract for the controller
+-------------------------------------------
+The experimental controller uses one regular cover per successful batch,
+degree2 or3 local potential polynomials, compact C3 product weights, and
+their exact first/second quotient derivatives. Evaluate a scalar potential
+and differentiate it coherently; do not blend independently computed E/G.
+Majorants must cover each full weight support, including overlap. Tensor
+H anchors are direct; interpolated H has no supplied guarantee. A constant
+potential gauge offset must cancel from E/G through weight identities.
+
+Use explicit caps on anchors, depth, overlap, memory and setup time. The
+initial mathematical pilot used512 anchors. The production default permits
+600 cumulative attempted anchors, enough for levels0..3 with1+8+64+512=585
+anchors; a regular cover has at most8 active supports per query. Balanced
+octrees require a separate verified overlap contract. The memory control is
+a conservative additional-work estimate used for route selection, not a
+hard process-RSS or pre-allocation bound: the public API's transactional
+output buffers and full-D copy are allocated before the controller check;
+direct fallback has required baseline API buffers and resident QUICK state
+lies outside this additional-work estimate. Preparation time is checked
+cooperatively between batches of at most16 anchors or8 support boxes; it is
+not a preemptive deadline for one integral batch or direct fallback.
+If tolerances cannot be met at caps, report failure or select one direct
+whole-frame route; do not silently mix direct/interpolated per-query values
+across a boundary. Indicator, real-arithmetic analytic_majorant, and an
+unavailable certified total-error mode must remain distinct. A provided
+anchor-error budget is an additional conditional input, never inferred zero.
+A fixed domain does not freeze query-dependent level selection across
+independent API calls. Derivative checks must retain the same cover, anchors
+and density, or call the exposed POU evaluator on an explicit frozen cover.
+
+Evidence and limitations
+------------------------
+validate_math_preparation.py:210/210 checks in the preserved pilot-v2,
+including independent high-precision Boys and s-Gaussian rank4, f/f rank4
+from libcint rank3 finite differences, support samples and exact POU
+derivatives, gauge and supplied nonzero anchor-budget checks.
+
+The negative fixed-cover result is preserved. In a .5-bohr far-field cube
+centered5 bohr from a normalized s density, cubic512-anchor/10k-query
+actual G error was1.79e-5 but the conservative POU truncation majorant was
+1.62e-2. It does not meet a1e-4 majorant gate at that cap; continuation to
+millions of anchors is not justified. Positive full-AO bounds were also
+loose. Toy Python timing is neither production timing nor native-GPU
+speedup evidence; matched direct V/E/G performance must be measured with
+the same density, probes, accuracy and observables. New features alone do
+not close the selected-protocol condensed-phase production evidence gaps.
+
+validate_native_jet.py:68/68 checks in native-v2, bounds-checked standalone
+CPU build, no SCF/GPU: normalized s exponents .001/.7/1000, full20-AO
+s/p/d/f signed double contractions, heterocenter contracted basis, upper-
+triangle ownership, additive outputs, exact H permutation expansion, late
+errors with unchanged outputs, and explicit Gaussian underflow reporting.
+Independent jet max absolute disagreement1.36e-13 (tight s exponent1000);
+majorant max scaled disagreement7.82e-16. These are correctness checks of
+FP64 formulas, not a certified continuum supremum or total-error proof.
+
+validate_native_controller.py:113/113 checks in controller-v1. Native
+degrees2/3 and indicator/majorant modes agree with the independent scalar
+POU reference. An explicit level1 eight-anchor cover gives finite-difference
+E/G discrepancies below9.26e-12/2.44e-10. Gauge cancellation, asymmetric
+anchor rejection, depth/anchor/time/memory/overlap caps, cumulative work
+counts, 32/1000/10000 queries, NaN unknown total budgets and unavailable
+certified mode are checked. Approximation/fallback outputs are transactional.
+
+validate_adaptive_api.py:493/493 checks in api-v1 against source-matched v7
+libraries. RHF water, selected150590-grid PBE0 water, UHF OH doublet and
+charged H3O+ with enabled signed MM charges converge. Native/full-D
+independent comparisons differ by at most2.64e-15. Default-ddX-OFF, two-rank
+MPI, and four-rank/two-independent-job split communicators agree with serial
+to5.33e-15. One-rank malformed-shape/NaN requests return collectively with
+unchanged outputs. Scaling retained alpha/beta densities by1.013 and then
+restoring them tests refresh without additional SCFs. Property evaluation
+changes density, Fock, API step count and direct H by exactly zero.
+
+The requested [1e-6,1e-5,1e-4] V/E/G truncation target causes direct
+whole-batch fallback for all four molecular fixtures at depth3. The loose
+targets exercise the approximation; they do not establish success of that
+tight protocol. Eight small linked molecular jobs were run, no GPU jobs.
+These checks establish bounded experimental CPU correctness, not an
+adaptive GPU performance result or a complete Paper1 production application.
+
+Current v8 CPU acceptance and separate ROI findings
+-------------------------------------------------
+The preserved acceptance-report-v8-cpu.json seals766/766 checks:68 raw,
+114 controller,521 linked CPU/default-ddX-OFF/MPI, and63 checks for the
+bounded64AO/1000-query CPU profile. It includes finite outside-domain whole-
+batch fallback and explicit GPU-query requests returning56 on unsupported
+CPU builds. Its copied sources and hashes remain separate from later work.
+
+The separate predeclared ROI pilot used the SAME64AO density, exterior
+center,1000 nested probes and requested triplets[1e-5,1e-4,1e-3] and
+[1e-6,1e-5,1e-4] at halfwidths.025,.1,.25,.5bohr. With a2-second
+preparation cap and120-second aggregate cap, six combinations completed
+validation and ALL selected direct fallback. The.5/first-triplet case was
+interrupted and is NOT_RUN_TO_COMPLETION; the second was NOT_RUN. The
+original raw report retains FAIL for incomplete coverage, and the separate
+bounded-pilot-summary.json labels PARTIAL_RESOURCE_CAP. No result was
+removed and the pilot was neither restarted nor extended.
+
+At halfwidth.025, the last completed depth2 truncation budget was
+[1.59069e-9,1.76560e-6,1.75503e-3]. V/E met both gates while G exceeded
+them. Preparation stopped during depth3 anchor construction, before any
+depth3 support-bound/query result. This was not evidence of depth3 failure.
+
+A single separately PREDECLARED closure then asked whether the production-
+default30-second preparation cap completes this exact.025/first-triplet
+case. It changed no density, ROI, probe, tolerance, depth or anchor limit.
+default-budget-closure-cpu-v8/closure-report.json passed15/15 checks: the
+depth3 cover completed585anchors and585support bounds and ACCEPTED.
+The final real-arithmetic truncation majorants[V,E,G] were
+[9.93511e-11,2.21129e-7,4.39500e-4]. Observed errors against native direct
+evaluation at all1000 sampled probes were
+[1.70897e-12,1.41128e-9,2.33742e-6], using absolute V, Euclidean E and
+Frobenius G norms. These sampled discrepancies are not a continuous total-
+numerical-error certificate; the FP/anchor budget is still unknown.
+
+The complete CPU adaptive API took6.57472s versus2.34165s native direct;
+6.57085s was preparation and.00375s querying. The accepted result therefore
+cost about2.81times more at this workload. The30-second closure resolves
+the bounded numerical-acceptance question and supplies no speedup claim.
+The original120-second ROI findings and766-check seal remain unchanged.
+
+Portable benchmark_adaptive.py records prelaunch request-script/Fortran
+source hashes, binary/runtime/input/density/AO identities, full API wall
+time, preparation/query timings, fallback, unknown numerical budget,
+native CUDA query counters and per-process peakRSS. The latter includes
+initial SCF, direct and adaptive work; it is not a per-phase memory delta.
+Its properties.dat has29 columns: xyz0:3,adaptiveV3,adaptiveE4:7,
+adaptiveG7:16,directV16,
+directE17:20,directG20:29 (zero-based, G in Fortran column-major order).
+Maximum and RMS errors use pointwise absolute V, Euclidean E and Frobenius
+G discrepancies; RMS is sqrt(mean(norm(error)**2)), not component RMS.
+The separately validated64AO/1000-query profile justifies bounded requested
+1000/10000-query follow-up experiments; no larger workload or GPU result is
+inferred by this CPU documentation.

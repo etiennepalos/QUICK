@@ -13,6 +13,8 @@
 
 ! Interface for quick libarary
 module quick_api_module
+  use quick_adaptive_electrostatics_module, only: adaptive_electrostatics_options, &
+    adaptive_electrostatics_report,ADAPTIVE_INDICATOR,ADAPTIVE_ANALYTIC_MAJORANT,ADAPTIVE_CERTIFIED
   implicit none
 
   private
@@ -20,6 +22,8 @@ module quick_api_module
   public :: setQuickJob, getQuickEnergy, getQuickEnergyGradients, deleteQuickJob
   public :: getQuickOEPROP, getQuickDensitySurface
   public :: getQuickFieldHessian
+  public :: getQuickAdaptiveElectrostatics,adaptive_electrostatics_options,adaptive_electrostatics_report
+  public :: ADAPTIVE_INDICATOR,ADAPTIVE_ANALYTIC_MAJORANT,ADAPTIVE_CERTIFIED
 
 #ifdef MPIV
   public :: setQuickMPI
@@ -127,6 +131,10 @@ module quick_api_module
 
   interface getQuickFieldHessian
     module procedure get_quick_field_hessian
+  end interface
+
+  interface getQuickAdaptiveElectrostatics
+    module procedure get_quick_adaptive_electrostatics
   end interface
 
   interface deleteQuickJob
@@ -591,6 +599,228 @@ subroutine get_quick_field_hessian(npoints,probe_xyz_bohr,field_hessian,ierr)
 #endif
 
 end subroutine get_quick_field_hessian
+
+
+!---------------------------------------------------------------------!
+! Opt-in, experimental electronic-potential approximation. The default !
+! published getQuickOEPROP path is unchanged. All three V/E/G outputs   !
+! are derivatives of one fixed-cover scalar map. Nuclei/enabled MM     !
+! charges are evaluated directly. Direct imposed/reaction backgrounds  !
+! remain excluded. H, if wanted, must still use getQuickFieldHessian.   !
+! Every call rebuilds density-dependent anchors/bounds; no extra SCF.   !
+! A cap/budget failure selects direct evaluation for the WHOLE batch.  !
+! Approximation budgets concern Taylor truncation only. Unknown FP and !
+! anchor errors are reported as unavailable (NaN), not certified zero.  !
+! Initial implementation explicitly uses CPU anchors, bounds and PoU;  !
+! GPU jobs retain their native GPU route when direct fallback occurs.  !
+! MPI is collective on quick_comm: identical probes/options required.  !
+! Full-D adaptive preparation runs on master, then results broadcast.  !
+!---------------------------------------------------------------------!
+subroutine get_quick_adaptive_electrostatics(npoints,points,options,esp,efield,efg,report,ierr)
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite,ieee_value,ieee_quiet_nan
+  use, intrinsic :: iso_fortran_env, only: int64
+  use quick_adaptive_electrostatics_module, only: evaluate_adaptive_electronic
+  use quick_basis_module, only: nbasis,quick_basis,ncontract,itype,aexp,dcoeff
+  use quick_calculated_module, only: quick_qm_struct
+  use quick_method_module, only: quick_method
+  use quick_molspec_module, only: natom,xyz,quick_molspec
+  use quick_mpi_module, only: master
+#ifdef MPIV
+  use mpi
+  use quick_mpi_module, only: bMPI,quick_comm,quick_mpi_error
+#endif
+  implicit none
+  integer, intent(in) :: npoints
+  double precision, intent(in) :: points(:,:)
+  type(adaptive_electrostatics_options), intent(in) :: options
+  double precision, intent(inout) :: esp(:),efield(:,:),efg(:,:,:)
+  type(adaptive_electrostatics_report), intent(out) :: report
+  integer, intent(out) :: ierr
+  double precision, allocatable :: density(:,:),v(:),e(:,:),g(:,:,:)
+  double precision :: source(3),u(3),q,r2,inverse_r,inverse_r3
+  integer :: allocation_status,point,isource,i,j
+  integer(int64) :: tick,stop_tick,rate
+#ifdef MPIV
+  integer :: global_error,min_points,max_points,comm_status
+#endif
+
+  report=adaptive_electrostatics_report()
+  report%total_error_budget=ieee_value(0.0d0,ieee_quiet_nan)
+  report%truncation_budget=ieee_value(0.0d0,ieee_quiet_nan)
+  ierr=0
+  if (npoints<1.or.npoints>huge(npoints)/40) then
+    ierr=46
+  else if (any(shape(points)/=[3,npoints]).or.size(esp)/=npoints.or. &
+           any(shape(efield)/=[3,npoints]).or.any(shape(efg)/=[3,3,npoints])) then
+    ierr=46
+  else if (.not.quick_api%density_ready) then
+    ierr=47
+  else if (.not.all(ieee_is_finite(points))) then
+    ierr=55
+  endif
+#ifdef MPIV
+  if (bMPI) then
+    min_points=npoints;max_points=npoints
+    call MPI_ALLREDUCE(npoints,min_points,1,MPI_INTEGER,MPI_MIN,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_ALLREDUCE(npoints,max_points,1,MPI_INTEGER,MPI_MAX,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    if (min_points/=max_points) ierr=46
+  endif
+#endif
+  call collective_status()
+  if (ierr/=0) return
+  ! Reject a singular total-source query even when resource caps would
+  ! otherwise choose the older direct route for the whole batch.
+  if (master) then
+    do point=1,npoints
+      do isource=1,natom+quick_molspec%nextatom
+        if (isource<=natom) then
+          source=xyz(:,isource);q=quick_molspec%chg(isource)
+        else
+          source=quick_molspec%extxyz(:,isource-natom);q=quick_molspec%extchg(isource-natom)
+        endif
+        if (q==0.0d0) cycle
+        r2=sum((points(:,point)-source)**2)
+        if (.not.ieee_is_finite(r2).or.r2<=0.0d0) then
+          ierr=55;exit
+        endif
+      enddo
+      if (ierr/=0) exit
+    enddo
+  endif
+  call collective_status()
+  if (ierr/=0) return
+  allocate(v(npoints),e(3,npoints),g(3,3,npoints),stat=allocation_status)
+  if (allocation_status/=0) ierr=56
+  call collective_status()
+  if (ierr/=0) return
+  if (master) then
+    allocate(density(nbasis,nbasis),stat=allocation_status)
+    if (allocation_status/=0) then
+      ierr=56
+    else
+      density=quick_qm_struct%dense
+      if (quick_method%unrst) density=density+quick_qm_struct%denseb
+      v=0;e=0;g=0
+      call evaluate_adaptive_electronic(nbasis,natom,size(aexp,1),ncontract,itype, &
+        quick_basis%ncenter,aexp,dcoeff,xyz,density,npoints,points,options,v,e,g,report,ierr)
+    endif
+  endif
+  call collective_status()
+  if (ierr/=0) return
+#ifdef MPIV
+  if (bMPI) then
+    call MPI_BCAST(report%fallback,1,MPI_LOGICAL,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+  endif
+#endif
+  call collective_status()
+  if (ierr/=0) return
+  if (report%fallback) then
+    call system_clock(tick,rate)
+    call get_quick_oeprop(npoints,points,ierr,esp=v,efield=e,efg=g)
+    call system_clock(stop_tick)
+    if (master.and.rate>0) report%query_seconds=report%query_seconds+real(stop_tick-tick,8)/real(rate,8)
+    if (master) report%query_backend='native direct'
+  else if (master) then
+    ! Direct classical contributions are never interpolated. This loop
+    ! changes only the new API's temporary results, not published methods.
+    do point=1,npoints
+      do isource=1,natom+quick_molspec%nextatom
+        if (isource<=natom) then
+          source=xyz(:,isource);q=quick_molspec%chg(isource)
+        else
+          source=quick_molspec%extxyz(:,isource-natom);q=quick_molspec%extchg(isource-natom)
+        endif
+        if (q==0.0d0) cycle
+        u=points(:,point)-source;r2=sum(u*u)
+        if (.not.ieee_is_finite(r2).or.r2<=0.0d0) then
+          ierr=55;exit
+        endif
+        inverse_r=1.0d0/sqrt(r2);inverse_r3=inverse_r/r2
+        v(point)=v(point)+q*inverse_r
+        e(:,point)=e(:,point)+q*u*inverse_r3
+        do i=1,3
+          do j=1,3
+            g(i,j,point)=g(i,j,point)-3.0d0*q*u(i)*u(j)*inverse_r3/r2
+          enddo
+          g(i,i,point)=g(i,i,point)+q*inverse_r3
+        enddo
+      enddo
+      if (ierr/=0) exit
+    enddo
+    if (.not.all(ieee_is_finite(v)).or..not.all(ieee_is_finite(e)).or..not.all(ieee_is_finite(g))) ierr=55
+  endif
+  call collective_status()
+  if (ierr/=0) return
+#ifdef MPIV
+  if (bMPI) then
+    call MPI_BCAST(v,npoints,MPI_DOUBLE_PRECISION,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(e,3*npoints,MPI_DOUBLE_PRECISION,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(g,9*npoints,MPI_DOUBLE_PRECISION,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call broadcast_report()
+  endif
+#endif
+  call collective_status()
+  if (ierr/=0) return
+  esp=v;efield=e;efg=g
+contains
+  subroutine collective_status()
+    implicit none
+#ifdef MPIV
+    if (bMPI) then
+      call MPI_ALLREDUCE(ierr,global_error,1,MPI_INTEGER,MPI_MAX,quick_comm,comm_status)
+      if (comm_status==MPI_SUCCESS) then
+        ierr=global_error
+      else
+        ierr=56
+      endif
+    endif
+#endif
+  end subroutine collective_status
+#ifdef MPIV
+  subroutine broadcast_report()
+    implicit none
+    integer :: integers(6)
+    integer(int64) :: counters(2)
+    logical :: flags(7)
+    double precision :: values(12)
+    integers=[report%depth,report%anchors,report%bound_count,report%max_overlap,report%error_mode,0]
+    counters=[report%prefactor_underflow_count,report%boys_underflow_count]
+    flags=[report%fallback,report%approximation_accepted,report%certified,report%numerical_budget_known, &
+      report%continuous_truncation_formula,report%underflow_detected,report%density_refreshed]
+    values=[report%preparation_seconds,report%query_seconds,report%estimated_work_bytes, &
+      report%requested_tolerances,report%truncation_budget,report%total_error_budget]
+    call MPI_BCAST(integers,6,MPI_INTEGER,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(counters,2,MPI_INTEGER8,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(flags,7,MPI_LOGICAL,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(values,12,MPI_DOUBLE_PRECISION,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(report%reason,len(report%reason),MPI_CHARACTER,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(report%anchor_backend,len(report%anchor_backend),MPI_CHARACTER,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    call MPI_BCAST(report%query_backend,len(report%query_backend),MPI_CHARACTER,0,quick_comm,comm_status)
+    if (comm_status/=MPI_SUCCESS) ierr=56
+    report%depth=integers(1);report%anchors=integers(2);report%bound_count=integers(3)
+    report%max_overlap=integers(4);report%error_mode=integers(5)
+    report%prefactor_underflow_count=counters(1);report%boys_underflow_count=counters(2)
+    report%fallback=flags(1);report%approximation_accepted=flags(2);report%certified=flags(3)
+    report%numerical_budget_known=flags(4);report%continuous_truncation_formula=flags(5)
+    report%underflow_detected=flags(6);report%density_refreshed=flags(7)
+    report%preparation_seconds=values(1);report%query_seconds=values(2);report%estimated_work_bytes=values(3)
+    report%requested_tolerances=values(4:6);report%truncation_budget=values(7:9)
+    report%total_error_budget=values(10:12)
+  end subroutine broadcast_report
+#endif
+end subroutine get_quick_adaptive_electrostatics
 
 
 ! Generates an electron-density isosurface from the current converged
