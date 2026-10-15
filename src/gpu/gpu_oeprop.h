@@ -496,10 +496,80 @@ __device__ static inline void iclass_oeprop_derivatives(unsigned int I, unsigned
 }
 
 
+// The generated attraction assembler covers s/p/d pairs only.  Evaluate
+// higher-angular ESP pairs with the recurrence already used by derivatives.
+__device__ static inline void iclass_oeprop_recursive(unsigned int I, unsigned int J,
+        unsigned int II, unsigned int JJ, unsigned int ipoint, unsigned int totalpoint,
+        unsigned int totalatom, QUICKDouble * const YVerticalTemp)
+{
+    QUICKDouble Ax = LOC2(devSim.allxyz, 0, devSim.katom[II] - 1, 3, totalatom);
+    QUICKDouble Ay = LOC2(devSim.allxyz, 1, devSim.katom[II] - 1, 3, totalatom);
+    QUICKDouble Az = LOC2(devSim.allxyz, 2, devSim.katom[II] - 1, 3, totalatom);
+    QUICKDouble Bx = LOC2(devSim.allxyz, 0, devSim.katom[JJ] - 1, 3, totalatom);
+    QUICKDouble By = LOC2(devSim.allxyz, 1, devSim.katom[JJ] - 1, 3, totalatom);
+    QUICKDouble Bz = LOC2(devSim.allxyz, 2, devSim.katom[JJ] - 1, 3, totalatom);
+    QUICKDouble Cx = LOC2(devSim.extpointxyz, 0, ipoint, 3, totalpoint);
+    QUICKDouble Cy = LOC2(devSim.extpointxyz, 1, ipoint, 3, totalpoint);
+    QUICKDouble Cz = LOC2(devSim.extpointxyz, 2, ipoint, 3, totalpoint);
+    int kPrimI = devSim.kprim[II], kPrimJ = devSim.kprim[JJ];
+    int kStartI = devSim.kstart[II] - 1, kStartJ = devSim.kstart[JJ] - 1;
+    int ii_start = devSim.prim_start[II], jj_start = devSim.prim_start[JJ];
+    int III1 = LOC2(devSim.Qsbasis, II, I, devSim.nshell, 4);
+    int III2 = LOC2(devSim.Qfbasis, II, I, devSim.nshell, 4);
+    int JJJ1 = LOC2(devSim.Qsbasis, JJ, J, devSim.nshell, 4);
+    int JJJ2 = LOC2(devSim.Qfbasis, JJ, J, devSim.nshell, 4);
+
+    for (int i = 0; i < kPrimI * kPrimJ; ++i) {
+        int JJJ = i / kPrimI, III = i - kPrimI * JJJ;
+        QUICKDouble Zeta = LOC2(devSim.expoSum, ii_start + III, jj_start + JJJ,
+                devSim.prim_total, devSim.prim_total);
+        QUICKDouble Px = LOC2(devSim.weightedCenterX, ii_start + III, jj_start + JJJ,
+                devSim.prim_total, devSim.prim_total);
+        QUICKDouble Py = LOC2(devSim.weightedCenterY, ii_start + III, jj_start + JJJ,
+                devSim.prim_total, devSim.prim_total);
+        QUICKDouble Pz = LOC2(devSim.weightedCenterZ, ii_start + III, jj_start + JJJ,
+                devSim.prim_total, devSim.prim_total);
+        QUICKDouble Xcoeff_oei = LOC4(devSim.Xcoeff_oei, kStartI + III, kStartJ + JJJ,
+                I - devSim.Qstart[II], J - devSim.Qstart[JJ], devSim.jbasis, devSim.jbasis, 2, 2);
+        if (!(abs(Xcoeff_oei) > devSim.coreIntegralCutoff)) continue;
+
+        // Keep the legacy ESP Boys order and negative electronic-charge sign.
+        FmT(I + J, Zeta * (SQR(Px - Cx) + SQR(Py - Cy) + SQR(Pz - Cz)), YVerticalTemp);
+        for (int n = 0; n <= I + J; ++n) VY(0, 0, n) *= -1.0 * Xcoeff_oei;
+
+        for (int ibas = III1; ibas <= III2; ++ibas) {
+            int lx1 = LOC2(devSim.KLMN, 0, ibas - 1, 3, devSim.nbasis);
+            int ly1 = LOC2(devSim.KLMN, 1, ibas - 1, 3, devSim.nbasis);
+            int lz1 = LOC2(devSim.KLMN, 2, ibas - 1, 3, devSim.nbasis);
+            for (int jbas = MAX(ibas, JJJ1); jbas <= JJJ2; ++jbas) {
+                int lx2 = LOC2(devSim.KLMN, 0, jbas - 1, 3, devSim.nbasis);
+                int ly2 = LOC2(devSim.KLMN, 1, jbas - 1, 3, devSim.nbasis);
+                int lz2 = LOC2(devSim.KLMN, 2, jbas - 1, 3, devSim.nbasis);
+                QUICKDouble DENSEJI = LOC2(devSim.dense, jbas - 1, ibas - 1,
+                        devSim.nbasis, devSim.nbasis);
+                if (devSim.is_oshell) DENSEJI += LOC2(devSim.denseb, jbas - 1, ibas - 1,
+                        devSim.nbasis, devSim.nbasis);
+                QUICKDouble factor = (ibas == jbas ? 1.0 : 2.0) * DENSEJI
+                    * devSim.cons[ibas - 1] * devSim.cons[jbas - 1];
+                QUICKDouble value = factor * oeprop_att_recurse(lx1, ly1, lz1, lx2, ly2, lz2,
+                        0, YVerticalTemp, Ax, Ay, Az, Bx, By, Bz, Cx, Cy, Cz, Px, Py, Pz, Zeta);
+                OEPROP_ATOMIC_ADD(&devSim.esp_electronic[ipoint],
+                        &devSim.esp_electronicULL[ipoint], value);
+            }
+        }
+    }
+}
+
+
 __device__ static inline void iclass_oeprop(unsigned int I, unsigned int J, unsigned int II, unsigned int JJ,
         unsigned int ipoint, unsigned int totalpoint, unsigned int totalatom,
         QUICKDouble * const YVerticalTemp, QUICKDouble * const store, QUICKDouble * const store2)
 {
+    if (I > 2 || J > 2) {
+        iclass_oeprop_recursive(I, J, II, JJ, ipoint, totalpoint, totalatom, YVerticalTemp);
+        return;
+    }
+
     /*
        kAtom A, B  is the coresponding atom for shell II, JJ
        and be careful with the index difference between Fortran and C++,
