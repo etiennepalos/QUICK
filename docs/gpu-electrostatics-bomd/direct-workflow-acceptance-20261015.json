@@ -1,0 +1,590 @@
+{
+  "schema": 1,
+  "status": "PASS",
+  "date": "2026-10-15",
+  "branch": "feature/adaptive-electrostatics",
+  "baseline": "9d63c22820754e377ee9ba2d3cfbadfe5901ba88",
+  "artifact_root_hint": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015",
+  "source_convention": "electrons+nuclei+enabled_MM; direct applied/reaction backgrounds excluded",
+  "evidence_sha256": {
+    "direct-benchmark-water-sto3g-v1/report.json": "f341c601dccad488b1e246eff87c34bf255ce2e50bb6f9f9d8c48a15412e7e1b",
+    "direct-benchmark-water-tzvpd-v1/report.json": "0676c981e8edfd1b3477296ee092ada31cd804005ee4bcbccecda4266ae8d881",
+    "workflow-water-cpu-v2/workflow_summary.json": "8c28e4110e7b3d8dd9ad12b99d7e239692f2222f69df1d82ea03cd4e870cb42f",
+    "workflow-water-cuda-v2/workflow_summary.json": "99730b02a5a6be8dc3561decce2494d92778d2c3e7301fc38ac263ba266a6c4a",
+    "water20-one-pass-snapshot-v1/report.json": "a6661b1ed2428200d3677672b029394942b60d344bd5650bbbe09d52f66aa4b7",
+    "water20-summary-figures-v1/figure-provenance.json": "a2eea23039732e1fd2643458b7755b9cf63e650753edbbfc25115171b72def6e",
+    "hardware-and-toolchain.json": "1ea86931307230ca389f0ede37c0e06423f042e729959c6a3a7eb3f272a12dfc"
+  },
+  "direct_fixed_density": [
+    {
+      "report": "direct-benchmark-water-sto3g-v1/report.json",
+      "source_snapshot": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/refined-grid-v5/source",
+      "outputs": "VEGH",
+      "runs": [
+        {
+          "case": "water-sto3g",
+          "backend": "cpu",
+          "points": 1000,
+          "basis": "STO-3G",
+          "phase_median_seconds": {
+            "V": 0.004713978,
+            "E": 0.018339706,
+            "G": 0.016377575,
+            "H": 1.409830251,
+            "VEG": 0.039530789,
+            "VEGH": 1.449140304
+          }
+        },
+        {
+          "case": "water-sto3g",
+          "backend": "cuda",
+          "points": 1000,
+          "basis": "STO-3G",
+          "phase_median_seconds": {
+            "V": 0.000125308,
+            "E": 0.000246761,
+            "G": 0.000368164,
+            "H": 0.003429046,
+            "VEG": 0.000740544,
+            "VEGH": 0.004200926
+          }
+        },
+        {
+          "case": "water-sto3g",
+          "backend": "cpu",
+          "points": 10000,
+          "basis": "STO-3G",
+          "phase_median_seconds": {
+            "V": 0.0474331,
+            "E": 0.182313007,
+            "G": 0.16387953,
+            "H": 14.103326338,
+            "VEG": 0.393458876,
+            "VEGH": 14.489389154
+          }
+        },
+        {
+          "case": "water-sto3g",
+          "backend": "cuda",
+          "points": 10000,
+          "basis": "STO-3G",
+          "phase_median_seconds": {
+            "V": 0.00051177,
+            "E": 0.000905572,
+            "G": 0.001490661,
+            "H": 0.031423728,
+            "VEG": 0.002909024,
+            "VEGH": 0.034495065
+          }
+        }
+      ],
+      "matched_density_accuracy": [
+        {
+          "case": "water-sto3g",
+          "points": 1000,
+          "same_density": true,
+          "properties": {
+            "V": {
+              "max_abs": 4.440892098500626e-15,
+              "rms": 1.2479617951414149e-15,
+              "passed": true
+            },
+            "E": {
+              "max_abs": 8.881784197001252e-16,
+              "rms": 1.305477115240784e-16,
+              "passed": true
+            },
+            "G": {
+              "max_abs": 4.996003610813204e-16,
+              "rms": 5.795116532558529e-17,
+              "passed": true
+            },
+            "H": {
+              "max_abs": 3.885780586188048e-16,
+              "rms": 3.625931577872275e-17,
+              "passed": true
+            }
+          }
+        },
+        {
+          "case": "water-sto3g",
+          "points": 10000,
+          "same_density": true,
+          "properties": {
+            "V": {
+              "max_abs": 5.773159728050814e-15,
+              "rms": 1.2236652343360226e-15,
+              "passed": true
+            },
+            "E": {
+              "max_abs": 1.1102230246251565e-15,
+              "rms": 1.371972730549657e-16,
+              "passed": true
+            },
+            "G": {
+              "max_abs": 7.216449660063518e-16,
+              "rms": 5.865532345519031e-17,
+              "passed": true
+            },
+            "H": {
+              "max_abs": 5.828670879282072e-16,
+              "rms": 3.5868733434618665e-17,
+              "passed": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "report": "direct-benchmark-water-tzvpd-v1/report.json",
+      "source_snapshot": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/refined-grid-v5/source",
+      "outputs": "VEG",
+      "runs": [
+        {
+          "case": "water-tzvpd",
+          "backend": "cpu",
+          "points": 1000,
+          "basis": "DEF2-TZVPD",
+          "phase_median_seconds": {
+            "V": 0.06661445,
+            "E": 0.522610606,
+            "G": 1.773340631,
+            "VEG": 2.363114844
+          }
+        },
+        {
+          "case": "water-tzvpd",
+          "backend": "cuda",
+          "points": 1000,
+          "basis": "DEF2-TZVPD",
+          "phase_median_seconds": {
+            "V": 0.01989511,
+            "E": 0.136417473,
+            "G": 0.435814995,
+            "VEG": 0.592834149
+          }
+        },
+        {
+          "case": "water-tzvpd",
+          "backend": "cpu",
+          "points": 10000,
+          "basis": "DEF2-TZVPD",
+          "phase_median_seconds": {
+            "V": 0.670614755,
+            "E": 5.255411567,
+            "G": 17.531622313,
+            "VEG": 23.460778978
+          }
+        },
+        {
+          "case": "water-tzvpd",
+          "backend": "cuda",
+          "points": 10000,
+          "basis": "DEF2-TZVPD",
+          "phase_median_seconds": {
+            "V": 0.050533109,
+            "E": 0.335838823,
+            "G": 1.025455682,
+            "VEG": 1.413281334
+          }
+        }
+      ],
+      "matched_density_accuracy": [
+        {
+          "case": "water-tzvpd",
+          "points": 1000,
+          "same_density": true,
+          "properties": {
+            "V": {
+              "max_abs": 1.6431300764452317e-14,
+              "rms": 5.244560076647737e-15,
+              "passed": true
+            },
+            "E": {
+              "max_abs": 4.3298697960381105e-15,
+              "rms": 5.70531757835316e-16,
+              "passed": true
+            },
+            "G": {
+              "max_abs": 2.1649348980190553e-15,
+              "rms": 2.296891378224334e-16,
+              "passed": true
+            }
+          }
+        },
+        {
+          "case": "water-tzvpd",
+          "points": 10000,
+          "same_density": true,
+          "properties": {
+            "V": {
+              "max_abs": 2.1760371282653068e-14,
+              "rms": 5.3027394405360065e-15,
+              "passed": true
+            },
+            "E": {
+              "max_abs": 4.3298697960381105e-15,
+              "rms": 5.363110938585226e-16,
+              "passed": true
+            },
+            "G": {
+              "max_abs": 2.4980018054066022e-15,
+              "rms": 2.2663660235303407e-16,
+              "passed": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "paired_workflows": [
+    {
+      "report": "workflow-water-cpu-v2/workflow_summary.json",
+      "configuration": {
+        "backend": "cpu",
+        "keyword": "PBE0 D3 BASIS=DEF2-SVP GRADIENT CHARGE=0 MULT=1 SCF=400 DENSERMS=1E-10 CUTOFF=1E-12 GRADCUTOFF=1E-12 BASISCUTOFF=1E-12 MATRIXZERO=1E-14 XCCUTOFF=1E-12 XC_RADIAL=150 XC_ANGULAR=590",
+        "natom": 3,
+        "probe_count": 4,
+        "nsteps": 2,
+        "dt_fs": 0.025,
+        "temperature_k": 50.0,
+        "stride": 1,
+        "threads": 1,
+        "ranks": 1,
+        "retained_pairs": 3,
+        "discarded_pairs": 1,
+        "enabled_properties": "V,E,G,H",
+        "probe_mode": "fixed",
+        "force_source": "printed",
+        "expected_basis_functions": 25,
+        "expected_controls": {
+          "PBE0": null,
+          "D3": null,
+          "BASIS": "DEF2-SVP",
+          "GRADIENT": null,
+          "CHARGE": 0,
+          "MULT": 1,
+          "SCF": 400,
+          "DENSERMS": 1e-10,
+          "CUTOFF": 1e-12,
+          "GRADCUTOFF": 1e-12,
+          "BASISCUTOFF": 1e-12,
+          "MATRIXZERO": 1e-14,
+          "XCCUTOFF": 1e-12,
+          "XC_RADIAL": 150,
+          "XC_ANGULAR": 590
+        },
+        "tolerances": {
+          "energy_au": 1e-07,
+          "coordinate_ang": 1e-07,
+          "gradient_au_per_bohr": 2e-07,
+          "velocity_au": 1e-07,
+          "property_au": 2e-07
+        }
+      },
+      "whole_job": {
+        "off_wall_seconds": {
+          "values": [
+            17.694629754,
+            18.094542203,
+            17.745341604
+          ],
+          "median": 17.745341604,
+          "min": 17.694629754,
+          "max": 18.094542203,
+          "sample_stdev": 0.21773176040622297
+        },
+        "on_wall_seconds": {
+          "values": [
+            17.744160379,
+            17.695051892000002,
+            17.694050365000003
+          ],
+          "median": 17.695051892000002,
+          "min": 17.694050365000003,
+          "max": 17.744160379,
+          "sample_stdev": 0.02864629136799582
+        },
+        "delta_wall_seconds": {
+          "values": [
+            0.04953062499999916,
+            -0.39949031099999743,
+            -0.051291238999997546
+          ],
+          "median": -0.051291238999997546,
+          "min": -0.39949031099999743,
+          "max": 0.04953062499999916,
+          "sample_stdev": 0.2355940869972504
+        },
+        "whole_job_overhead_percent": {
+          "values": [
+            0.27991896800667604,
+            -2.2077945190222215,
+            -0.2890405839718335
+          ],
+          "median": -0.2890405839718335,
+          "min": -2.2077945190222215,
+          "max": 0.27991896800667604,
+          "sample_stdev": 1.3034601405876343
+        }
+      },
+      "api_phase_ratio": {
+        "scope": "Accumulated synchronous V/E/G/H API / force API; excludes driver IO; not whole-job overhead",
+        "property_api_to_force_api_percent": {
+          "values": [
+            0.32405137238574644,
+            0.3252850130950812,
+            0.32458371381511647
+          ],
+          "median": 0.32458371381511647,
+          "min": 0.32405137238574644,
+          "max": 0.3252850130950812,
+          "sample_stdev": 0.0006187457039892155
+        }
+      },
+      "timing_sample_scope": "At least three retained paired trials"
+    },
+    {
+      "report": "workflow-water-cuda-v2/workflow_summary.json",
+      "configuration": {
+        "backend": "cuda",
+        "keyword": "PBE0 D3 BASIS=DEF2-SVP GRADIENT CHARGE=0 MULT=1 SCF=400 DENSERMS=1E-10 CUTOFF=1E-12 GRADCUTOFF=1E-12 BASISCUTOFF=1E-12 MATRIXZERO=1E-14 XCCUTOFF=1E-12 XC_RADIAL=150 XC_ANGULAR=590",
+        "natom": 3,
+        "probe_count": 4,
+        "nsteps": 2,
+        "dt_fs": 0.025,
+        "temperature_k": 50.0,
+        "stride": 1,
+        "threads": 1,
+        "ranks": 1,
+        "retained_pairs": 3,
+        "discarded_pairs": 1,
+        "enabled_properties": "V,E,G,H",
+        "probe_mode": "fixed",
+        "force_source": "printed",
+        "expected_basis_functions": 25,
+        "expected_controls": {
+          "PBE0": null,
+          "D3": null,
+          "BASIS": "DEF2-SVP",
+          "GRADIENT": null,
+          "CHARGE": 0,
+          "MULT": 1,
+          "SCF": 400,
+          "DENSERMS": 1e-10,
+          "CUTOFF": 1e-12,
+          "GRADCUTOFF": 1e-12,
+          "BASISCUTOFF": 1e-12,
+          "MATRIXZERO": 1e-14,
+          "XCCUTOFF": 1e-12,
+          "XC_RADIAL": 150,
+          "XC_ANGULAR": 590
+        },
+        "tolerances": {
+          "energy_au": 1e-07,
+          "coordinate_ang": 1e-07,
+          "gradient_au_per_bohr": 2e-07,
+          "velocity_au": 1e-07,
+          "property_au": 2e-07
+        }
+      },
+      "whole_job": {
+        "off_wall_seconds": {
+          "values": [
+            16.266845436,
+            16.21988665,
+            16.218309009000002
+          ],
+          "median": 16.21988665,
+          "min": 16.218309009000002,
+          "max": 16.266845436,
+          "sample_stdev": 0.02757837703601908
+        },
+        "on_wall_seconds": {
+          "values": [
+            16.218246629,
+            16.264680331,
+            16.218137668
+          ],
+          "median": 16.218246629,
+          "min": 16.218137668,
+          "max": 16.264680331,
+          "sample_stdev": 0.026840019973465228
+        },
+        "delta_wall_seconds": {
+          "values": [
+            -0.04859880700000119,
+            0.044793681000001584,
+            -0.00017134100000149033
+          ],
+          "median": -0.00017134100000149033,
+          "min": -0.04859880700000119,
+          "max": 0.044793681000001584,
+          "sample_stdev": 0.04670694002942273
+        },
+        "whole_job_overhead_percent": {
+          "values": [
+            -0.29875987444035745,
+            0.2761651913270491,
+            -0.0010564664904677556
+          ],
+          "median": -0.0010564664904677556,
+          "min": -0.29875987444035745,
+          "max": 0.2761651913270491,
+          "sample_stdev": 0.28752333178246237
+        }
+      },
+      "api_phase_ratio": {
+        "scope": "Accumulated synchronous V/E/G/H API / force API; excludes driver IO; not whole-job overhead",
+        "property_api_to_force_api_percent": {
+          "values": [
+            0.07902728090139331,
+            0.07933043050790249,
+            0.07913763926573475
+          ],
+          "median": 0.07913763926573475,
+          "min": 0.07902728090139331,
+          "max": 0.07933043050790249,
+          "sample_stdev": 0.0001534313720437513
+        }
+      },
+      "timing_sample_scope": "At least three retained paired trials"
+    }
+  ],
+  "water20": {
+    "report": "water20-one-pass-snapshot-v1/report.json",
+    "configuration": {
+      "case_id": "water20-def2svp",
+      "backend": "cuda",
+      "keyword": "PBE0 D3 BASIS=DEF2-SVP ENERGY CHARGE=0 MULT=1 SCF=400 DENSERMS=1E-10 CUTOFF=1E-12 XC_RADIAL=150 XC_ANGULAR=590 BASISCUTOFF=1E-12 MATRIXZERO=1E-14 XCCUTOFF=1E-12",
+      "queries": 3860,
+      "expected_basis_functions": 500,
+      "source_snapshot": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/continuum-source-v6/source",
+      "prepared": "/home/epalos/software/quick_ep/adaptive-electrostatics-20261015/field-uniformity/application-plan-v4/prepared"
+    },
+    "native_SCFs": 1,
+    "basis_functions": 500,
+    "queries": 3860,
+    "native_result": {
+      "basis_functions": [
+        "500"
+      ],
+      "points": [
+        "3860"
+      ],
+      "collector_passes": [
+        "1"
+      ],
+      "V_E_G_API_calls": [
+        "1"
+      ],
+      "H_API_calls": [
+        "1"
+      ],
+      "native_gpu_launches": [
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "extra_API_calls": [
+        "0"
+      ],
+      "scf_converged": [
+        "T"
+      ],
+      "unrestricted": [
+        "F"
+      ],
+      "hessian_requested": [
+        "T"
+      ],
+      "initial_scf_energy": [
+        "-1.52613419717645797E+003"
+      ],
+      "density_error": [
+        "0.00000000000000000E+000"
+      ],
+      "fock_error": [
+        "0.00000000000000000E+000"
+      ],
+      "setup_scf_export_seconds": [
+        "1.00067093375800005E+003"
+      ],
+      "setup_to_teardown_seconds": [
+        "1.00513347603700004E+003"
+      ]
+    },
+    "independent_overlap_max_error": 1.8735013540549517e-15,
+    "electron_count_error": 8.526512829121202e-14,
+    "poisson_max_absolute_residuals": {
+      "poisson_g_residual": 5.9674487573602164e-15,
+      "poisson_h_residual_norm": 1.2517597764218036e-14
+    },
+    "Taylor_first_two_radius_order_ranges": {
+      "constant": [
+        0.9902932912727016,
+        1.014972842606802
+      ],
+      "linear": [
+        1.98302939301492,
+        2.013443377584579
+      ],
+      "quadratic": [
+        2.990414208880029,
+        3.009066439928637
+      ]
+    },
+    "radius_max_sampled_errors": [
+      {
+        "radius_bohr": "0.01",
+        "constant_max_sampled_field_error_au": "0.0004958830145590947",
+        "linear_max_sampled_field_error_au": "5.811921981451298e-06",
+        "quadratic_max_sampled_field_error_au": "5.5719639384565014e-08"
+      },
+      {
+        "radius_bohr": "0.02",
+        "constant_max_sampled_field_error_au": "0.000989631486055877",
+        "linear_max_sampled_field_error_au": "2.3443204405252147e-05",
+        "quadratic_max_sampled_field_error_au": "4.431373922975528e-07"
+      },
+      {
+        "radius_bohr": "0.05",
+        "constant_max_sampled_field_error_au": "0.002506360486382284",
+        "linear_max_sampled_field_error_au": "0.00015026379322939418",
+        "quadratic_max_sampled_field_error_au": "7.014674960004834e-06"
+      },
+      {
+        "radius_bohr": "0.1",
+        "constant_max_sampled_field_error_au": "0.005136134822922012",
+        "linear_max_sampled_field_error_au": "0.0006271002571970898",
+        "quadratic_max_sampled_field_error_au": "5.7935854684651984e-05"
+      },
+      {
+        "radius_bohr": "0.2",
+        "constant_max_sampled_field_error_au": "0.010791833375829197",
+        "linear_max_sampled_field_error_au": "0.0027347278794266237",
+        "quadratic_max_sampled_field_error_au": "0.0004953436637382077"
+      },
+      {
+        "radius_bohr": "0.4",
+        "constant_max_sampled_field_error_au": "0.023996593614257326",
+        "linear_max_sampled_field_error_au": "0.013104507344977355",
+        "quadratic_max_sampled_field_error_au": "0.004587426903664796"
+      }
+    ],
+    "summary_figure": "water20-summary-figures-v1/field_error.png",
+    "CSV": "water20-summary-figures-v1/aggregate-radius-errors.csv",
+    "provenance_unchanged": true
+  },
+  "limitations": [
+    "Direct VEG uses existing separate routes, not a new fused kernel",
+    "Direct timings exclude initial SCF and file output; complete API allocations/transfers/classical sources included",
+    "Same exact density and Cartesian AO identity used for direct CPU/CUDA pairs",
+    "Paired water paths use three forces and four probes, not an equilibrium ensemble or dense-grid overhead claim",
+    "Negative whole-job paired deltas retained as timing noise; no speedup inference from them",
+    "WATER20 is one static GPU snapshot, not CPU/GPU energy/force closure, a trajectory, bulk or PBC simulation",
+    "WATER20 clocks are single-shot execution diagnostics with recorded concurrent CPU build, not performance estimates",
+    "No new adaptive method acceptance or speed claim is implied by this direct-workflow summary"
+  ]
+}
