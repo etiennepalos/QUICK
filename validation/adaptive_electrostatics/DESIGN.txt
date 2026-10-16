@@ -78,7 +78,17 @@ the absolute full density prefactor. No density cancellation is used.
 Ranks3 and4 Frobenius norms provide M3 and M4 over the ENTIRE box support.
 For f/f pairs the required maximum Boys order is10. Compact descending-m
 recurrence needs two degree-10 Cartesian tetrahedra, 2*286 doubles, rather
-than a full four-dimensional tensor. Highest-order Boys functions use the
+than a full four-dimensional tensor. At layer m only Cartesian degrees
+<=order-m are needed. The degree-ordered prefix has
+nactive=(order-m+1)*(order-m+2)*(order-m+3)/6 entries. First predecessors
+lie in the completed previous degree prefix, and second predecessors have
+one further degree less; the initial layer reads no predecessor. Every
+active entry is assigned before use. Thus only the active prefix is checked
+and copied, with no full-layer clearing or initial previous-layer clearing.
+The final result is explicitly zeroed before copying its active prefix,
+preserving unused output-tail zeros. Seed/Boys arithmetic, contraction
+ordering, finite checks on computed entries and range status are unchanged.
+Highest-order Boys functions use the
 positive-term expansion below T=32 and stable downward recurrence; above
 32 an erf seed and upward recurrence are used. This new routine shares
 the mathematics of the independent Hessian route but changes no old path.
@@ -238,3 +248,70 @@ G discrepancies; RMS is sqrt(mean(norm(error)**2)), not component RMS.
 The separately validated64AO/1000-query profile justifies bounded requested
 1000/10000-query follow-up experiments; no larger workload or GPU result is
 inferred by this CPU documentation.
+
+Active Cartesian prefix and paired API results (2026-10-15)
+---------------------------------------------------------
+These artifacts are separate from the preserved v8 seals above. The
+independent multiindex/dependency and poisoned-unused-storage model passed
+675 checks through order 10, including 266 finite bitwise comparisons and
+9 matching overflow layers. The original standalone jet/controller suites
+pass 68/68 and 114/114 with bounds checking. No SCF or GPU is involved in
+these standalone tests.
+
+The quiet, single-core GNU -O3 raw-controller profile uses the retained
+HF/Cartesian def2-TZVPD water density and normalized 64 AO / 83 primitive
+layout, including f functions and 3,526 nonzero-density primitive pairs.
+It retains 1,000 probes, fixed 0.025 bohr halfwidth, target
+[1e-5, 1e-4, 1e-3], 30 s / 256 MiB / depth 3 / 600 anchor caps, and all
+585 attempted anchors and support bounds. Median baseline and active-prefix
+times are 6.556700344 s and 2.652298431 s (2.47x); each version excludes
+one warmup and retains two calls. V/E/G, budgets, counters and density
+preservation agree exactly, and the work-memory estimate is unchanged.
+This pilot excludes classical sources, the public API wrapper and SCF.
+Reports and all source/data identities remain under
+quick-optimization-20261015/adaptive-active-prefix-pilot-v1/{native-validation-v1,native-profile-v1}.
+
+The final source-matched v3 linked CPU/MPI/default-ddX-OFF suite passes
+521/521 checks, including density/Fock/API-step/direct-H preservation,
+collective and split-communicator behavior, and no extra SCFs. Receipt:
+quick-optimization-20261015/adaptive-validation/linked-api-v3/report.json.
+
+Final paired complete-API trials retain the same density, AO layout,
+exterior cube, target, caps and all 585 anchors/support bounds. Three
+independent-process baseline/candidate pairs run in AB/BA/AB order on one
+pinned CPU core, with one thread per library and an exclusive native-job
+window. CUDA queries use GPU 0. Every process excludes its first call per
+route, retaining one direct/adaptive call on GPU and two on CPU. The saved
+1,000- and 10,000-point prefixes of the GPU 100,000-point set agree exactly.
+
+With 100,000 CUDA-query probes, baseline/candidate adaptive API medians
+are 6.652556 / 2.553954 s, a median paired ratio of 2.60481x. Preparation
+medians are 6.609734 / 2.513135 s; query medians are 0.029340 / 0.028259 s.
+With 1,000 CPU probes, adaptive medians are 6.594413 / 2.467141 s, a median
+paired ratio of 2.67002x. Direct CPU V/E/G remains slightly faster at
+2.357225 s. Native process-wall medians, reported separately, are
+47.612884 / 39.498627 s for GPU and 32.268949 / 19.950477 s for CPU; these
+include SCF and both warmup and retained routes and are not BOMD timings.
+
+Every adaptive V/E/G component, truncation budget, counter, status and
+retained D/AO/overlap/input/options field agrees exactly across all trials.
+Direct CPU V/E/G also agrees exactly. Direct GPU discrepancies reach at
+most 4.4408921e-15, within the unchanged predeclared component gate
+1e-10 + 1e-9*abs(reference). The existing within-process Fock/state checks
+report zero changes and no extra SCFs; no full Fock matrix is exported.
+All original gates, targets and results are retained without retries.
+
+Property clocks include the entire adaptive API: CPU anchors and whole-
+support bounds, attempted cover levels, transfers, queries, classical work
+and wrapper overhead. Initial SCF is excluded. Query-point direct H is
+excluded, while H anchors used in preparation are included. The numerical
+budget remains unknown and certified remains false. This is one frozen
+molecular density and a small exterior region, not evidence of general,
+BOMD or condensed-phase ensemble speedup. No cache across calls is added.
+The exploratory call-local cache and BOMD buffer/probe reuse are not retained.
+
+Plans, source/runtime/input hashes, every native output and both completed
+PASS receipts are under
+quick-optimization-20261015/adaptive-paired-final-v3/
+quick-optimization-20261015/adaptive-paired-gpu100k-v3/report.json
+quick-optimization-20261015/adaptive-paired-cpu1k-v3/report.json

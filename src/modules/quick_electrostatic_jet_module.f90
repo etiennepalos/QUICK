@@ -411,7 +411,7 @@ contains
       type(electrostatic_jet_status), intent(inout) :: status
       integer, intent(out) :: ierr
       double precision :: boys(0:MAX_ORDER), seed(0:MAX_ORDER), previous(NSLOTS), current(NSLOTS), factor
-      integer :: m, n, axis
+      integer :: m, n, axis, nactive
 
       call boys_values(order,boys_t,boys,status,ierr)
       if (ierr /= 0) return
@@ -430,24 +430,26 @@ contains
          ierr = NUMERIC_ERROR
          return
       endif
-      previous = 0.0d0
+      ! Layer m contains only degrees <=order-m, a contiguous prefix.
+      ! The first layer reads no predecessor; later predecessor indices
+      ! are inside the already completed prefix of the previous layer.
       do m=order,0,-1
-         current = 0.0d0
+         nactive = (order-m+1)*(order-m+2)*(order-m+3)/6
          current(1) = seed(m)
-         do n=2,NSLOTS
-            if (degree(n) > order-m) exit
+         do n=2,nactive
             axis = direction(n)
             current(n) = q(axis)*previous(previous1(n))
             if (previous2(n) > 0) current(n) = current(n) &
                +dble(powers(axis,n)-1)*previous(previous2(n))
          enddo
-         if (.not.all(ieee_is_finite(current))) then
+         if (.not.all(ieee_is_finite(current(1:nactive)))) then
             ierr = NUMERIC_ERROR
             return
          endif
-         previous = current
+         previous(1:nactive) = current(1:nactive)
       enddo
-      rzero = previous
+      rzero = 0.0d0
+      rzero(1:nactive) = previous(1:nactive)
    end subroutine coulomb_layer
 
    subroutine boys_values(order,boys_t,values,status,ierr)

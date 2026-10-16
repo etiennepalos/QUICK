@@ -279,15 +279,20 @@ __global__ void field_hessian_kernel(Basis basis, std::size_t pairs, int np,
                             double coefficient = prefactor * coefficients[0][t] * coefficients[1][u] * coefficients[2][v];
                             // R differentiates P. Three derivatives at C reverse
                             // the sign: H_e=+D*I_C'''=-D*sum(E*R_(t+3,...)).
-                            int component = 0;
-                            for (int i = 0; i < 3; ++i)
-                                for (int j = i; j < 3; ++j)
-                                    for (int k = j; k < 3; ++k) {
-                                        int dx = int(i == 0) + int(j == 0) + int(k == 0);
-                                        int dy = int(i == 1) + int(j == 1) + int(k == 1);
-                                        int dz = int(i == 2) + int(j == 2) + int(k == 2);
-                                        values[component++] -= coefficient * r[0][r_index(t + dx, u + dy, v + dz)];
-                                    }
+                            // Fixed xxx,xxy,xxz,xyy,xyz,xzz,yyy,yyz,yzz,zzz
+                            // order matches the original nested i/j/k loops.
+                            // Constant offsets avoid runtime component-index
+                            // branches and let the compiler share r_index work.
+                            values[0] -= coefficient * r[0][r_index(t + 3, u, v)];
+                            values[1] -= coefficient * r[0][r_index(t + 2, u + 1, v)];
+                            values[2] -= coefficient * r[0][r_index(t + 2, u, v + 1)];
+                            values[3] -= coefficient * r[0][r_index(t + 1, u + 2, v)];
+                            values[4] -= coefficient * r[0][r_index(t + 1, u + 1, v + 1)];
+                            values[5] -= coefficient * r[0][r_index(t + 1, u, v + 2)];
+                            values[6] -= coefficient * r[0][r_index(t, u + 3, v)];
+                            values[7] -= coefficient * r[0][r_index(t, u + 2, v + 1)];
+                            values[8] -= coefficient * r[0][r_index(t, u + 1, v + 2)];
+                            values[9] -= coefficient * r[0][r_index(t, u, v + 3)];
                         }
             }
         for (int component = 0; component < 10; ++component) {

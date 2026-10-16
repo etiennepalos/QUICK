@@ -39,6 +39,30 @@ cover levels are refined according to the requested error budget; the current
 implementation is not a locally refined octree. It uses compact C3 weights,
 at most eight overlapping patches and all normalized-weight derivative terms.
 
+The CPU Coulomb recurrence processes only the active degree-ordered Cartesian
+prefix at each layer, retaining explicit zero output tails. Boys functions,
+contractions, support bounds, status counters and resource controls retain
+their arithmetic. The isolated 64-AO water raw-controller pilot reduced the
+median from 6.557 s to 2.652 s (2.47x); it excludes SCF, classical sources
+and the public API wrapper. The final v3 linked CPU/MPI/default-ddX-OFF suite
+passes 521/521 checks, including unchanged state/direct H and no extra SCFs.
+
+Matched complete-API trials used that same frozen HF/Cartesian def2-TZVPD
+water density and a small exterior cube of halfwidth 0.025 bohr. Three
+independent baseline/candidate pairs ran in AB/BA/AB order, with each first
+call excluded. At 100,000 probes with CUDA queries, adaptive API medians
+were 6.653 s and 2.554 s (median paired ratio 2.60x), including CPU
+anchor/bound preparation, transfers, querying and classical sources. At
+1,000 CPU probes, medians were 6.594 s and 2.467 s (2.67x); direct CPU
+V/E/G remained slightly faster at 2.357 s. Adaptive outputs, budgets,
+counters and retained density/AO data were bitwise identical. The GPU
+direct comparator differed by at most 4.45e-15. Initial SCF and query-point
+direct H are outside these property clocks; H anchors are inside preparation.
+The original numerical limits and unknown floating-point budget are
+unchanged. Receipts are under
+`quick-optimization-20261015/adaptive-paired-{gpu100k,cpu1k}-v3/report.json`;
+these are single-density local-query results, not a general or BOMD speedup.
+
 The default `analytic_majorant` mode evaluates whole-support Taylor
 inequalities in ordinary FP64. These are truncation budgets, with unknown
 anchor/integral/accumulation error. `report%total_error_budget` remains NaN,
